@@ -88,21 +88,49 @@ response (`classifier_acphy` mask 7 -> narrowed value) and OFDM CRS
 "don't let RX think a calibration transmission is a real received
 frame" bookkeeping.
 
+## PHY registers, round 3 — RF sequencer & RX-force helpers (fully understood)
+
+| reg | role |
+|-----|------|
+| 0x400 | general enable/mode reg — bit 0/1 (`\|3`) set to kick off RF sequencer |
+| 0x402 | RF-sequencer **trigger** bitmask (`wlc_phy_force_rfseq_acphy`'s `param_2` selects which of 6 canned bitmasks: 1,2,4,8,0x10,0x20) |
+| 0x403 | RF-sequencer **busy/done** status — same register used by `wlc_phy_tx_tone_acphy`'s playback-stop poll; confirms 0x403 is a general "hardware sequencer busy" status shared by multiple sequencer types, polled with the same ~10us-step timeout pattern everywhere it's used |
+| 0x6d4, 0x6da (+0x200/chain) | per-chain RX-force-known-state registers, toggled by `FUN_001986fc` when entering/leaving forced-carrier-search — for chip type 0 writes a saved/`0xffff` value to 0x6da, otherwise masks bit 0x4000 on 0x6d4 |
+
+`wlc_phy_force_rfseq_acphy(pi, seq_id)`: generic "kick a canned RF
+sequencer step and wait for it to finish" helper — saves/restores 0x400
+and 0x19e around the operation, sets the trigger bit in 0x402, busy-polls
+0x403. This is the same low-level primitive `wlc_phy_switch_radio_acphy`
+and `wlc_phy_tx_tone_acphy` both build on top of, just exposed as a
+reusable helper for 6 known sequences (radio warmup, TX/RX gain settle,
+etc. — exact meaning of each `seq_id` not yet determined, would need
+cross-referencing every call site).
+
 ## Open call-graph threads (not yet decompiled)
 
 - `wlc_phy_cordic` — CORDIC sin/cos generator. Purpose is unambiguous
   from context; low priority to decompile (standard algorithm, can be
   reimplemented from any CORDIC reference rather than reverse-engineered
   bit-for-bit, unless exact rounding behavior matters).
-- `FUN_001986fc` — toggled with a 1/0 flag inside
-  `wlc_phy_stay_in_carriersearch_acphy`; not yet pulled.
-- `wlc_phy_force_rfseq_acphy` — called when starting alternate-mode
-  playback (`param_5=='\x01'` branch); not yet decompiled.
 - The remaining, not-yet-visited callees of `FUN_001ac9b6` beyond what
   we've covered (it's 837 lines; we've now covered most of its callee
   set but haven't re-read the full body against what's now known).
+- `wlc_phy_cals_acphy`'s other phase cases (1, 2-12, 14-16, 18, 19) call
+  additional `FUN_xxxxxxx` helpers we haven't pulled in yet.
+- `wlc_phy_attach_acphy` — huge (~6KB) struct-init function, partially
+  viewed via raw objdump early in the session, not yet re-examined via
+  clean Ghidra decompilation.
 - Embedded constant tables `DAT_00558d60`, `DAT_00558e00`,
   `DAT_00558e30` — not yet extracted as raw bytes.
+
+## Fully-closed subsystems (safe to treat as "done" for a future port)
+
+1. Bus access primitives (register primitives doc)
+2. Radio power on/off sequence for chip 0x4360 (session log — TODO copy
+   into a note file)
+3. TX calibration tone generation & playback (this file, section above)
+4. Generic RF-sequencer trigger/wait helper
+5. Forced-carrier-search RX suppression helper
 
 ## Process note for continuing
 

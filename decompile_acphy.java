@@ -62,7 +62,7 @@ public class decompile_acphy extends GhidraScript {
             "001b0ce9", "001b1f67",
             "00193d3a", "0019454f", "00195603", "001982a2",
             "0019ccd9", "0019d3ac", "0019d550", "0019d65d",
-            "00199491", "0019d224"
+            "00199491", "0019d224", "001986fc"
         };
         for (String a : explicitAddrs) {
             Function f = getFunctionAt(toAddr("0x" + a));
