@@ -1,0 +1,25 @@
+#!/usr/bin/env bpftrace
+
+BEGIN {
+  printf("tracing wl.ko MMIO accessors across full reload...\n");
+}
+
+kretprobe:osl_reg_map {
+  printf("%u REG_MAP base=0x%llx\n", nsecs, retval);
+}
+
+kprobe:osl_writel {
+  printf("%u WR32 ptr=0x%llx val=0x%x\n", nsecs, reg("si"), reg("dx"));
+}
+
+kprobe:osl_writew {
+  printf("%u WR16 ptr=0x%llx val=0x%x\n", nsecs, reg("si"), reg("dx"));
+}
+
+kprobe:osl_writeb {
+  printf("%u WR8 ptr=0x%llx val=0x%x\n", nsecs, reg("si"), reg("dx"));
+}
+
+kprobe:osl_pci_write_config {
+  printf("%u PCICFG_WR off=0x%x val=0x%x len=0x%x\n", nsecs, reg("si"), reg("dx"), reg("cx"));
+}
