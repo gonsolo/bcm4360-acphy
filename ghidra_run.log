@@ -238,3 +238,57 @@ WARN  Decompiling 002828f0, pcode error at 006ff308: Unable to disassemble EXTER
 WARN  Decompiling 00283230, pcode error at 006ff308: Unable to disassemble EXTERNAL block location: 006ff308 (DecompileCallback)  
 INFO  Packed database cache: /var/tmp/gonsolo-ghidra/packed-db-cache (PackedDatabaseCache)  
 INFO  Applied data type archive: generic_clib_64 (ApplyDataArchiveAnalyzer)  
+INFO  -----------------------------------------------------
+    ASCII Strings                              1.858 secs
+    Apply Data Archives                        0.595 secs
+    Call Convention ID                         0.106 secs
+    Call-Fixup Installer                       0.078 secs
+    Create Address Tables                      0.595 secs
+    Create Address Tables - One Time           1.748 secs
+    Create Function                            1.361 secs
+    DWARF                                      0.021 secs
+    Data Reference                             1.182 secs
+    Decompiler Switch Analysis                35.183 secs
+    Demangler GNU                              1.433 secs
+    Disassemble                                0.555 secs
+    Disassemble Entry Points                  21.730 secs
+    ELF Scalar Operand References              7.470 secs
+    Embedded Media                             0.193 secs
+    External Entry References                  0.005 secs
+    Function ID                                5.622 secs
+    Function Start Pre Search                  0.229 secs
+    Function Start Search                      0.462 secs
+    Function Start Search After Code           0.271 secs
+    Function Start Search After Data           0.219 secs
+    Non-Returning Functions - Discovered       4.657 secs
+    Non-Returning Functions - Known            0.059 secs
+    Reference                                  1.675 secs
+    Shared Return Calls                        1.462 secs
+    Stack                                     24.750 secs
+    Subroutine References                      1.218 secs
+    Subroutine References - One Time           0.001 secs
+    x86 Constant Reference Analyzer           31.299 secs
+-----------------------------------------------------
+     Total Time   146 secs
+-----------------------------------------------------
+ (AutoAnalysisManager)  
+INFO  REPORT: Analysis succeeded for file: file:///home/gonsolo/bcm4360-acphy/extracted/wl.ko (HeadlessAnalyzer)  
+INFO  REPORT: Execute script: decompile_acphy.py '/home/gonsolo/bcm4360-acphy/decompiled'  (HeadlessAnalyzer)  
+ERROR REPORT SCRIPT ERROR: decompile_acphy.py : Ghidra was not started with PyGhidra. Python is not available (HeadlessAnalyzer) ghidra.app.script.GhidraScriptLoadException: Ghidra was not started with PyGhidra. Python is not available
+	at ghidra.pyghidra.PyGhidraScriptProvider.getScriptInstance(PyGhidraScriptProvider.java:75)
+	at ghidra.app.util.headless.HeadlessAnalyzer.runScriptsList(HeadlessAnalyzer.java:924)
+	at ghidra.app.util.headless.HeadlessAnalyzer.analyzeProgram(HeadlessAnalyzer.java:1086)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processFileWithImport(HeadlessAnalyzer.java:1584)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processWithLoader(HeadlessAnalyzer.java:1744)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processWithImport(HeadlessAnalyzer.java:1685)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processWithImport(HeadlessAnalyzer.java:1769)
+	at ghidra.app.util.headless.HeadlessAnalyzer.processLocal(HeadlessAnalyzer.java:462)
+	at ghidra.app.util.headless.AnalyzeHeadless.launch(AnalyzeHeadless.java:199)
+	at ghidra.GhidraLauncher.launch(GhidraLauncher.java:81)
+	at ghidra.Ghidra.main(Ghidra.java:54)
+ 
+INFO  ANALYZING changes made by post scripts: file:///home/gonsolo/bcm4360-acphy/extracted/wl.ko (HeadlessAnalyzer)  
+INFO  REPORT: Post-analysis succeeded for file: file:///home/gonsolo/bcm4360-acphy/extracted/wl.ko (HeadlessAnalyzer)  
+INFO  /wl.ko: file created (gonsolo) (LocalFileSystem)  
+INFO  REPORT: Save succeeded for: /wl.ko (AcphyProj:/wl.ko) (HeadlessAnalyzer)  
+INFO  REPORT: Import succeeded (HeadlessAnalyzer)  

@@ -1,0 +1,48 @@
+openjdk version "21.0.12.1" 2026-08-18
+OpenJDK Runtime Environment (build 21.0.12.1+1-nixos)
+OpenJDK 64-Bit Server VM (build 21.0.12.1+1-nixos, mixed mode)
+INFO  Using log config file: jar:file:/nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml (LoggingInitialization)  
+INFO  Using log file: /home/gonsolo/.config/ghidra/ghidra_12.0.4_NIX/application.log (LoggingInitialization)  
+INFO  Loading user preferences: /home/gonsolo/.config/ghidra/ghidra_12.0.4_NIX/preferences (Preferences)  
+INFO  Searching for classes... (ClassSearcher)  
+INFO  Class search complete (2324 ms) (ClassSearcher)  
+INFO  Initializing SSL Context (DefaultSSLContextInitializer)  
+INFO  Initializing Random Number Generator... (SecureRandomFactory)  
+INFO  Random Number Generator initialization complete: NativePRNGNonBlocking (SecureRandomFactory)  
+INFO  Trust manager disabled, cacerts have not been set (DefaultTrustManagerFactory)  
+INFO  Headless startup complete (4457 ms) (AnalyzeHeadless)  
+INFO  Class searcher loaded 58 extension points (18 false positives) (ClassSearcher)  
+INFO  HEADLESS Script Paths:
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/Decompiler/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /home/gonsolo/bcm4360-acphy
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Debug/Debugger/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/FileFormats/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Processors/PIC/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/BytePatterns/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/BSim/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Processors/Atmel/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Processors/DATA/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/FunctionID/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Processors/8051/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/PDB/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/Jython/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Processors/JVM/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/VersionTracking/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/Base/ghidra_scripts
+    /nix/store/24wg0596a7b26xsmf76qjywvfxy3j5hk-ghidra-12.0.4/lib/ghidra/Ghidra/Features/PyGhidra/ghidra_scripts (HeadlessAnalyzer)  
+INFO  HEADLESS: execution starts (HeadlessAnalyzer)  
+INFO  Opening existing project: /home/gonsolo/bcm4360-acphy/ghidra_proj/AcphyProj (HeadlessAnalyzer)  
+INFO  Opening project: /home/gonsolo/bcm4360-acphy/ghidra_proj/AcphyProj (HeadlessProject)  
+INFO  REPORT: Processing project file: /wl.ko (HeadlessAnalyzer)  
+INFO  REPORT: Execute script: decompile_acphy.java '/home/gonsolo/bcm4360-acphy/decompiled'  (HeadlessAnalyzer)  
+INFO  SCRIPT: /home/gonsolo/bcm4360-acphy/decompile_acphy.java (HeadlessAnalyzer)  
+INFO  decompile_acphy.java> Total functions: 4249 (GhidraScript)  
+INFO  decompile_acphy.java> Decompiled 104 functions to /home/gonsolo/bcm4360-acphy/decompiled (GhidraScript)  
+INFO  REPORT: Save succeeded for processed file: /wl.ko (HeadlessAnalyzer)  
