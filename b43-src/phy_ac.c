@@ -109,6 +109,8 @@ static void b43_phy_ac_op_radio_write(struct b43_wldev *dev, u16 reg,
  */
 static void b43_phy_ac_op_switch_analog(struct b43_wldev *dev, bool on)
 {
+	b43info(dev->wl, "phy_ac: switch_analog(%s)\n", on ? "on" : "off");
+
 	if (on) {
 		/* TODO: vendor radio power-up sequence not yet resolved. */
 		return;
@@ -125,10 +127,12 @@ static void b43_phy_ac_op_switch_analog(struct b43_wldev *dev, bool on)
 	b43_phy_maskset(dev, B43_PHY_AC_RFCTL_CMD, ~2, 0);
 	b43_phy_write(dev, 0x417, 0);
 	b43_phy_write(dev, 0x416, 1);
+	b43info(dev->wl, "phy_ac: switch_analog(off) done\n");
 }
 
 static void b43_phy_ac_op_software_rfkill(struct b43_wldev *dev, bool blocked)
 {
+	b43info(dev->wl, "phy_ac: software_rfkill(blocked=%d)\n", blocked);
 	b43_phy_ac_op_switch_analog(dev, !blocked);
 }
 
@@ -137,7 +141,20 @@ static void b43_phy_ac_op_prepare_structs(struct b43_wldev *dev)
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_ac *phy_ac = phy->ac;
 
+	b43info(dev->wl, "phy_ac: prepare_structs\n");
 	memset(phy_ac, 0, sizeof(*phy_ac));
+}
+
+/*
+ * Channel switching is not implemented yet. b43_switch_channel() calls this
+ * op unconditionally, so it must exist. Touches no hardware.
+ */
+static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
+					unsigned int new_channel)
+{
+	b43info(dev->wl, "phy_ac: switch_channel(%u) - not implemented, no-op\n",
+		new_channel);
+	return 0;
 }
 
 /*
@@ -147,7 +164,10 @@ static void b43_phy_ac_op_prepare_structs(struct b43_wldev *dev)
  */
 static int b43_phy_ac_op_init(struct b43_wldev *dev)
 {
+	b43info(dev->wl, "phy_ac: init (core_rev %u, radio24=%d)\n",
+		dev->dev->core_rev, b43_phy_ac_use_radio24(dev));
 	b43_phy_ac_op_switch_analog(dev, true);
+	b43info(dev->wl, "phy_ac: init done\n");
 
 	return 0;
 }
@@ -184,6 +204,7 @@ const struct b43_phy_operations b43_phyops_ac = {
 	.radio_write		= b43_phy_ac_op_radio_write,
 	.software_rfkill	= b43_phy_ac_op_software_rfkill,
 	.switch_analog		= b43_phy_ac_op_switch_analog,
+	.switch_channel		= b43_phy_ac_op_switch_channel,
 	.get_default_chan	= b43_phy_ac_op_get_default_chan,
 	.recalc_txpower		= b43_phy_ac_op_recalc_txpower,
 	.adjust_txpower		= b43_phy_ac_op_adjust_txpower,
