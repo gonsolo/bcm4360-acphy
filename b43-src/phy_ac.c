@@ -575,6 +575,63 @@ MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channe
 
 static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
 
+static uint b43_ac_por;
+module_param_named(ac_por, b43_ac_por, uint, 0644);
+MODULE_PARM_DESC(ac_por, "AC-PHY diagnostic: after the ch6 replay also apply wl's first-load state (bitmask: 1 radio, 2 phy, 4 tables, 8 shm, 16 chipcommon, 32 pmu)");
+
+#include "phy_ac_por.h"
+
+static void b43_phy_ac_apply_por(struct b43_wldev *dev)
+{
+	struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
+	unsigned int i, n[6] = { 0 };
+
+	if (b43_ac_por & B43_AC_POR_RADIO)
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por_radio); i++, n[0]++)
+			if (b43_ac_por_radio[i][0] != 0xffff)
+				b43_radio_write(dev, b43_ac_por_radio[i][0],
+						b43_ac_por_radio[i][1]);
+	if (b43_ac_por & B43_AC_POR_PHY)
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por_phy); i++, n[1]++)
+			if (b43_ac_por_phy[i][0] != 0xffff)
+				b43_phy_write(dev, b43_ac_por_phy[i][0],
+					      b43_ac_por_phy[i][1]);
+	if (b43_ac_por & B43_AC_POR_TBL)
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por_tbl); i++, n[2]++) {
+			if (b43_ac_por_tbl[i].id == 0xffff)
+				continue;
+			b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_por_tbl[i].id);
+			b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, b43_ac_por_tbl[i].off);
+			if (b43_ac_por_tbl[i].width == 32)
+				b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2,
+					      b43_ac_por_tbl[i].val >> 16);
+			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
+				      b43_ac_por_tbl[i].val & 0xffff);
+		}
+	if (b43_ac_por & B43_AC_POR_SHM)
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por_shm); i++, n[3]++)
+			if (b43_ac_por_shm[i].routing != 0xffff)
+				b43_shm_write16(dev, b43_ac_por_shm[i].routing,
+						b43_ac_por_shm[i].off,
+						b43_ac_por_shm[i].val);
+	if ((b43_ac_por & B43_AC_POR_CC) && dev->dev->bus_type == B43_BUS_BCMA)
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por_cc); i++, n[4]++)
+			if (b43_ac_por_cc[i][0] != 0xffff)
+				bcma_cc_write32(cc, b43_ac_por_cc[i][0],
+						b43_ac_por_cc[i][1]);
+	if ((b43_ac_por & B43_AC_POR_PMU) && dev->dev->bus_type == B43_BUS_BCMA)
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por_pmu); i++, n[5]++) {
+			if (b43_ac_por_pmu[i].kind == 0)
+				bcma_chipco_chipctl_maskset(cc, b43_ac_por_pmu[i].idx,
+							    0, b43_ac_por_pmu[i].val);
+			else if (b43_ac_por_pmu[i].kind == 1)
+				bcma_chipco_regctl_maskset(cc, b43_ac_por_pmu[i].idx,
+							   0, b43_ac_por_pmu[i].val);
+		}
+	b43info(dev->wl, "phy_ac: applied first-load state 0x%x (radio %u phy %u tbl %u shm %u cc %u pmu %u)\n",
+		b43_ac_por, n[0], n[1], n[2], n[3], n[4], n[5]);
+}
+
 /*
  * Radio registers written from entries [2..51] of the 2069 tuning table, in
  * table order. Resolved for acphychipid 0x4360 from the vendor driver's
@@ -688,6 +745,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 	if (b43_ac_replay && new_channel == 6)
 		b43_phy_ac_replay_ch6(dev);
+	if (b43_ac_por && new_channel == 6)
+		b43_phy_ac_apply_por(dev);
 
 	b43_phy_ac_resetcca(dev);
 	return 0;
