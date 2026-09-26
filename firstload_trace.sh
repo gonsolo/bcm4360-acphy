@@ -8,8 +8,8 @@ PROJ=/home/gonsolo/bcm4360-acphy
 GOOD_GEN=/nix/store/9rhwm6526aq8nlilicalmjgsbvvvgv81-nixos-system-zitrone-26.05.10529.c508844df6c2
 STAMP=$(date +%Y%m%d-%H%M%S)
 mkdir -p "$PROJ/test-logs" "$PROJ/traces"
-LOG="$PROJ/test-logs/firstload-$STAMP.log"
-OUT="$PROJ/traces/wl-firstload-$STAMP.trace"
+LOG="$PROJ/test-logs/firstload-5g-$STAMP.log"
+OUT="$PROJ/traces/wl-firstload-5g-$STAMP.trace"
 exec >"$LOG" 2>&1
 set -x
 date -u
@@ -55,9 +55,11 @@ WLIF=$(for i in /sys/class/net/*; do readlink "$i/device/driver" 2>/dev/null | g
 echo "wl interface: $WLIF"
 nmcli connection delete wl-trace 2>/dev/null
 nmcli connection clone Vodafone-2A84 wl-trace
-nmcli connection modify wl-trace connection.interface-name "$WLIF" connection.autoconnect no
+nmcli connection modify wl-trace connection.interface-name "$WLIF" connection.autoconnect no 802-11-wireless.band a ipv4.route-metric 900 ipv6.route-metric 900
 nmcli connection up wl-trace ifname "$WLIF"
 sleep 40
+"$PROJ/tools/iw/bin/iw" dev "$WLIF" link || true
+nmcli -f GENERAL.CONNECTION,WIFI-PROPERTIES.5GHZ dev show "$WLIF" || true
 
 echo 0 > $T/tracing_on
 echo "wlfirst: === TRACE STOP ===" > /dev/kmsg
