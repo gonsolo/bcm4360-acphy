@@ -722,6 +722,16 @@ static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 			b43_read32(dev, rx->mmio_base + B43_DMA64_RXSTATUS),
 			b43_read32(dev, tx->mmio_base + B43_DMA64_TXSTATUS));
 	b43_phy_ac_log_macstat(dev);
+	if (dev->dev->bus_type == B43_BUS_BCMA) {
+		struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
+
+		b43info(dev->wl, "phy_ac: gpio in=%08x out=%08x outen=%08x control=%08x ioctrl=%08x\n",
+			bcma_cc_read32(cc, BCMA_CC_GPIOIN),
+			bcma_cc_read32(cc, BCMA_CC_GPIOOUT),
+			bcma_cc_read32(cc, BCMA_CC_GPIOOUTEN),
+			bcma_cc_read32(cc, BCMA_CC_GPIOCTL),
+			bcma_aread32(dev->dev->bdev, BCMA_IOCTL));
+	}
 }
 
 static unsigned int b43_phy_ac_op_get_default_chan(struct b43_wldev *dev)

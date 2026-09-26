@@ -2928,6 +2928,16 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
+		if (dev->phy.type == B43_PHYTYPE_AC) {
+			struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
+
+			/* wl keeps the pins host-driven with GPIO1+2 high
+			 * (front-end control on MacBookAir6,1). */
+			bcma_chipco_gpio_control(cc, mask | 0xa7, 0);
+			bcma_chipco_gpio_out(cc, 0xa7, 0x06);
+			bcma_chipco_gpio_outen(cc, 0xa7, 0xa7);
+			break;
+		}
 		bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc, mask, set);
 		break;
 #endif
