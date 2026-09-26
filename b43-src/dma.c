@@ -212,7 +212,7 @@ static void op64_fill_descriptor(struct b43_dmaring *ring,
 
 static void op64_poke_tx(struct b43_dmaring *ring, int slot)
 {
-	b43_dma_write(ring, B43_DMA64_TXINDEX,
+	b43_dma_write(ring, B43_DMA64_TXINDEX, ring->ptr_base +
 		      (u32) (slot * sizeof(struct b43_dmadesc64)));
 }
 
@@ -233,14 +233,15 @@ static int op64_get_current_rxslot(struct b43_dmaring *ring)
 	u32 val;
 
 	val = b43_dma_read(ring, B43_DMA64_RXSTATUS);
-	val &= B43_DMA64_RXSTATDPTR;
+	val = ((val & B43_DMA64_RXSTATDPTR) - ring->ptr_base) &
+	      B43_DMA64_RXSTATDPTR;
 
 	return (val / sizeof(struct b43_dmadesc64));
 }
 
 static void op64_set_current_rxslot(struct b43_dmaring *ring, int slot)
 {
-	b43_dma_write(ring, B43_DMA64_RXINDEX,
+	b43_dma_write(ring, B43_DMA64_RXINDEX, ring->ptr_base +
 		      (u32) (slot * sizeof(struct b43_dmadesc64)));
 }
 
@@ -690,9 +691,24 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			    & B43_DMA64_TXADDREXT_MASK;
 			if (!parity)
 				value |= B43_DMA64_TXPARITYDISABLE;
-			b43_dma_write(ring, B43_DMA64_TXCTL, value);
-			b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
-			b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
+			if (ring->dev->dma.ptr_is_addr) {
+				ring->ptr_base = lower_32_bits(ring->dmabase);
+				value |= b43_dma_read(ring, B43_DMA64_TXCTL) &
+					 B43_DMA64_TXCTL_KEEP;
+				b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
+				b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
+				b43_dma_write(ring, B43_DMA64_TXCTL, value);
+			} else {
+				ring->ptr_base = 0;
+				b43_dma_write(ring, B43_DMA64_TXCTL, value);
+				b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
+				b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
+			}
+			b43info(ring->dev->wl, "DMA tx%d: ctl=%08x ring=%08x:%08x\n",
+				ring->index,
+				b43_dma_read(ring, B43_DMA64_TXCTL),
+				b43_dma_read(ring, B43_DMA64_TXRINGHI),
+				b43_dma_read(ring, B43_DMA64_TXRINGLO));
 		} else {
 			u32 ringbase = (u32) (ring->dmabase);
 			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
@@ -722,11 +738,26 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			    & B43_DMA64_RXADDREXT_MASK;
 			if (!parity)
 				value |= B43_DMA64_RXPARITYDISABLE;
-			b43_dma_write(ring, B43_DMA64_RXCTL, value);
-			b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
-			b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
-			b43_dma_write(ring, B43_DMA64_RXINDEX, ring->nr_slots *
-				      sizeof(struct b43_dmadesc64));
+			if (ring->dev->dma.ptr_is_addr) {
+				ring->ptr_base = lower_32_bits(ring->dmabase);
+				value |= b43_dma_read(ring, B43_DMA64_RXCTL) &
+					 B43_DMA64_RXCTL_KEEP;
+				b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
+				b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
+				b43_dma_write(ring, B43_DMA64_RXCTL, value);
+			} else {
+				ring->ptr_base = 0;
+				b43_dma_write(ring, B43_DMA64_RXCTL, value);
+				b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
+				b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
+			}
+			b43_dma_write(ring, B43_DMA64_RXINDEX, ring->ptr_base +
+				      ring->nr_slots * sizeof(struct b43_dmadesc64));
+			b43info(ring->dev->wl, "DMA rx%d: ctl=%08x ring=%08x:%08x\n",
+				ring->index,
+				b43_dma_read(ring, B43_DMA64_RXCTL),
+				b43_dma_read(ring, B43_DMA64_RXRINGHI),
+				b43_dma_read(ring, B43_DMA64_RXRINGLO));
 		} else {
 			u32 ringbase = (u32) (ring->dmabase);
 			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
@@ -1082,6 +1113,20 @@ int b43_dma_init(struct b43_wldev *dev)
 	if (dev->dev->bus_type == B43_BUS_BCMA)
 		dma->parity = false;
 #endif
+
+	/* Engines that accept low ring-address bits use bus addresses in the
+	 * index/status registers (same probe as the vendor driver and
+	 * brcmsmac's _dma_descriptor_align()). */
+	dma->ptr_is_addr = false;
+	if (type == B43_DMA_64BIT) {
+		u16 ringlo = b43_dmacontroller_base(type, 0) + B43_DMA64_TXRINGLO;
+
+		b43_write32(dev, ringlo, 0xff0);
+		dma->ptr_is_addr = b43_read32(dev, ringlo) != 0;
+		b43_write32(dev, ringlo, 0);
+	}
+	b43info(dev->wl, "DMA: %u-bit engine, index registers hold %s\n",
+		type, dma->ptr_is_addr ? "bus addresses" : "ring offsets");
 
 	err = -ENOMEM;
 	/* setup TX DMA channels. */

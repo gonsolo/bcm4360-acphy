@@ -668,6 +668,9 @@ struct b43_dma {
 	u32 translation; /* Routing bits */
 	bool translation_in_low; /* Should translation bit go into low addr? */
 	bool parity; /* Check for parity */
+	/* Newer 64-bit engines: index/status registers hold bus addresses,
+	 * not ring offsets, and the ring must be set up before enabling. */
+	bool ptr_is_addr;
 };
 
 struct b43_pio_txqueue;
