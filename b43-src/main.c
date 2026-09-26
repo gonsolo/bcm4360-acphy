@@ -1740,19 +1740,47 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 				  len, ram_offset, shm_size_offset, rate);
 
 	/* Write the PHY TX control parameters. */
-	antenna = B43_ANTENNA_DEFAULT;
-	antenna = b43_antenna_to_phyctl(antenna);
-	ctl = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
-	/* We can't send beacons with short preamble. Would get PHY errors. */
-	ctl &= ~B43_TXH_PHY_SHORTPRMBL;
-	ctl &= ~B43_TXH_PHY_ANT;
-	ctl &= ~B43_TXH_PHY_ENC;
-	ctl |= antenna;
-	if (b43_is_cck_rate(rate))
-		ctl |= B43_TXH_PHY_ENC_CCK;
-	else
-		ctl |= B43_TXH_PHY_ENC_OFDM;
-	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL, ctl);
+	if (dev->phy.type == B43_PHYTYPE_AC) {
+		/* rev 40+ ucode (wlc_beacon_phytxctl, core_rev > 0x27): the
+		 * beacon slot's PhyTxControlWord_0/1/2 live at SHM 0xcc/ce/d0,
+		 * not the legacy BEACPHYCTL word (0x54, unused here). Compute
+		 * them the same way as a normal AC TX descriptor rate entry
+		 * (b43_generate_txhdr_ac): CCK/OFDM bit, core mask, PLCP rate
+		 * index; no sub-band (this is 20 MHz single-channel only). */
+		static const u8 cck[] = { B43_CCK_RATE_1MB, B43_CCK_RATE_2MB,
+					  B43_CCK_RATE_5MB, B43_CCK_RATE_11MB };
+		static const u8 ofdm[] = { B43_OFDM_RATE_6MB, B43_OFDM_RATE_9MB,
+					   B43_OFDM_RATE_12MB, B43_OFDM_RATE_18MB,
+					   B43_OFDM_RATE_24MB, B43_OFDM_RATE_36MB,
+					   B43_OFDM_RATE_48MB, B43_OFDM_RATE_54MB };
+		bool is_ofdm = b43_is_ofdm_rate(rate);
+		const u8 *tbl = is_ofdm ? ofdm : cck;
+		unsigned int n = is_ofdm ? ARRAY_SIZE(ofdm) : ARRAY_SIZE(cck);
+		unsigned int idx = 0;
+		u16 phy0 = (is_ofdm ? 1 : 0) | 0x0004 | (1 << 6);
+
+		while (idx < n && tbl[idx] != rate)
+			idx++;
+		if (idx == n)
+			idx = 0;
+		b43_shm_write16(dev, B43_SHM_SHARED, 0xcc, phy0);
+		b43_shm_write16(dev, B43_SHM_SHARED, 0xce, 0);
+		b43_shm_write16(dev, B43_SHM_SHARED, 0xd0, idx);
+	} else {
+		antenna = B43_ANTENNA_DEFAULT;
+		antenna = b43_antenna_to_phyctl(antenna);
+		ctl = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
+		/* We can't send beacons with short preamble. Would get PHY errors. */
+		ctl &= ~B43_TXH_PHY_SHORTPRMBL;
+		ctl &= ~B43_TXH_PHY_ANT;
+		ctl &= ~B43_TXH_PHY_ENC;
+		ctl |= antenna;
+		if (b43_is_cck_rate(rate))
+			ctl |= B43_TXH_PHY_ENC_CCK;
+		else
+			ctl |= B43_TXH_PHY_ENC_OFDM;
+		b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL, ctl);
+	}
 
 	/* Find the position of the TIM and the DTIM_period value
 	 * and write them to SHM. */
@@ -1809,20 +1837,26 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 static void b43_upload_beacon0(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
+	/* rev 40+ ucode keeps the two beacon template slots at RAM 0x200 and
+	 * 0x480 (wlc_bmac_write_hw_bcntemplates, core_rev > 0x27), not the
+	 * legacy 0x68/0x468. Length (SHM 0x18/0x1a) and the valid bits
+	 * (MMIO MACCMD, unchanged) are the same on both. */
+	u16 base = dev->phy.type == B43_PHYTYPE_AC ? 0x200 : B43_SHM_SH_BT_BASE0;
 
 	if (wl->beacon0_uploaded)
 		return;
-	b43_write_beacon_template(dev, B43_SHM_SH_BT_BASE0, B43_SHM_SH_BTL0);
+	b43_write_beacon_template(dev, base, B43_SHM_SH_BTL0);
 	wl->beacon0_uploaded = true;
 }
 
 static void b43_upload_beacon1(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
+	u16 base = dev->phy.type == B43_PHYTYPE_AC ? 0x480 : B43_SHM_SH_BT_BASE1;
 
 	if (wl->beacon1_uploaded)
 		return;
-	b43_write_beacon_template(dev, B43_SHM_SH_BT_BASE1, B43_SHM_SH_BTL1);
+	b43_write_beacon_template(dev, base, B43_SHM_SH_BTL1);
 	wl->beacon1_uploaded = true;
 }
 

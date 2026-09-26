@@ -1,0 +1,210 @@
+random: getrandom() support available
+Configuration file: tools/beacontest.conf
+nl80211: Kernel version: Linux 6.18.53 (#1-NixOS SMP PREEMPT_DYNAMIC Mon Sep 21 13:06:06 UTC 2026; x86_64)
+nl80211: Maximum supported attribute ID: 357
+nl80211: Initialize interface wlp3s0b1 (driver: b43)
+nl80211: Supported cipher 00-0f-ac:1
+nl80211: Supported cipher 00-0f-ac:5
+nl80211: Supported cipher 00-0f-ac:2
+nl80211: Supported cipher 00-0f-ac:4
+nl80211: Supported cipher 00-0f-ac:10
+nl80211: Supported cipher 00-0f-ac:8
+nl80211: Supported cipher 00-0f-ac:9
+nl80211: Supported cipher 00-0f-ac:6
+nl80211: Supported cipher 00-0f-ac:13
+nl80211: Supported cipher 00-0f-ac:11
+nl80211: Supported cipher 00-0f-ac:12
+nl80211: Using driver-based off-channel TX
+nl80211: Driver-advertised extended capabilities (default) - hexdump(len=8): 04 00 00 00 00 00 00 40
+nl80211: Driver-advertised extended capabilities mask (default) - hexdump(len=8): 04 00 00 00 00 00 00 40
+nl80211: key_mgmt=0x1ff0f enc=0xfef auth=0x7 flags=0x40005114b03d0e0 flags2=0x8103 rrm_flags=0x10 probe_resp_offloads=0x0 max_stations=0 max_remain_on_chan=5000 max_scan_ssids=4
+nl80211: interface wlp3s0b1 in phy phy5
+nl80211: Set mode ifindex 8 iftype 3 (AP)
+nl80211: Failed to set interface 8 to mode 3: -16 (Device or resource busy)
+nl80211: Try mode change after setting interface down
+nl80211: Set mode ifindex 8 iftype 3 (AP)
+nl80211: Mode change succeeded while interface is down
+nl80211: Setup AP(wlp3s0b1) - device_ap_sme=0 use_monitor=0
+nl80211: Subscribe to mgmt frames with AP handle 0x615f6fe5d340
+nl80211: Register frame type=0xb0 (WLAN_FC_STYPE_AUTH) nl_handle=0x615f6fe5d340 match= multicast=0
+nl80211: Register frame type=0x0 (WLAN_FC_STYPE_ASSOC_REQ) nl_handle=0x615f6fe5d340 match= multicast=0
+nl80211: Register frame type=0x20 (WLAN_FC_STYPE_REASSOC_REQ) nl_handle=0x615f6fe5d340 match= multicast=0
+nl80211: Register frame type=0xa0 (WLAN_FC_STYPE_DISASSOC) nl_handle=0x615f6fe5d340 match= multicast=0
+nl80211: Register frame type=0xc0 (WLAN_FC_STYPE_DEAUTH) nl_handle=0x615f6fe5d340 match= multicast=0
+nl80211: Register frame type=0x40 (WLAN_FC_STYPE_PROBE_REQ) nl_handle=0x615f6fe5d340 match= multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=04 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=0501 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=0503 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=0504 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=06 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=08 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=09 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=0a multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=11 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=12 multicast=0
+nl80211: Register frame type=0xd0 (WLAN_FC_STYPE_ACTION) nl_handle=0x615f6fe5d340 match=7f multicast=0
+rfkill: initial event: idx=6 type=1 op=0 soft=0 hard=0
+nl80211: Add own interface ifindex 8 (ifidx_reason -1)
+nl80211: if_indices[16]: 8(-1)
+nl80211: Do not open EAPOL RX socket - using control port for RX
+phy: phy5
+BSS count 1, BSSID mask 00:00:00:00:00:00 (0 bits)
+nl80211: Regulatory information - country=DE (DFS-ETSI)
+nl80211: 2400-2483 @ 40 MHz 20 mBm
+nl80211: 5150-5250 @ 80 MHz 23 mBm (no outdoor)
+nl80211: 5250-5350 @ 80 MHz 20 mBm (no outdoor) (DFS)
+nl80211: 5470-5725 @ 160 MHz 26 mBm (DFS)
+nl80211: 5725-5875 @ 80 MHz 13 mBm
+nl80211: 5945-6425 @ 320 MHz 23 mBm (no outdoor)
+nl80211: 57000-66000 @ 2160 MHz 40 mBm
+nl80211: Added 802.11b mode based on 802.11g information
+nl80211: Mode IEEE 802.11g: 2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472 2484[DISABLED]
+nl80211: Mode IEEE 802.11b: 2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462 2467 2472 2484[DISABLED]
+Allowed channel: mode=1 chan=1 freq=2412 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=2 freq=2417 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=3 freq=2422 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=4 freq=2427 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=5 freq=2432 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=6 freq=2437 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=7 freq=2442 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=8 freq=2447 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=9 freq=2452 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=10 freq=2457 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=11 freq=2462 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=12 freq=2467 MHz max_tx_power=20 dBm
+Allowed channel: mode=1 chan=13 freq=2472 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=1 freq=2412 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=2 freq=2417 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=3 freq=2422 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=4 freq=2427 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=5 freq=2432 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=6 freq=2437 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=7 freq=2442 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=8 freq=2447 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=9 freq=2452 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=10 freq=2457 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=11 freq=2462 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=12 freq=2467 MHz max_tx_power=20 dBm
+Allowed channel: mode=0 chan=13 freq=2472 MHz max_tx_power=20 dBm
+Completing interface initialization
+Mode: IEEE 802.11g  Channel: 6  Frequency: 2437 MHz
+DFS 0 channels required radar detection
+nl80211: Set freq 2437 (ht_enabled=0, vht_enabled=0, he_enabled=0, eht_enabled=0, bandwidth=20 MHz, cf1=2437 MHz, cf2=0 MHz)
+  * freq=2437
+  * eht_enabled=0
+  * he_enabled=0
+  * vht_enabled=0
+  * ht_enabled=0
+  * radar_background=0
+  * channel_type=0
+RATE[0] rate=10 flags=0x1
+RATE[1] rate=20 flags=0x1
+RATE[2] rate=55 flags=0x1
+RATE[3] rate=110 flags=0x1
+RATE[4] rate=60 flags=0x0
+RATE[5] rate=90 flags=0x0
+RATE[6] rate=120 flags=0x0
+RATE[7] rate=180 flags=0x0
+RATE[8] rate=240 flags=0x0
+RATE[9] rate=360 flags=0x0
+RATE[10] rate=480 flags=0x0
+RATE[11] rate=540 flags=0x0
+hostapd_setup_bss(hapd=0x615f6fe56c80 (wlp3s0b1), first=1)
+nl80211: flush -> DEL_STATION wlp3s0b1 (all)
+Using interface wlp3s0b1 with hwaddr 00:01:00:00:84:38 and ssid "b43-beacon-test"
+nl80211: Set beacon (beacon_set=0)
+nl80211: Beacon head - hexdump(len=66): 80 00 00 00 ff ff ff ff ff ff 00 01 00 00 84 38 00 01 00 00 84 38 00 00 00 00 00 00 00 00 00 00 64 00 01 04 00 0f 62 34 33 2d 62 65 61 63 6f 6e 2d 74 65 73 74 01 08 82 84 8b 96 0c 12 18 24 03 01 06
+nl80211: Beacon tail - hexdump(len=19): 2a 01 04 32 04 30 48 60 6c 7f 08 04 00 00 02 00 00 00 40
+nl80211: ifindex=8
+nl80211: beacon_int=100
+nl80211: beacon_rate=0
+nl80211: rate_type=0
+nl80211: dtim_period=2
+nl80211: ssid=b43-beacon-test
+  * beacon_int=100
+  * dtim_period=2
+nl80211: hidden SSID not in use
+nl80211: privacy=0
+nl80211: auth_algs=0x1
+nl80211: wpa_version=0x0
+nl80211: key_mgmt_suites=0x4
+nl80211: pairwise_ciphers=0x0
+nl80211: group_cipher=0x1
+nl80211: beacon_ies - hexdump(len=10): 7f 08 04 00 00 02 00 00 00 40
+nl80211: proberesp_ies - hexdump(len=10): 7f 08 04 00 00 02 00 00 00 40
+nl80211: assocresp_ies - hexdump(len=10): 7f 08 04 00 00 02 00 00 00 40
+  * freq=2437
+  * eht_enabled=0
+  * he_enabled=0
+  * vht_enabled=0
+  * ht_enabled=0
+  * radar_background=0
+  * channel_type=0
+nl80211: multicast to unicast disabled on interface wlp3s0b1
+wlp3s0b1: Deauthenticate all stations at BSS start
+nl80211: send_mlme - da=ff:ff:ff:ff:ff:ff sa=00:01:00:00:84:38 bssid=00:01:00:00:84:38 noack=0 freq=0 no_cck=0 offchanok=0 wait_time=0 no_encrypt=0 fc=0xc0 (WLAN_FC_STYPE_DEAUTH) nlmode=3
+nl80211: send_mlme - Use bss->freq=2437
+nl80211: send_mlme -> send_frame_cmd
+nl80211: CMD_FRAME freq=2437 wait=0 no_cck=0 no_ack=0 offchanok=0
+CMD_FRAME - hexdump(len=26): c0 00 00 00 ff ff ff ff ff ff 00 01 00 00 84 38 00 01 00 00 84 38 00 00 02 00
+nl80211: Frame TX command accepted; cookie 0x1
+nl80211: Set wlp3s0b1 operstate 0->1 (UP)
+netlink: Operstate: ifindex=8 linkmode=-1 (no change), operstate=6 (IF_OPER_UP)
+nl80211: link=-1: TX queue param set: queue=0 aifs=1 cw_min=3 cw_max=7 burst_time=15 --> res=0
+nl80211: link=-1: TX queue param set: queue=1 aifs=1 cw_min=7 cw_max=15 burst_time=30 --> res=0
+nl80211: link=-1: TX queue param set: queue=2 aifs=3 cw_min=15 cw_max=63 burst_time=0 --> res=0
+nl80211: link=-1: TX queue param set: queue=3 aifs=7 cw_min=15 cw_max=1023 burst_time=0 --> res=0
+wlp3s0b1: interface state UNINITIALIZED->ENABLED
+wlp3s0b1: AP-ENABLED 
+wlp3s0b1: Setup of interface done.
+ctrl_iface not configured!
+RTM_NEWLINK: ifi_index=8 ifname=wlp3s0b1 operstate=2 linkmode=0 ifi_family=0 ifi_flags=0x1002 ()
+nl80211: Ignore interface down event since interface wlp3s0b1 is up
+RTM_NEWLINK: ifi_index=8 ifname=wlp3s0b1 operstate=2 linkmode=0 ifi_family=0 ifi_flags=0x1003 ([UP])
+RTM_NEWLINK: ifi_index=8 ifname=wlp3s0b1 operstate=6 linkmode=0 ifi_family=0 ifi_flags=0x11043 ([UP][RUNNING][LOWER_UP])
+nl80211: Event message available
+nl80211: Drv Event 15 (NL80211_CMD_START_AP) received for wlp3s0b1
+wlp3s0b1: nl80211: Ignored unknown event (cmd=15)
+VLAN: RTM_NEWLINK: ifi_index=8 ifname=wlp3s0b1 ifi_family=0 ifi_flags=0x11043 ([UP][RUNNING][LOWER_UP])
+VLAN: vlan_newlink(wlp3s0b1)
+nl80211: Event message available
+nl80211: Drv Event 60 (NL80211_CMD_FRAME_TX_STATUS) received for wlp3s0b1
+nl80211: MLME event 60 (NL80211_CMD_FRAME_TX_STATUS) on wlp3s0b1(00:01:00:00:84:38) A1=ff:ff:ff:ff:ff:ff A2=00:01:00:00:84:38 on link_id=-1
+nl80211: MLME event frame - hexdump(len=26): c0 00 00 00 ff ff ff ff ff ff 00 01 00 00 84 38 00 01 00 00 84 38 00 00 02 00
+nl80211: Frame TX status event A1=ff:ff:ff:ff:ff:ff stype=12 cookie=0x1 ack=0
+wlp3s0b1: Event TX_STATUS (16) received
+mgmt::deauth cb
+Signal 15 received - terminating
+hostapd_interface_deinit_free(0x615f6fe557c0)
+hostapd_interface_deinit_free: num_bss=1 conf->num_bss=1
+hostapd_interface_deinit(0x615f6fe557c0)
+wlp3s0b1: interface state ENABLED->DISABLED
+hostapd_bss_deinit: deinit bss wlp3s0b1
+wlp3s0b1: Deauthenticate all stations
+nl80211: send_mlme - da=ff:ff:ff:ff:ff:ff sa=00:01:00:00:84:38 bssid=00:01:00:00:84:38 noack=0 freq=0 no_cck=0 offchanok=0 wait_time=0 no_encrypt=0 fc=0xc0 (WLAN_FC_STYPE_DEAUTH) nlmode=3
+nl80211: send_mlme - Use bss->freq=2437
+nl80211: send_mlme -> send_frame_cmd
+nl80211: CMD_FRAME freq=2437 wait=0 no_cck=0 no_ack=0 offchanok=0
+CMD_FRAME - hexdump(len=26): c0 00 00 00 ff ff ff ff ff ff 00 01 00 00 84 38 00 01 00 00 84 38 00 00 03 00
+nl80211: Frame TX command accepted; cookie 0x2
+wlp3s0b1: AP-DISABLED 
+hostapd_cleanup(hapd=0x615f6fe56c80 (wlp3s0b1))
+wlp3s0b1: CTRL-EVENT-TERMINATING 
+hostapd_free_hapd_data(wlp3s0b1)
+hostapd_interface_deinit_free: driver=0x615f4167f400 drv_priv=0x615f6fe5e950 -> hapd_deinit
+nl80211: deinit ifname=wlp3s0b1 disabled_11b_rates=0
+nl80211: Remove monitor interface: refcount=0
+nl80211: Remove beacon (ifindex=8)
+netlink: Operstate: ifindex=8 linkmode=0 (kernel-control), operstate=6 (IF_OPER_UP)
+nl80211: Set mode ifindex 8 iftype 2 (STATION)
+nl80211: Failed to set interface 8 to mode 2: -16 (Device or resource busy)
+nl80211: Try mode change after setting interface down
+nl80211: Set mode ifindex 8 iftype 2 (STATION)
+nl80211: Mode change succeeded while interface is down
+nl80211: Teardown AP(wlp3s0b1) - device_ap_sme=0 use_monitor=0
+nl80211: Unsubscribe mgmt frames handle 0x8888e9d7e76d5bc9 (AP teardown)
+hostapd_interface_free(0x615f6fe557c0)
+hostapd_interface_free: free hapd 0x615f6fe56c80
+hostapd_cleanup_iface(0x615f6fe557c0)
+hostapd_cleanup_iface_partial(0x615f6fe557c0)
+hostapd_cleanup_iface: free iface=0x615f6fe557c0
