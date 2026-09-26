@@ -316,6 +316,21 @@ static struct ieee80211_channel b43_5ghz_aphy_chantable[] = {
 	CHAN5G(208, 0),		CHAN5G(212, 0),
 	CHAN5G(216, 0),
 };
+
+static struct ieee80211_channel b43_5ghz_acphy_chantable[] = {
+	CHAN5G(36, 0),		CHAN5G(40, 0),
+	CHAN5G(44, 0),		CHAN5G(48, 0),
+	CHAN5G(52, 0),		CHAN5G(56, 0),
+	CHAN5G(60, 0),		CHAN5G(64, 0),
+	CHAN5G(100, 0),		CHAN5G(104, 0),
+	CHAN5G(108, 0),		CHAN5G(112, 0),
+	CHAN5G(116, 0),		CHAN5G(120, 0),
+	CHAN5G(124, 0),		CHAN5G(128, 0),
+	CHAN5G(132, 0),		CHAN5G(136, 0),
+	CHAN5G(140, 0),		CHAN5G(149, 0),
+	CHAN5G(153, 0),		CHAN5G(157, 0),
+	CHAN5G(161, 0),		CHAN5G(165, 0),
+};
 #undef CHAN4G
 #undef CHAN5G
 
@@ -331,6 +346,14 @@ static struct ieee80211_supported_band b43_band_5GHz_nphy_limited = {
 	.band		= NL80211_BAND_5GHZ,
 	.channels	= b43_5ghz_nphy_chantable_limited,
 	.n_channels	= ARRAY_SIZE(b43_5ghz_nphy_chantable_limited),
+	.bitrates	= b43_a_ratetable,
+	.n_bitrates	= b43_a_ratetable_size,
+};
+
+static struct ieee80211_supported_band b43_band_5GHz_acphy = {
+	.band		= NL80211_BAND_5GHZ,
+	.channels	= b43_5ghz_acphy_chantable,
+	.n_channels	= ARRAY_SIZE(b43_5ghz_acphy_chantable),
 	.bitrates	= b43_a_ratetable,
 	.n_bitrates	= b43_a_ratetable_size,
 };
@@ -5277,6 +5300,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
 			hw->wiphy->bands[NL80211_BAND_5GHZ] = limited_5g ?
 				&b43_band_5GHz_nphy_limited :
 				&b43_band_5GHz_nphy;
+	} else if (dev->phy.type == B43_PHYTYPE_AC) {
+		if (have_5ghz_phy)
+			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_acphy;
 	} else {
 		if (have_5ghz_phy)
 			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
