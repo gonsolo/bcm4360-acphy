@@ -9,3 +9,18 @@ tools/tmux
 tools/macdump
 tools/python3
 tools/hostapd
+
+# Proprietary Broadcom material (extracted from wl.ko) - never commit.
+# Broadcom firmware is not redistributable; kept locally only.
+/extracted/
+/ghidra_proj/
+/firmware/
+
+# Kernel module build artifacts
+b43-src/*.ko
+b43-src/*.o
+b43-src/*.mod
+b43-src/*.mod.c
+b43-src/.*.cmd
+b43-src/Module.symvers
+b43-src/modules.order
