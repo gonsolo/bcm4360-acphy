@@ -1347,7 +1347,7 @@ void b43_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
 	macctl &= ~B43_MACCTL_GMODE;
-	if (gmode)
+	if (gmode && dev->phy.type != B43_PHYTYPE_AC)
 		macctl |= B43_MACCTL_GMODE;
 	macctl |= B43_MACCTL_IHR_ENABLED;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
@@ -3268,7 +3268,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 
 	/* Initialize the MAC control */
 	macctl = B43_MACCTL_IHR_ENABLED | B43_MACCTL_SHM_ENABLED;
-	if (dev->phy.gmode)
+	if (dev->phy.gmode && dev->phy.type != B43_PHYTYPE_AC)
 		macctl |= B43_MACCTL_GMODE;
 	macctl |= B43_MACCTL_INFRA;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
