@@ -727,6 +727,33 @@ static void b43_write_mac_bssid_templates(struct b43_wldev *dev)
 
 	b43_macfilter_set(dev, B43_MACFILTER_BSSID, bssid);
 
+	if (dev->phy.type == B43_PHYTYPE_AC) {
+		/* rev 40+ ucode (as wl): template RAM 0x30 = BSSID, MAC, BSSID;
+		 * 0x48 = MAC. Also wl's default null-frame template at 0x2c and
+		 * the header at 0x0. */
+		static const u32 hdr0[] = { 0x00000094, 0x75749000, 0x00007776,
+					    0x00000000, 0xffff0005, 0x0000ffff };
+		static const u32 null2c[] = { 0x00e0040a, 0x0048beef, 0xff000005,
+					      0xff02ff01, 0x01181000, 0x10000302,
+					      0xf3f2f118, 0x0000ccbb };
+		u8 blk[20] = { 0 };
+		u8 m[8] = { 0 };
+
+		for (i = 0; i < ARRAY_SIZE(hdr0); i++)
+			b43_ram_write(dev, 0x00 + i * 4, hdr0[i]);
+		for (i = 0; i < ARRAY_SIZE(null2c); i++)
+			b43_ram_write(dev, 0x2c + i * 4, null2c[i]);
+		memcpy(blk, bssid, ETH_ALEN);
+		memcpy(blk + 6, mac, ETH_ALEN);
+		memcpy(blk + 12, bssid, ETH_ALEN);
+		for (i = 0; i < sizeof(blk); i += 4)
+			b43_ram_write(dev, 0x30 + i, get_unaligned_le32(blk + i));
+		memcpy(m, mac, ETH_ALEN);
+		b43_ram_write(dev, 0x48, get_unaligned_le32(m));
+		b43_ram_write(dev, 0x4c, get_unaligned_le32(m + 4));
+		return;
+	}
+
 	memcpy(mac_bssid, mac, ETH_ALEN);
 	memcpy(mac_bssid + ETH_ALEN, bssid, ETH_ALEN);
 

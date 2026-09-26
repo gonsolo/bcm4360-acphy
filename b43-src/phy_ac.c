@@ -589,6 +589,8 @@ static void b43_radio_2069_vcocal(struct b43_wldev *dev);
 
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
+/* ac_por bits beyond the first-load classes: 0x40 skip vcocal after the
+ * radio class, 0x80 wl MAC timing regs, 0x100 wl final radio regs. */
 MODULE_PARM_DESC(ac_por, "AC-PHY diagnostic: after the ch6 replay also apply wl's first-load state (bitmask: 1 radio, 2 phy, 4 tables, 8 shm, 16 chipcommon, 32 pmu)");
 
 #include "phy_ac_por.h"
@@ -722,6 +724,34 @@ static void b43_phy_ac_rfctrl_wl(struct b43_wldev *dev)
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++)
 		b43_phy_write(dev, regs[i][0], regs[i][1]);
+
+	if (b43_ac_por & 0x100) {
+		static const u16 radio[][2] = {
+			{ 0x049, 0x0030 }, { 0x249, 0x0030 },
+			{ 0x04e, 0x8400 }, { 0x24e, 0x8600 },
+			{ 0x122, 0x5830 }, { 0x322, 0x5830 },
+			{ 0x126, 0x010b }, { 0x326, 0x010b },
+			{ 0x02c, 0x61c1 }, { 0x22c, 0x61a1 },
+			{ 0x245, 0x73ff }, { 0x145, 0x0185 }, { 0x146, 0x00ac },
+			{ 0x407, 0x8302 }, { 0x65b, 0x037f },
+		};
+
+		for (i = 0; i < ARRAY_SIZE(radio); i++)
+			b43_radio_write(dev, radio[i][0], radio[i][1]);
+	}
+	if (b43_ac_por & 0x80) {
+		static const u16 mac[][2] = {
+			{ 0x490, 0x0000 }, { 0x4ae, 0xffff }, { 0x4b8, 0x0000 },
+			{ 0x4bc, 0x0000 }, { 0x500, 0x4000 }, { 0x612, 0x0400 },
+			{ 0x684, 0x0207 }, { 0x69c, 0x0001 }, { 0x6a8, 0x05dc },
+			{ 0x6b8, 0x0000 }, { 0x6c6, 0x0f0f }, { 0x6f0, 0x0001 },
+			{ 0x816, 0x103f }, { 0x8c0, 0x0001 },
+		};
+
+		for (i = 0; i < ARRAY_SIZE(mac); i++)
+			b43_write16(dev, mac[i][0], mac[i][1]);
+		b43_write32(dev, 0x3dc, 0x00989680);
+	}
 }
 
 static void b43_phy_ac_tune(struct b43_wldev *dev,

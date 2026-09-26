@@ -1,0 +1,33 @@
+Sat Sep 26 09:38:57 PM CEST 2026 netwatch start
+Sat Sep 26 09:40:35 PM CEST 2026 ping failed (1)
+Sat Sep 26 09:40:37 PM CEST 2026 ping failed (2)
+Sat Sep 26 09:40:39 PM CEST 2026 ping failed (3)
+Sat Sep 26 09:40:39 PM CEST 2026 network down: unloading b43, removing monitor vifs
+rmmod: ERROR: Module b43 is not currently loaded
+Sat Sep 26 09:45:21 PM CEST 2026 ping failed (1)
+Sat Sep 26 09:45:23 PM CEST 2026 ping failed (2)
+Sat Sep 26 09:45:25 PM CEST 2026 ping failed (3)
+Sat Sep 26 09:45:25 PM CEST 2026 network down: unloading b43, removing monitor vifs
+rmmod: ERROR: Module b43 is not currently loaded
+Sat Sep 26 09:46:21 PM CEST 2026 ping failed (1)
+Sat Sep 26 09:46:23 PM CEST 2026 ping failed (2)
+Sat Sep 26 09:46:25 PM CEST 2026 ping failed (3)
+Sat Sep 26 09:46:25 PM CEST 2026 network down: unloading b43, removing monitor vifs
+Sat Sep 26 09:51:14 PM CEST 2026 netwatch start
+Sat Sep 26 09:51:26 PM CEST 2026 ping failed (1)
+Sat Sep 26 09:51:28 PM CEST 2026 ping failed (2)
+Sat Sep 26 09:51:30 PM CEST 2026 ping failed (3)
+Sat Sep 26 09:51:32 PM CEST 2026 ping failed (4)
+Sat Sep 26 09:51:34 PM CEST 2026 ping failed (5)
+Sat Sep 26 09:51:36 PM CEST 2026 ping failed (6)
+Sat Sep 26 09:51:38 PM CEST 2026 ping failed (7)
+Sat Sep 26 09:51:40 PM CEST 2026 ping failed (8)
+Sat Sep 26 09:51:42 PM CEST 2026 ping failed (9)
+Sat Sep 26 09:51:44 PM CEST 2026 ping failed (10)
+Sat Sep 26 09:51:44 PM CEST 2026 network down: unloading b43, removing monitor vifs
+Sat Sep 26 09:53:35 PM CEST 2026 ping failed (1)
+Sat Sep 26 09:53:37 PM CEST 2026 ping failed (2)
+Sat Sep 26 09:53:39 PM CEST 2026 ping failed (3)
+Sat Sep 26 09:53:41 PM CEST 2026 ping failed (4)
+Sat Sep 26 09:53:43 PM CEST 2026 ping failed (5)
+Sat Sep 26 09:53:45 PM CEST 2026 ping failed (6)
