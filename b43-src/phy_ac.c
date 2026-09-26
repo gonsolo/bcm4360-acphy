@@ -11,6 +11,7 @@
 #include "radio_2069.h"
 #include "tables_phy_ac.h"
 #include "dma.h"
+#include "main.h"
 
 /**************************************************
  * Basic PHY ops
@@ -661,6 +662,16 @@ static void b43_phy_ac_replay_ch6(struct b43_wldev *dev)
 	}
 	for (i = 0; i < ARRAY_SIZE(b43_ac_agc_tbls_2g); i++)
 		b43_phy_ac_write_table(dev, &b43_ac_agc_tbls_2g[i]);
+	for (i = 0; i < ARRAY_SIZE(b43_ac_replay_shm); i++) {
+		if (b43_ac_replay_shm[i].bits == 32)
+			b43_shm_write32(dev, b43_ac_replay_shm[i].routing,
+					b43_ac_replay_shm[i].off,
+					b43_ac_replay_shm[i].val);
+		else
+			b43_shm_write16(dev, b43_ac_replay_shm[i].routing,
+					b43_ac_replay_shm[i].off,
+					b43_ac_replay_shm[i].val);
+	}
 	b43info(dev->wl, "phy_ac: replayed vendor ch6 state (%zu radio, %zu PHY regs, %zu table entries)\n",
 		ARRAY_SIZE(b43_ac_replay_radio), ARRAY_SIZE(b43_ac_replay_phy),
 		ARRAY_SIZE(b43_ac_replay_tbl));
