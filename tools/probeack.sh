@@ -29,8 +29,8 @@ sleep 1
 a=$(rd e6); e=$(rd fe); t=$(rd e0)
 perl $P/tools/inject_probe.pl b43mon "$MAC" "$BSSID" Vodafone-2A84 "$RATE" "$N"
 sleep 1; kill $cap; wait $cap 2>/dev/null
-out=$($TD -r "$f" -e -n 2>/dev/null | grep "SA:$BSSID" | grep "DA:$MAC" | grep "Probe Response")
-echo "probe responses to us $(grep -c . <<<"$out"), retries $(grep -c "Retry" <<<"$out") (sent $N requests)"
-echo "captured: $($TD -r "$f" -n 2>/dev/null | grep -c .) frames, $($TD -r "$f" -n 2>/dev/null | grep -c "Beacon (Vodafone") AP beacons, $($TD -r "$f" -n 2>/dev/null | grep -c "Probe Request") probe requests"
+# tcpdump's summary line never prints "Retry" for management frames; read the
+# real frame-control retry bit (0x0800) instead.
+$P/tools/python3/bin/python3 $P/tools/fc_retry.py "$f" resp | sed 's/^/probe /'
 echo "ucode txackfrm +$(( ($(rd e6) - a) & 0xffff )) txphyerr +$(( ($(rd fe) - e) & 0xffff )) txallfrm +$(( ($(rd e0) - t) & 0xffff ))"
 rm -f "$f"
