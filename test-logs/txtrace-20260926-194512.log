@@ -1,0 +1,128 @@
++ date -u
+Sat Sep 26 05:45:12 PM UTC 2026
++ /nix/store/9rhwm6526aq8nlilicalmjgsbvvvgv81-nixos-system-zitrone-26.05.10529.c508844df6c2/bin/switch-to-configuration boot
+Not checking switch inhibitors (action = boot)
++ sync
++ lsmod
++ grep -q '^wl '
++ T=/sys/kernel/tracing
++ echo 0
++ echo nop
++ echo
++ echo 262144
++ cat
++ cat /sys/kernel/tracing/kprobe_events
+p:wlt/w32 wl:osl_writel val=%di:x32 addr=%si:x64
+p:wlt/w16 wl:osl_writew val=%di:x16 addr=%si:x64
+p:wlt/w8 wl:osl_writeb val=%di:x8 addr=%si:x64
+p:wlt/r32 wl:osl_readl addr=%di:x64
+r:wlt/r32r wl:osl_readl ret=$retval:x32
+p:wlt/r16 wl:osl_readw addr=%di:x64
+r:wlt/r16r wl:osl_readw ret=$retval:x16
+p:wlt/r8 wl:osl_readb addr=%di:x64
+r:wlt/r8r wl:osl_readb ret=$retval:x8
+p:wlt/cfgw wl:osl_pci_write_config off=%si:x32 size=%dx:u32 val=%cx:x32
+p:wlt/delay wl:osl_delay us=%di:u32
+p:wlt/txfifo wl:wlc_bmac_txfifo fifo=%si:u32 commit=%cx:u8 fid=%r8:x16 len=+112(%dx):u32 h=+0(+208(%dx)):x64[20]
++ echo 1
++ echo 1
++ echo 'wltx: === MODPROBE wl ==='
++ modprobe wl
++ sleep 5
++ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: wlp0s20u1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000
+    link/ether f2:dc:87:bd:5b:24 brd ff:ff:ff:ff:ff:ff permaddr 00:c0:ca:b0:22:a0
+    altname wlx00c0cab022a0
+3: wlp3s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DORMANT group default qlen 1000
+    link/ether 84:38:35:4d:18:6e brd ff:ff:ff:ff:ff:ff
+    altname wlx8438354d186e
+++ for i in /sys/class/net/*
+++ head -1
+++ readlink /sys/class/net/lo/device/driver
+++ grep -q '/wl$'
+++ for i in /sys/class/net/*
+++ readlink /sys/class/net/wlp0s20u1/device/driver
+++ grep -q '/wl$'
+++ for i in /sys/class/net/*
+++ readlink /sys/class/net/wlp3s0/device/driver
+++ grep -q '/wl$'
+++ basename /sys/class/net/wlp3s0
++ WLIF=wlp3s0
++ echo 'wl interface: wlp3s0'
+wl interface: wlp3s0
++ nmcli connection delete wl-trace
+Connection 'wl-trace' (d25281b8-2b78-4be1-9738-17945771fcce) successfully deleted.
++ nmcli connection clone Vodafone-2A84 wl-trace
+Vodafone-2A84 (4341e1fe-9f6c-3bcb-ac80-63544085e02e) cloned as wl-trace (ddab5215-f36d-491a-aef8-878bef43f322).
++ nmcli connection modify wl-trace connection.interface-name wlp3s0 connection.autoconnect no
++ nmcli connection up wl-trace ifname wlp3s0
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/3)
++ sleep 15
++ ping -I wlp3s0 -c 20 -i 0.3 192.168.0.1
+PING 192.168.0.1 (192.168.0.1) from 192.168.0.115 wlp3s0: 56(84) bytes of data.
+64 bytes from 192.168.0.1: icmp_seq=1 ttl=64 time=2.50 ms
+64 bytes from 192.168.0.1: icmp_seq=2 ttl=64 time=6.50 ms
+64 bytes from 192.168.0.1: icmp_seq=3 ttl=64 time=12.1 ms
+64 bytes from 192.168.0.1: icmp_seq=4 ttl=64 time=2.96 ms
+64 bytes from 192.168.0.1: icmp_seq=5 ttl=64 time=1.40 ms
+64 bytes from 192.168.0.1: icmp_seq=6 ttl=64 time=2.19 ms
+64 bytes from 192.168.0.1: icmp_seq=7 ttl=64 time=1.32 ms
+64 bytes from 192.168.0.1: icmp_seq=8 ttl=64 time=2.10 ms
+64 bytes from 192.168.0.1: icmp_seq=9 ttl=64 time=3.70 ms
+64 bytes from 192.168.0.1: icmp_seq=10 ttl=64 time=3.37 ms
+64 bytes from 192.168.0.1: icmp_seq=11 ttl=64 time=2.15 ms
+64 bytes from 192.168.0.1: icmp_seq=12 ttl=64 time=1.34 ms
+64 bytes from 192.168.0.1: icmp_seq=13 ttl=64 time=2.55 ms
+64 bytes from 192.168.0.1: icmp_seq=14 ttl=64 time=1.45 ms
+64 bytes from 192.168.0.1: icmp_seq=15 ttl=64 time=1.77 ms
+64 bytes from 192.168.0.1: icmp_seq=16 ttl=64 time=1.54 ms
+64 bytes from 192.168.0.1: icmp_seq=17 ttl=64 time=1.94 ms
+64 bytes from 192.168.0.1: icmp_seq=18 ttl=64 time=5.94 ms
+64 bytes from 192.168.0.1: icmp_seq=19 ttl=64 time=2.66 ms
+64 bytes from 192.168.0.1: icmp_seq=20 ttl=64 time=1.84 ms
+
+--- 192.168.0.1 ping statistics ---
+20 packets transmitted, 20 received, 0% packet loss, time 5716ms
+rtt min/avg/max/mdev = 1.315/3.067/12.146/2.494 ms
++ iw dev wlp3s0 scan
++ ping -I wlp3s0 -c 5 -s 1000 192.168.0.1
+PING 192.168.0.1 (192.168.0.1) from 192.168.0.115 wlp3s0: 1000(1028) bytes of data.
+1008 bytes from 192.168.0.1: icmp_seq=1 ttl=64 time=2.13 ms
+1008 bytes from 192.168.0.1: icmp_seq=2 ttl=64 time=1.97 ms
+1008 bytes from 192.168.0.1: icmp_seq=3 ttl=64 time=2.39 ms
+1008 bytes from 192.168.0.1: icmp_seq=4 ttl=64 time=3.43 ms
+1008 bytes from 192.168.0.1: icmp_seq=5 ttl=64 time=2.68 ms
+
+--- 192.168.0.1 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4005ms
+rtt min/avg/max/mdev = 1.969/2.518/3.429/0.514 ms
++ sleep 5
++ echo 0
++ echo 'wltx: === TRACE STOP ==='
++ cat /sys/kernel/tracing/per_cpu/cpu0/stats /sys/kernel/tracing/per_cpu/cpu1/stats /sys/kernel/tracing/per_cpu/cpu2/stats /sys/kernel/tracing/per_cpu/cpu3/stats
++ grep -E 'entries|overrun'
++ paste - -
++ head
+entries: 97977	overrun: 0
+commit overrun: 0	entries: 112698
+overrun: 0	commit overrun: 0
+entries: 638940	overrun: 0
+commit overrun: 0	entries: 253235
+overrun: 0	commit overrun: 0
++ cat /sys/kernel/tracing/trace
++ echo 0
++ echo
++ wc -l /home/gonsolo/bcm4360-acphy/traces/wl-tx-20260926-194512.trace
+1102862 /home/gonsolo/bcm4360-acphy/traces/wl-tx-20260926-194512.trace
++ xz -T0 -k /home/gonsolo/bcm4360-acphy/traces/wl-tx-20260926-194512.trace
++ nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device
+wlp3s0:wifi:connected:wl-trace
+wlp0s20u1:wifi:connected:Vodafone-2A84
+lo:loopback:connected (externally):lo
+p2p-dev-wlp0s20u1:wifi-p2p:disconnected:
++ chown -R gonsolo:users /home/gonsolo/bcm4360-acphy/traces /home/gonsolo/bcm4360-acphy/test-logs
++ sync
++ echo '===== DONE (no reboot; wl stays loaded) ====='
+===== DONE (no reboot; wl stays loaded) =====

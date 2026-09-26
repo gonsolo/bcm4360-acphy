@@ -4,7 +4,7 @@ IF=$(for i in /sys/class/net/*; do readlink $i/device/driver 2>/dev/null | grep 
 IW=/home/gonsolo/bcm4360-acphy/tools/iw/bin/iw
 echo "b43txtest: mark" > /dev/kmsg
 t0=$(cat /sys/class/net/$IF/statistics/tx_packets)
-$IW dev "$IF" scan freq 2437 > /dev/null 2>&1
+$IW dev "$IF" scan freq ${FREQ:-2412} > /dev/null 2>&1
 sleep 1
 t1=$(cat /sys/class/net/$IF/statistics/tx_packets)
 log=$(dmesg | sed -n '/b43txtest: mark/,$p')

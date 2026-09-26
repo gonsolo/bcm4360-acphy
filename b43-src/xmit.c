@@ -261,6 +261,10 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		return -EOPNOTSUPP;
 
 	memset(h, 0, B43_TXH_AC_LEN);
+	h[0] = 0x02;	/* passthrough prefix, as wl sends it */
+	h[2] = 0x02;
+	h += B43_TXH_AC_PREFIX;
+	ri = h + B43_TXH_AC_RATE(0);
 	while (idx < n && tbl[idx] != rate)
 		idx++;
 	if (idx == n)
@@ -279,6 +283,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		chanspec |= 0xc000;
 
 	put_unaligned_le16(mac_lo, h + 0x02);
+	put_unaligned_le16(0x0002, h + 0x04);	/* fixed rate */
 	put_unaligned_le16(chanspec, h + 0x06);
 	h[0x08] = ieee80211_hdrlen(wlhdr->frame_control);
 	put_unaligned_le16(len, h + 0x0a);
@@ -297,13 +302,15 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	put_unaligned_le16(0x0020, ri + 0x10);	/* last rate entry */
 
 	{
-		static atomic_t dumped = ATOMIC_INIT(0);
+		static atomic_t dumped = ATOMIC_INIT(0), dumped_data = ATOMIC_INIT(0);
+		bool data = ieee80211_is_data(wlhdr->frame_control);
 
-		if (atomic_inc_return(&dumped) <= 4) {
+		if (data ? atomic_inc_return(&dumped_data) <= 4 :
+			   atomic_inc_return(&dumped) <= 4) {
 			b43info(dev->wl, "AC txhdr cookie %04x rate %02x len %u\n",
 				cookie, rate, len);
 			print_hex_dump(KERN_INFO, "b43 txh: ", DUMP_PREFIX_OFFSET,
-				       16, 1, h, B43_TXH_AC_LEN, false);
+				       16, 1, h - B43_TXH_AC_PREFIX, B43_TXH_AC_LEN, false);
 			print_hex_dump(KERN_INFO, "b43 frm: ", DUMP_PREFIX_OFFSET,
 				       16, 1, skb->data, min_t(unsigned int, skb->len, 32), false);
 		}

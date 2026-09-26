@@ -188,8 +188,10 @@ struct b43_tx_legacy_rate_phy_ctl_entry {
 #define  B43_TXH_PHY1_MODUL_QAM256	0x2000 /* QAM256 */
 
 
-/* rev 40+ (AC) ucode TX descriptor: packet info + 4 rate entries + cache */
-#define B43_TXH_AC_LEN			124
+/* rev 40+ (AC) TX buffer: 4-byte TX offload passthrough prefix, then the
+ * 124-byte descriptor (packet info + 4 rate entries + cache). */
+#define B43_TXH_AC_PREFIX		4
+#define B43_TXH_AC_LEN			(B43_TXH_AC_PREFIX + 124)
 #define B43_TXH_AC_RATE(i)		(0x14 + (i) * 0x14)
 
 static inline

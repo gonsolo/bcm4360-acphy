@@ -684,6 +684,22 @@ void b43_macfilter_set(struct b43_wldev *dev, u16 offset, const u8 *mac)
 	if (!mac)
 		mac = zero_addr;
 
+	if (dev->phy.type == B43_PHYTYPE_AC) {
+		/* rev 40+ ucode: address match table (AMT) in RCMTA object
+		 * memory, 8 bytes per entry: MAC[0..3], MAC[4..5] | attr << 16.
+		 * wl uses entry 63 for its own MAC and 62 for the BSSID. */
+		bool self = offset == B43_MACFILTER_SELF;
+		u16 idx = self ? 0x3f : 0x3e;
+		u16 attr = is_zero_ether_addr(mac) ? 0 : (self ? 0x8008 : 0x8006);
+
+		b43_shm_write32(dev, B43_SHM_RCMTA, idx * 2,
+				mac[0] | (mac[1] << 8) | (mac[2] << 16) |
+				((u32)mac[3] << 24));
+		b43_shm_write32(dev, B43_SHM_RCMTA, idx * 2 + 1,
+				mac[4] | (mac[5] << 8) | ((u32)attr << 16));
+		return;
+	}
+
 	offset |= 0x0020;
 	b43_write16(dev, B43_MMIO_MACFILTER_CONTROL, offset);
 
@@ -3306,6 +3322,10 @@ static void b43_chip_exit(struct b43_wldev *dev)
  */
 /* rev 40+ MAC: carve template/TX FIFOs out of MAC memory and set up the
  * TX queue table (vendor FUN_00168c3d, called from wlc_bmac_init). */
+static bool b43_ac_fifo = true;
+module_param_named(ac_fifo, b43_ac_fifo, bool, 0444);
+MODULE_PARM_DESC(ac_fifo, "AC-PHY: carve MAC FIFOs like wl (rev 40+)");
+
 static void b43_ac_fifo_init(struct b43_wldev *dev)
 {
 	static const u8 fifos[] = { 7, 0, 1, 2, 3, 4, 5 };
@@ -3380,7 +3400,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 	if (err)
 		goto err_gpio_clean;
 
-	if (phy->type == B43_PHYTYPE_AC)
+	if (phy->type == B43_PHYTYPE_AC && b43_ac_fifo)
 		b43_ac_fifo_init(dev);
 
 	/* Turn the Analog on and initialize the PHY. */

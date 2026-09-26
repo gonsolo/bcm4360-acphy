@@ -12,6 +12,7 @@ import struct
 import sys
 
 EV = re.compile(r"\s(\d+\.\d+): txfifo: \([^)]*\) fifo=(\d+) commit=(\S+) fid=(\S+) len=(\d+) h=\{([^}]*)\}")
+MAP = re.compile(r"\s(\d+\.\d+): map: \([^)]*\) size=(\d+) dir=1 h=\{([^}]*)\}")
 
 
 def u16(b, o):
@@ -45,11 +46,16 @@ def main():
     with open(sys.argv[1], errors="replace") as f:
         for ln in f:
             m = EV.search(ln)
-            if not m:
-                continue
-            words = [int(w, 16) for w in m.group(6).split(",")]
+            if m:
+                words = [int(w, 16) for w in m.group(6).split(",")]
+                print("%s fifo %s commit %s fid %s len %s" % m.group(1, 2, 3, 4, 5))
+            else:
+                m = MAP.search(ln)
+                if not m:
+                    continue
+                words = [int(w, 16) for w in m.group(3).split(",")]
+                print("%s dma_map size %s" % m.group(1, 2))
             b = b"".join(struct.pack("<Q", w) for w in words)
-            print("%s fifo %s commit %s fid %s len %s" % m.group(1, 2, 3, 4, 5))
             for s in decode(b):
                 print("  " + s)
             n += 1

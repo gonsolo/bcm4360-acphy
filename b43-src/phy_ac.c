@@ -695,6 +695,23 @@ static void b43_phy_ac_resetcca(struct b43_wldev *dev)
  * the 5 GHz PLL setup, TX gain tables, and the per-channel PHY tweaks that
  * follow the BW registers.
  */
+static void b43_phy_ac_tune(struct b43_wldev *dev,
+			    const struct b43_radio_2069_chan *e,
+			    unsigned int channel)
+{
+	int i;
+
+	for (i = 0; i < B43_RADIO_2069_TUNE_REGS; i++)
+		b43_radio_write(dev, b43_radio_2069_tune_regs[i], e->radio[i]);
+	if (channel == 4) {
+		b43_radio_write(dev, 0x8d6, 0x0ce4);
+		b43_radio_maskset(dev, 0x8ec, ~0x0070, 0x0050);
+	}
+	b43_radio_set(dev, 0x645, 0x7000);
+	b43_radio_write(dev, 0x723, 0x83e0);
+	b43_radio_2069_vcocal(dev);
+}
+
 static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 					unsigned int new_channel)
 {
@@ -731,21 +748,14 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	phy_ac->chan_set = true;
 	phy_ac->last_5ghz = is_5ghz;
 
-	for (i = 0; i < B43_RADIO_2069_TUNE_REGS; i++)
-		b43_radio_write(dev, b43_radio_2069_tune_regs[i], e->radio[i]);
-	if (new_channel == 4) {
-		b43_radio_write(dev, 0x8d6, 0x0ce4);
-		b43_radio_maskset(dev, 0x8ec, ~0x0070, 0x0050);
-	}
-	b43_radio_set(dev, 0x645, 0x7000);
-	b43_radio_write(dev, 0x723, 0x83e0);
-	b43_radio_2069_vcocal(dev);
-
+	b43_phy_ac_tune(dev, e, new_channel);
 	b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
 
 	for (i = 0; i < 6; i++)
 		b43_phy_write(dev, B43_PHY_AC_BW1A + i, e->bw[i]);
 
+	/* wl's captured state is applied once on channel 6; our own tuning
+	 * then works for the other 2.4 GHz channels. */
 	if (b43_ac_replay && new_channel == 6)
 		b43_phy_ac_replay_ch6(dev);
 	if (b43_ac_por && new_channel == 6)
@@ -922,6 +932,9 @@ static void b43_phy_ac_replay_ch6(struct b43_wldev *dev)
 	for (i = 0; i < ARRAY_SIZE(b43_ac_agc_tbls_2g); i++)
 		b43_phy_ac_write_table(dev, &b43_ac_agc_tbls_2g[i]);
 	for (i = 0; i < ARRAY_SIZE(b43_ac_replay_shm); i++) {
+		/* Only shared memory; routing 4 is wl's address match table. */
+		if (b43_ac_replay_shm[i].routing != B43_SHM_SHARED)
+			continue;
 		if (b43_ac_replay_shm[i].bits == 32)
 			b43_shm_write32(dev, b43_ac_replay_shm[i].routing,
 					b43_ac_replay_shm[i].off,
