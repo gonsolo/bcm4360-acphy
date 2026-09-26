@@ -8,7 +8,8 @@ Accepts two input formats:
                                   "cfgw:", "delay:" events.
 
 Writes into OUTDIR:
-  phy.txt, radio.txt              final value per register ("reg val", hex)
+  phy.txt, radio.txt              final value per register ("reg val", hex), in
+                                  order of last write (broadcast aliases)
   tables.txt                      final value per entry ("id off width val", dec/hex)
   shm.txt                         final value per word ("routing off val", hex)
   cc.txt, pmu-{chipctl,regctl,pllctl}.txt, wrapper.txt
@@ -108,6 +109,7 @@ def main():
     win1 = None  # PCI config 0x80: BAR0 window 1 target
 
     def phy_write(reg, val, ts):
+        phy.pop(reg, None)
         phy[reg] = val
         stats["phy_w"] += 1
         if reg == TBL_ID:
@@ -182,6 +184,7 @@ def main():
         elif write and off == RADIO_SEL:
             radio_sel = v
         elif write and off == RADIO_DATA and radio_sel is not None:
+            radio.pop(radio_sel, None)
             radio[radio_sel] = v
             seq.append((ts, "radio", radio_sel, v))
             stats["radio_w"] += 1
@@ -208,8 +211,11 @@ def main():
             for r in rows:
                 f.write(r + "\n")
 
-    dump("phy.txt", ("%04x %04x" % (r, v) for r, v in sorted(phy.items())))
-    dump("radio.txt", ("%04x %04x" % (r, v) for r, v in sorted(radio.items())))
+    # PHY and radio in order of last write: 0x1000 (PHY) and 0x600 (radio)
+    # address bits broadcast to all cores, so replaying in address order
+    # lets an old broadcast write clobber later per-core values.
+    dump("phy.txt", ("%04x %04x" % (r, v) for r, v in phy.items()))
+    dump("radio.txt", ("%04x %04x" % (r, v) for r, v in radio.items()))
     dump("tables.txt", ("%d %d %d %x" % (i, o, w, v)
                         for (i, o), (w, v) in sorted(tables.items())))
     dump("shm.txt", ("%d %04x %04x" % (r, o, v) for (r, o), v in sorted(shm.items())))
