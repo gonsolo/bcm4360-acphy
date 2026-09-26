@@ -674,6 +674,10 @@ bool b43_ac_5ghz;
 module_param_named(ac_5ghz, b43_ac_5ghz, bool, 0444);
 MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (experimental)");
 
+static bool b43_ac_5g_80;
+module_param_named(ac_5g_80, b43_ac_5g_80, bool, 0644);
+MODULE_PARM_DESC(ac_5g_80, "AC-PHY test: on 5 GHz keep wl's 80 MHz setup instead of re-tuning to 20 MHz");
+
 static bool b43_ac_init_state;
 module_param_named(ac_init_state, b43_ac_init_state, bool, 0444);
 MODULE_PARM_DESC(ac_init_state, "AC-PHY: apply wl's captured state at PHY init (else on the first switch to channel 6)");
@@ -686,6 +690,41 @@ module_param_named(ac_por, b43_ac_por, uint, 0644);
 MODULE_PARM_DESC(ac_por, "AC-PHY diagnostic: after the ch6 replay also apply wl's first-load state (bitmask: 1 radio, 2 phy, 4 tables, 8 shm, 16 chipcommon, 32 pmu)");
 
 #include "phy_ac_por.h"
+#include "phy_ac_por5g.h"
+
+/* wl's 5 GHz first-load state (80 MHz, channel 112 primary): radio, PHY,
+ * tables, SHM. Chipcommon/PMU are band independent (2.4 GHz state). */
+static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_radio); i++)
+		if (b43_ac_por5g_radio[i][0] != 0xffff)
+			b43_radio_write(dev, b43_ac_por5g_radio[i][0],
+					b43_ac_por5g_radio[i][1]);
+	b43_radio_2069_vcocal(dev);
+	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_phy); i++)
+		if (b43_ac_por5g_phy[i][0] != 0xffff)
+			b43_phy_write(dev, b43_ac_por5g_phy[i][0],
+				      b43_ac_por5g_phy[i][1]);
+	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_tbl); i++) {
+		if (b43_ac_por5g_tbl[i].id == 0xffff)
+			continue;
+		b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_por5g_tbl[i].id);
+		b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, b43_ac_por5g_tbl[i].off);
+		if (b43_ac_por5g_tbl[i].width == 32)
+			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2,
+				      b43_ac_por5g_tbl[i].val >> 16);
+		b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
+			      b43_ac_por5g_tbl[i].val & 0xffff);
+	}
+	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_shm); i++)
+		if (b43_ac_por5g_shm[i].routing != 0xffff)
+			b43_shm_write16(dev, b43_ac_por5g_shm[i].routing,
+					b43_ac_por5g_shm[i].off,
+					b43_ac_por5g_shm[i].val);
+	b43info(dev->wl, "phy_ac: applied 5 GHz first-load state\n");
+}
 
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
@@ -913,7 +952,30 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		if (b43_ac_por && new_channel == 6)
 			b43_phy_ac_apply_por(dev);
 	}
-	if (b43_ac_por)
+	if (is_5ghz && b43_ac_por && b43_ac_5g_80) {
+		u32 ioctl;
+
+		/* Test: keep wl's 80 MHz setup (synthesizer on its 80 MHz centre,
+		 * PHY in 80 MHz mode) and set the core's PHY bandwidth to 80 MHz,
+		 * toggling force-gated-clock around the change like wl. */
+		b43_phy_ac_apply_por5g(dev);
+		ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | 0x2);
+		ioctl = (ioctl & ~B43_BCMA_IOCTL_PHY_BW) | B43_BCMA_IOCTL_PHY_BW_80MHZ;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | 0x2);
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl);
+		b43info(dev->wl, "phy_ac: 5 GHz 80 MHz test, ioctrl %08x\n",
+			bcma_aread32(dev->dev->bdev, BCMA_IOCTL));
+	} else if (is_5ghz && b43_ac_por) {
+		b43_phy_ac_apply_por5g(dev);
+		/* wl's state tunes to its 80 MHz centre; tune our channel. */
+		save = b43_phy_read(dev, 0x19e);
+		b43_phy_set(dev, 0x19e, 0x3);
+		b43_phy_ac_tune(dev, e, new_channel);
+		b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
+		for (i = 0; i < 6; i++)
+			b43_phy_write(dev, B43_PHY_AC_BW1A + i, e->bw[i]);
+	} else if (b43_ac_por)
 		b43_phy_ac_rfctrl_wl(dev);
 
 	b43_phy_ac_resetcca(dev);

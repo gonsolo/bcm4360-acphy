@@ -1,0 +1,97 @@
++ date -u
+Sat Sep 26 08:52:44 PM UTC 2026
++ /nix/store/9rhwm6526aq8nlilicalmjgsbvvvgv81-nixos-system-zitrone-26.05.10529.c508844df6c2/bin/switch-to-configuration boot
+Not checking switch inhibitors (action = boot)
++ sync
++ lsmod
++ grep -q '^wl '
++ T=/sys/kernel/tracing
++ echo 0
++ echo nop
++ echo
++ echo 262144
++ cat
++ cat /sys/kernel/tracing/kprobe_events
+p:wlt/w32 wl:osl_writel val=%di:x32 addr=%si:x64
+p:wlt/w16 wl:osl_writew val=%di:x16 addr=%si:x64
+p:wlt/w8 wl:osl_writeb val=%di:x8 addr=%si:x64
+p:wlt/r32 wl:osl_readl addr=%di:x64
+r:wlt/r32r wl:osl_readl ret=$retval:x32
+p:wlt/r16 wl:osl_readw addr=%di:x64
+r:wlt/r16r wl:osl_readw ret=$retval:x16
+p:wlt/r8 wl:osl_readb addr=%di:x64
+r:wlt/r8r wl:osl_readb ret=$retval:x8
+p:wlt/cfgw wl:osl_pci_write_config off=%si:x32 size=%dx:u32 val=%cx:x32
+p:wlt/delay wl:osl_delay us=%di:u32
++ echo 1
++ echo 1
++ echo 'wlfirst: === MODPROBE wl ==='
++ modprobe wl
++ sleep 5
++ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: wlp0s20u1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000
+    link/ether 66:e7:0f:65:a9:f3 brd ff:ff:ff:ff:ff:ff permaddr 00:c0:ca:b0:22:a0
+    altname wlx00c0cab022a0
+3: wlp3s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DORMANT group default qlen 1000
+    link/ether 84:38:35:4d:18:6e brd ff:ff:ff:ff:ff:ff
+    altname wlx8438354d186e
+++ for i in /sys/class/net/*
+++ head -1
+++ readlink /sys/class/net/lo/device/driver
+++ grep -q '/wl$'
+++ for i in /sys/class/net/*
+++ readlink /sys/class/net/wlp0s20u1/device/driver
+++ grep -q '/wl$'
+++ for i in /sys/class/net/*
+++ readlink /sys/class/net/wlp3s0/device/driver
+++ grep -q '/wl$'
+++ basename /sys/class/net/wlp3s0
++ WLIF=wlp3s0
++ echo 'wl interface: wlp3s0'
+wl interface: wlp3s0
++ nmcli connection delete wl-trace
+Connection 'wl-trace' (ddab5215-f36d-491a-aef8-878bef43f322) successfully deleted.
++ nmcli connection clone Vodafone-2A84 wl-trace
+Vodafone-2A84 (4341e1fe-9f6c-3bcb-ac80-63544085e02e) cloned as wl-trace (348d9d2f-00e6-4b54-8756-2ecf598f0793).
++ nmcli connection modify wl-trace connection.interface-name wlp3s0 connection.autoconnect no 802-11-wireless.band a ipv4.route-metric 900 ipv6.route-metric 900
++ nmcli connection up wl-trace ifname wlp3s0
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/3)
++ sleep 40
++ /home/gonsolo/bcm4360-acphy/tools/iw/bin/iw dev wlp3s0 link
+Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0)
+	SSID: Vodafone-2A84
+	freq: 5560.0
+	signal: -77 dBm
+	tx bitrate: 6.5 MBit/s
++ nmcli -f GENERAL.CONNECTION,WIFI-PROPERTIES.5GHZ dev show wlp3s0
+GENERAL.CONNECTION:                     wl-trace
+WIFI-PROPERTIES.5GHZ:                   yes
++ echo 0
++ echo 'wlfirst: === TRACE STOP ==='
++ cat /sys/kernel/tracing/per_cpu/cpu0/stats /sys/kernel/tracing/per_cpu/cpu1/stats /sys/kernel/tracing/per_cpu/cpu2/stats /sys/kernel/tracing/per_cpu/cpu3/stats
++ grep -E 'entries|overrun'
++ paste - -
++ head
+entries: 136307	overrun: 0
+commit overrun: 0	entries: 311030
+overrun: 0	commit overrun: 0
+entries: 1025668	overrun: 0
+commit overrun: 0	entries: 227863
+overrun: 0	commit overrun: 0
++ cat /sys/kernel/tracing/trace
++ echo 0
++ echo
++ wc -l /home/gonsolo/bcm4360-acphy/traces/wl-firstload-5g-20260926-225244.trace
+1700880 /home/gonsolo/bcm4360-acphy/traces/wl-firstload-5g-20260926-225244.trace
++ xz -T0 -k /home/gonsolo/bcm4360-acphy/traces/wl-firstload-5g-20260926-225244.trace
++ nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device
+wlp0s20u1:wifi:connected:Vodafone-2A84
+lo:loopback:connected (externally):lo
+wlp3s0:wifi:disconnected:
+p2p-dev-wlp0s20u1:wifi-p2p:disconnected:
++ chown -R gonsolo:users /home/gonsolo/bcm4360-acphy/traces /home/gonsolo/bcm4360-acphy/test-logs
++ sync
++ echo '===== DONE (no reboot; wl stays loaded) ====='
+===== DONE (no reboot; wl stays loaded) =====
