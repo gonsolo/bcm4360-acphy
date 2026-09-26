@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # Capture wl's complete register-access sequence for a full device init.
-# Unbinds and rebinds 0000:03:00.0 while wl.ko stays loaded (unloading the
-# module would remove the probes). Run as root via systemd-run:
+#
+# A PCI unbind/rebind with wl loaded crashed the machine (2026-09-26 13:02),
+# so this avoids unbind entirely:
+#   1. pin the device to a nonexistent driver (driver_override)
+#   2. rmmod wl, modprobe wl  -> module loads but cannot bind
+#   3. attach bpftrace to the freshly loaded module
+#   4. clear the pin and probe -> wl's normal first init runs under trace
+# Syncs to disk every second so partial data survives a crash.
 #
 #   sudo systemd-run --unit=wltrace --collect --no-block \
 #     --setenv=PATH="$PATH" /run/current-system/sw/bin/bash trace_wl.sh
@@ -16,27 +22,41 @@ TRACE="$PROJ/traces/wl-init-$STAMP.trace"
 exec >"$PROJ/traces/wl-init-$STAMP.meta" 2>&1
 set -x
 
+(while sleep 1; do sync; done) &
+SYNCER=$!
+
 # Give the Claude session time to send its reply before WiFi drops.
 sleep 5
 
 sysctl -w kernel.panic_on_oops=1 kernel.panic=10 \
 	kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 \
 	kernel.softlockup_panic=1
+sync
+
+echo "wltrace: === PIN + RMMOD ===" > /dev/kmsg
+echo none > /sys/bus/pci/devices/$DEV/driver_override
+rmmod wl
+sleep 1
+echo "wltrace: === MODPROBE (unbound) ===" > /dev/kmsg
+modprobe wl
+sleep 1
+readlink -f /sys/bus/pci/devices/$DEV/driver
+sync
 
 BPFTRACE_PERF_RB_PAGES=16384 bpftrace "$PROJ/wl_full_trace.bt" >"$TRACE" 2>&1 &
 BT=$!
-# Wait until the probes are attached.
 for i in $(seq 1 30); do
 	grep -q "wl trace start" "$TRACE" && break
 	sleep 1
 done
-grep -q "wl trace start" "$TRACE" || { echo "bpftrace did not start"; kill $BT; exit 1; }
+if ! grep -q "wl trace start" "$TRACE"; then
+	echo "bpftrace did not start"
+	kill $BT
+fi
 
-echo "wltrace: === UNBIND ===" > /dev/kmsg
-echo "$DEV" > /sys/bus/pci/drivers/wl/unbind
-sleep 2
-echo "wltrace: === BIND ===" > /dev/kmsg
-echo "$DEV" > /sys/bus/pci/drivers/wl/bind
+echo "wltrace: === PROBE ===" > /dev/kmsg
+echo > /sys/bus/pci/devices/$DEV/driver_override
+echo "$DEV" > /sys/bus/pci/drivers_probe
 
 # Let NetworkManager reassociate so the trace covers the channel set too.
 sleep 20
@@ -47,8 +67,9 @@ sync
 
 readlink -f /sys/bus/pci/devices/$DEV/driver
 nmcli -t -f DEVICE,STATE device
-dmesg | sed -n '/wltrace: === UNBIND ===/,$p'
+dmesg | sed -n '/wltrace: === PIN + RMMOD ===/,$p'
 
+kill $SYNCER
 if readlink /sys/bus/pci/devices/$DEV/driver | grep -q '/wl$' &&
    nmcli -t -f STATE general | grep -q '^connected'; then
 	echo "===== WiFi is back ====="
