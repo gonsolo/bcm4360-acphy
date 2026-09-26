@@ -669,6 +669,10 @@ module_param_named(ac_replay, b43_ac_replay, bool, 0444);
 MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channel 6 PHY/radio state");
 
 static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
+
+static bool b43_ac_init_state;
+module_param_named(ac_init_state, b43_ac_init_state, bool, 0444);
+MODULE_PARM_DESC(ac_init_state, "AC-PHY: apply wl's captured state at PHY init (else on the first switch to channel 6)");
 static void b43_radio_2069_vcocal(struct b43_wldev *dev);
 
 static uint b43_ac_por;
@@ -899,10 +903,12 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 	/* wl's captured state is applied once on channel 6; our own tuning
 	 * then works for the other 2.4 GHz channels. */
-	if (b43_ac_replay && new_channel == 6)
-		b43_phy_ac_replay_ch6(dev);
-	if (b43_ac_por && new_channel == 6)
-		b43_phy_ac_apply_por(dev);
+	if (!b43_ac_init_state) {
+		if (b43_ac_replay && new_channel == 6)
+			b43_phy_ac_replay_ch6(dev);
+		if (b43_ac_por && new_channel == 6)
+			b43_phy_ac_apply_por(dev);
+	}
 	if (b43_ac_por)
 		b43_phy_ac_rfctrl_wl(dev);
 
@@ -1099,6 +1105,12 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 	if (dev->phy.rev <= 1) {
 		b43_phy_ac_tables_init(dev);
 		b43_phy_ac_first_init(dev);
+		/* wl's captured state, once; the channel switch that follows
+		 * init tunes the radio for the requested channel. */
+		if (b43_ac_init_state && b43_ac_replay)
+			b43_phy_ac_replay_ch6(dev);
+		if (b43_ac_init_state && b43_ac_por)
+			b43_phy_ac_apply_por(dev);
 	}
 	else
 		b43err(dev->wl, "phy_ac: no table set for PHY rev %u\n",
