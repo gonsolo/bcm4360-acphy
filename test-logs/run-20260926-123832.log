@@ -1,0 +1,142 @@
++ sleep 5
++ sysctl -w kernel.panic_on_oops=1 kernel.panic=10 kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 kernel.softlockup_panic=1
+kernel.panic_on_oops = 1
+kernel.panic = 10
+kernel.hung_task_panic = 1
+kernel.hung_task_timeout_secs = 30
+kernel.softlockup_panic = 1
++ echo /home/gonsolo/bcm4360-acphy/firmware
++ modprobe mac80211
++ modprobe ssb
++ modprobe cordic
++ modprobe bcma
++ sync
++ echo 'b43test: === TEST START ==='
++ echo bcma-pci-bridge
++ echo 0000:03:00.0
++ insmod /home/gonsolo/bcm4360-acphy/b43-src/b43.ko
++ echo 0000:03:00.0
++ sync
++ sleep 20
++ echo '===== ip link ====='
+===== ip link =====
++ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+3: wlp3s0b1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DORMANT group default qlen 1000
+    link/ether 42:bd:62:98:fc:57 brd ff:ff:ff:ff:ff:ff permaddr 00:01:00:00:84:38
+    altname wlx000100008438
++ echo '===== iw dev ====='
+===== iw dev =====
++ iw dev
+/home/gonsolo/bcm4360-acphy/run_test.sh: line 47: iw: command not found
++ echo '===== dmesg since test start ====='
+===== dmesg since test start =====
++ dmesg
++ sed -n '/b43test: === TEST START ===/,$p'
+[ 1628.741499] b43test: === TEST START ===
+[ 1628.798302] Broadcom 43xx driver loaded [ Features: PNL ]
+[ 1628.800779] bcma-pci-bridge 0000:03:00.0: bus0: Found chip with id 0x4360, rev 0x03 and package 0x00
+[ 1628.800833] bcma-pci-bridge 0000:03:00.0: bus0: Core 0 found: ChipCommon (manuf 0x4BF, id 0x800, rev 0x2B, class 0x0)
+[ 1628.800861] bcma-pci-bridge 0000:03:00.0: bus0: Core 1 found: IEEE 802.11 (manuf 0x4BF, id 0x812, rev 0x2A, class 0x0)
+[ 1628.800910] bcma-pci-bridge 0000:03:00.0: bus0: Core 2 found: ARM CR4 (manuf 0x4BF, id 0x83E, rev 0x02, class 0x0)
+[ 1628.800961] bcma-pci-bridge 0000:03:00.0: bus0: Core 3 found: PCIe Gen2 (manuf 0x4BF, id 0x83C, rev 0x01, class 0x0)
+[ 1628.800988] bcma-pci-bridge 0000:03:00.0: bus0: Core 4 found: USB 2.0 Device (manuf 0x4BF, id 0x81A, rev 0x11, class 0x0)
+[ 1628.868303] b43-phy1: Broadcom 4360 WLAN found (core revision 42)
+[ 1628.869345] b43-phy1: Found PHY: Analog 12, Type 11 (AC), Revision 1
+[ 1628.869359] b43-phy1: Found Radio: Manuf 0x17F, ID 0x2069, Revision 4, Version 0
+[ 1628.869825] b43-phy1: phy_ac: radio powered down
+[ 1628.869949] bcma-pci-bridge 0000:03:00.0: bus0: Bus registered
+[ 1628.871291] ieee80211 phy1: Selected rate control algorithm 'minstrel_ht'
+[ 1628.871832] b43-phy1 warning: LEDs: Unknown behaviour 0x33
+[ 1628.871838] b43-phy1 warning: LEDs: Unknown behaviour 0x58
+[ 1628.871840] b43-phy1 warning: LEDs: Unknown behaviour 0x11
+[ 1628.968085] b43 bcma0:1 wlp3s0b1: renamed from wlan0
+[ 1629.098911] b43-phy1: phy_ac: prepare_structs
+[ 1629.261255] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[ 1629.261568] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[ 1629.261918] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[ 1629.262026] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[ 1629.262833] b43-phy1: phy_ac: RCCAL step 0: 0a80 0b55 -> a0
+[ 1629.263622] b43-phy1: phy_ac: RCCAL step 1: 000b
+[ 1629.264411] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[ 1629.264419] b43-phy1: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[ 1629.264424] b43-phy1: phy_ac: switch_channel(1) -> 2412 MHz
+[ 1629.273301] b43-phy1: DMA: 64-bit engine, index registers hold bus addresses
+[ 1629.273370] b43-phy1: DMA tx0: ctl=00000801 ring=80000001:837ee000
+[ 1629.273393] b43-phy1: DMA tx1: ctl=00000801 ring=80000001:96eac000
+[ 1629.273414] b43-phy1: DMA tx2: ctl=00000801 ring=80000001:96eae000
+[ 1629.273434] b43-phy1: DMA tx3: ctl=00000801 ring=80000001:831e0000
+[ 1629.273462] b43-phy1: DMA tx4: ctl=00000801 ring=80000001:831e2000
+[ 1629.273919] b43-phy1: DMA rx0: ctl=0000084d ring=80000001:831e4000
+[ 1629.274847] b43-phy1: phy_ac: switch_channel(1) -> 2412 MHz
+[ 1629.283645] b43-phy1: phy_ac: switch_channel(1) -> 2412 MHz
+[ 1629.310177] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[ 1629.310203] b43-phy1: phy_ac: radio powered down
+[ 1629.310215] b43-phy1: phy_ac: radio powered down
+[ 1629.311578] b43-phy1: phy_ac: prepare_structs
+[ 1629.473265] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[ 1629.473576] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[ 1629.473927] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[ 1629.474036] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[ 1629.474839] b43-phy1: phy_ac: RCCAL step 0: 0a81 0b55 -> 9f
+[ 1629.475617] b43-phy1: phy_ac: RCCAL step 1: 000b
+[ 1629.476419] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[ 1629.476426] b43-phy1: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[ 1629.476431] b43-phy1: phy_ac: switch_channel(1) -> 2412 MHz
+[ 1629.485302] b43-phy1: DMA: 64-bit engine, index registers hold bus addresses
+[ 1629.485369] b43-phy1: DMA tx0: ctl=00000801 ring=80000001:3a226000
+[ 1629.485392] b43-phy1: DMA tx1: ctl=00000801 ring=80000001:47590000
+[ 1629.485412] b43-phy1: DMA tx2: ctl=00000801 ring=80000001:03e0e000
+[ 1629.485473] b43-phy1: DMA tx3: ctl=00000801 ring=80000001:03a20000
+[ 1629.485493] b43-phy1: DMA tx4: ctl=00000801 ring=80000001:6a8e4000
+[ 1629.485928] b43-phy1: DMA rx0: ctl=0000084d ring=80000001:54a74000
+[ 1629.486930] b43-phy1: phy_ac: switch_channel(1) -> 2412 MHz
+[ 1629.515505] b43-phy1: phy_ac: switch_channel(1) -> 2412 MHz
+[ 1629.524341] b43-phy1: phy_ac: switch_channel(1) -> 2412 MHz
+[ 1629.595305] b43-phy1: phy_ac: switch_channel(2) -> 2417 MHz
+[ 1629.666291] b43-phy1: phy_ac: switch_channel(3) -> 2422 MHz
+[ 1629.737291] b43-phy1: phy_ac: switch_channel(4) -> 2427 MHz
+[ 1629.808290] b43-phy1: phy_ac: switch_channel(5) -> 2432 MHz
+[ 1629.879291] b43-phy1: phy_ac: switch_channel(6) -> 2437 MHz
+[ 1634.332371] net_ratelimit: 102 callbacks suppressed
+[ 1634.332382] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 60)
+[ 1634.444336] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 64)
+[ 1634.556346] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 100)
+[ 1634.668355] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 104)
+[ 1634.780362] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 108)
+[ 1634.892336] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 112)
+[ 1635.004338] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 116)
+[ 1635.116340] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 120)
+[ 1635.228288] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 124)
+[ 1635.340349] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 128)
+[ 1639.364383] net_ratelimit: 65 callbacks suppressed
+[ 1639.364393] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 116)
+[ 1639.476386] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 120)
+[ 1639.588386] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 124)
+[ 1639.700399] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 128)
+[ 1639.812388] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 132)
+[ 1639.924410] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 136)
+[ 1640.036399] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 140)
+[ 1640.148395] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 149)
+[ 1640.210408] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 153)
+[ 1640.272410] b43-phy1: phy_ac: 5 GHz tuning not implemented (channel 157)
+[ 1644.432439] net_ratelimit: 16 callbacks suppressed
+[ 1644.432449] b43-phy1: phy_ac: switch_channel(3) -> 2422 MHz
+[ 1644.503434] b43-phy1: phy_ac: switch_channel(4) -> 2427 MHz
+[ 1644.574432] b43-phy1: phy_ac: switch_channel(5) -> 2432 MHz
+[ 1644.645434] b43-phy1: phy_ac: switch_channel(6) -> 2437 MHz
+[ 1644.716458] b43-phy1: phy_ac: switch_channel(7) -> 2442 MHz
+[ 1644.787455] b43-phy1: phy_ac: switch_channel(8) -> 2447 MHz
+[ 1644.858365] b43-phy1: phy_ac: switch_channel(9) -> 2452 MHz
+[ 1644.929446] b43-phy1: phy_ac: switch_channel(10) -> 2457 MHz
+[ 1645.000442] b43-phy1: phy_ac: switch_channel(11) -> 2462 MHz
+[ 1645.071441] b43-phy1: phy_ac: switch_channel(12) -> 2467 MHz
++ journalctl --sync
++ sync
++ echo 'b43test: === DONE, rebooting ==='
++ echo '===== DONE, rebooting ====='
+===== DONE, rebooting =====
++ journalctl --sync
++ sync
++ systemctl reboot

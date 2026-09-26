@@ -70,3 +70,11 @@ Core count: PHY 0x00b & 7, forced to 2 for chip 0x4360 with board type
    radio 0x548 clear 1; 0x8ea clear 0x40, 0x80; 0x40b clear 1
 4. `FUN_0019665e` (RC calibration, not yet fully read)
 5. if `pi->+0x32d`: `FUN_001a1202`, then full channel set
+
+## First hardware results (2026-09-26, test-logs/run-20260926-123832.log)
+- radio init done, 2 cores (board type 0x117 -> vendor's 2-core override)
+- RCAL done after 1 poll, 0x40b = 0x0169
+- RCCAL: step 0 0a80/0b55 -> 0xa0, step 1 0x000b, step 2 0x01eb
+  (repeatable across two inits in the same run)
+- channel switch 1..6 runs without errors; no DMA errors, no mac80211 warnings
+- still NO-CARRIER: PHY init (tables, AGC) not implemented
