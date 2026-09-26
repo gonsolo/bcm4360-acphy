@@ -1,0 +1,10 @@
+source traces/wl-init-20260926-132021.trace (bpftrace)
+events 483989, BAR0 base ffffcc16c0498000, d11 window n/a
+final: phy 255 radio 121 table entries 969 shm words 198 cc 3 wrapper 1
+pmu: chipctl 0, regctl 0, pllctl 0
+cc_w 192
+mmio_w 5652
+phy_w 319918
+radio_w 9484
+shm_w 5130
+tbl_w 43707

@@ -574,6 +574,7 @@ module_param_named(ac_replay, b43_ac_replay, bool, 0444);
 MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channel 6 PHY/radio state");
 
 static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
+static void b43_radio_2069_vcocal(struct b43_wldev *dev);
 
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
@@ -591,6 +592,8 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 			if (b43_ac_por_radio[i][0] != 0xffff)
 				b43_radio_write(dev, b43_ac_por_radio[i][0],
 						b43_ac_por_radio[i][1]);
+	if ((b43_ac_por & B43_AC_POR_RADIO) && !(b43_ac_por & 0x40))
+		b43_radio_2069_vcocal(dev);
 	if (b43_ac_por & B43_AC_POR_PHY)
 		for (i = 0; i < ARRAY_SIZE(b43_ac_por_phy); i++, n[1]++)
 			if (b43_ac_por_phy[i][0] != 0xffff)
