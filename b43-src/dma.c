@@ -1080,13 +1080,17 @@ static bool b43_dma_translation_in_low_word(struct b43_wldev *dev,
 	return false;
 }
 
+static bool b43_dma32;
+module_param_named(dma32, b43_dma32, bool, 0444);
+MODULE_PARM_DESC(dma32, "Restrict DMA buffers to 32-bit bus addresses");
+
 int b43_dma_init(struct b43_wldev *dev)
 {
 	struct b43_dma *dma = &dev->dma;
 	enum b43_dmatype type = b43_engine_type(dev);
 	int err;
 
-	err = dma_set_mask_and_coherent(dev->dev->dma_dev, DMA_BIT_MASK(type));
+	err = dma_set_mask_and_coherent(dev->dev->dma_dev, DMA_BIT_MASK(b43_dma32 ? 32 : type));
 	if (err) {
 		b43err(dev->wl, "The machine/kernel does not support "
 		       "the required %u-bit DMA mask\n", type);
@@ -1642,6 +1646,16 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 
 	rxhdr = (struct b43_rxhdr_fw4 *)skb->data;
 	len = le16_to_cpu(rxhdr->frame_len);
+	if (ring->dev->phy.type == B43_PHYTYPE_AC) {
+		static atomic_t dumped = ATOMIC_INIT(0);
+
+		if (atomic_inc_return(&dumped) <= 12) {
+			b43info(ring->dev->wl, "RX slot %d len %u frameoffset %u\n",
+				*slot, len, ring->frameoffset);
+			print_hex_dump(KERN_INFO, "b43 rx: ", DUMP_PREFIX_OFFSET,
+				       16, 2, skb->data, 96, false);
+		}
+	}
 	if (len == 0) {
 		int i = 0;
 

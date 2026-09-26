@@ -718,9 +718,15 @@ static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 		b43_read32(dev, B43_MMIO_GEN_IRQ_MASK),
 		dev->__using_pio_transfers);
 	if (!dev->__using_pio_transfers && rx && tx)
-		b43info(dev->wl, "phy_ac: DMA rx status=%08x tx(BE) status=%08x\n",
+		b43info(dev->wl, "phy_ac: DMA rx status=%08x/%08x index=%08x tx(BE) status=%08x\n",
 			b43_read32(dev, rx->mmio_base + B43_DMA64_RXSTATUS),
+			b43_read32(dev, rx->mmio_base + B43_DMA64_RXSTATUS + 4),
+			b43_read32(dev, rx->mmio_base + B43_DMA64_RXINDEX),
 			b43_read32(dev, tx->mmio_base + B43_DMA64_TXSTATUS));
+	b43info(dev->wl, "phy_ac: dma0 reason=%08x mask=%08x intrcvlazy0=%08x\n",
+		b43_read32(dev, B43_MMIO_DMA0_REASON),
+		b43_read32(dev, B43_MMIO_DMA0_IRQ_MASK),
+		b43_read32(dev, 0x100));
 	b43_phy_ac_log_macstat(dev);
 	if (dev->dev->bus_type == B43_BUS_BCMA) {
 		struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;

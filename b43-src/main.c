@@ -3352,6 +3352,11 @@ static int b43_chip_init(struct b43_wldev *dev)
 	b43_write32(dev, B43_MMIO_DMA3_IRQ_MASK, 0x0001DC00);
 	b43_write32(dev, B43_MMIO_DMA4_IRQ_MASK, 0x0000DC00);
 	b43_write32(dev, B43_MMIO_DMA5_IRQ_MASK, 0x0000DC00);
+	if (dev->phy.type == B43_PHYTYPE_AC) {
+		/* intrcvlazy0: raise the RX interrupt after every frame. */
+		b43info(dev->wl, "intrcvlazy0 was %08x\n", b43_read32(dev, 0x100));
+		b43_write32(dev, 0x100, 1 << 24);
+	}
 
 	b43_mac_phy_clock_set(dev, true);
 

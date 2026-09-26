@@ -641,6 +641,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	u32 macstat;
 	u16 chanid;
 	int padding, rate_idx;
+	s8 ac_signal = 0;
 
 	memset(&status, 0, sizeof(status));
 
@@ -659,6 +660,25 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		mactime = le16_to_cpu(rxhdr->format_351.mac_time);
 		chanstat = le16_to_cpu(rxhdr->format_351.channel);
 		break;
+	}
+	if (dev->phy.type == B43_PHYTYPE_AC) {
+		/* AC ucode (rev 40+) header: RxStatus1 @0x10, TSF @0x14,
+		 * 11ac-style chanspec @0x16, per-antenna power @0x09/0x0a. */
+		const u8 *h = _rxhdr;
+		u16 cs = get_unaligned_le16(h + 0x16);
+		s8 p0 = h[0x09], p1 = h[0x0a];
+
+		macstat = get_unaligned_le16(h + 0x10);
+		mactime = get_unaligned_le16(h + 0x14);
+		chanstat = ((cs & 0xff) << B43_RX_CHAN_ID_SHIFT) | B43_PHYTYPE_N;
+		if ((cs & 0xc000) == 0xc000)
+			chanstat |= B43_RX_CHAN_5GHZ;
+		if (p0 == -128)
+			ac_signal = p1;
+		else if (p1 == -128)
+			ac_signal = p0;
+		else
+			ac_signal = max(p0, p1);
 	}
 
 	if (unlikely(macstat & B43_RX_MAC_FCSERR)) {
@@ -717,7 +737,11 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 
 	/* Link quality statistics */
-	switch (chanstat & B43_RX_CHAN_PHYTYPE) {
+	switch (dev->phy.type == B43_PHYTYPE_AC ? B43_PHYTYPE_AC :
+		(chanstat & B43_RX_CHAN_PHYTYPE)) {
+	case B43_PHYTYPE_AC:
+		status.signal = ac_signal;
+		break;
 	case B43_PHYTYPE_HT:
 		/* TODO: is max the right choice? */
 		status.signal = max_t(__s8,
@@ -741,7 +765,10 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		break;
 	}
 
-	if (phystat0 & B43_RX_PHYST0_OFDM)
+	if (dev->phy.type == B43_PHYTYPE_AC &&
+	    (phystat0 & B43_RX_PHYST0_FTYPE) >= B43_RX_PHYST0_PRE_N)
+		rate_idx = 0; /* TODO: decode HT/VHT SIG */
+	else if (phystat0 & B43_RX_PHYST0_OFDM)
 		rate_idx = b43_plcp_get_bitrate_idx_ofdm(plcp,
 					!!(chanstat & B43_RX_CHAN_5GHZ));
 	else
