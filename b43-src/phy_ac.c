@@ -251,6 +251,29 @@ static const struct file_operations b43_ac_dbg_phydump_fops = {
 	.write		= b43_ac_dbg_phydump_write,
 };
 
+static int b43_ac_dbg_macdump_show(struct seq_file *s, void *unused)
+{
+	struct b43_wldev *dev = b43_ac_dbg_dev;
+	unsigned int o;
+
+	if (!dev)
+		return -ENODEV;
+	mutex_lock(&dev->wl->mutex);
+	if (b43_status(dev) < B43_STAT_INITIALIZED) {
+		mutex_unlock(&dev->wl->mutex);
+		return -ENODEV;
+	}
+	/* Same ranges as tools/macdump (userspace, for wl). */
+	for (o = 0; o < 0x1000; o += 2) {
+		if ((o >= 0x160 && o < 0x180) || (o >= 0x200 && o < 0x400))
+			continue;
+		seq_printf(s, "%03x %04x\n", o, b43_read16(dev, o));
+	}
+	mutex_unlock(&dev->wl->mutex);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(b43_ac_dbg_macdump);
+
 static const struct file_operations b43_ac_dbg_fops = {
 	.owner	= THIS_MODULE,
 	.open	= simple_open,
@@ -282,6 +305,8 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("phydump", 0600, b43_ac_dbg_dir, NULL,
 				    &b43_ac_dbg_phydump_fops);
+		debugfs_create_file("macdump", 0400, b43_ac_dbg_dir, NULL,
+				    &b43_ac_dbg_macdump_fops);
 		debugfs_create_file("mmio16", 0600, b43_ac_dbg_dir, (void *)3L,
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("cc", 0600, b43_ac_dbg_dir, NULL,
