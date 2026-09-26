@@ -370,6 +370,12 @@ static void b43_phy_ac_op_prepare_structs(struct b43_wldev *dev)
 	memset(phy_ac, 0, sizeof(*phy_ac));
 }
 
+static bool b43_ac_replay;
+module_param_named(ac_replay, b43_ac_replay, bool, 0444);
+MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channel 6 PHY/radio state");
+
+static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
+
 /*
  * Radio registers written from entries [2..51] of the 2069 tuning table, in
  * table order. Resolved for acphychipid 0x4360 from the vendor driver's
@@ -480,6 +486,9 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 	for (i = 0; i < 6; i++)
 		b43_phy_write(dev, B43_PHY_AC_BW1A + i, e->bw[i]);
+
+	if (b43_ac_replay && new_channel == 6)
+		b43_phy_ac_replay_ch6(dev);
 
 	b43_phy_ac_resetcca(dev);
 	return 0;
@@ -600,6 +609,51 @@ static void b43_phy_ac_first_init(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x358, 0xc07f);
 
 	b43info(dev->wl, "phy_ac: first-init registers done\n");
+}
+
+#include "phy_ac_replay.h"
+
+/* 2.4 GHz AGC tables as written by the vendor driver on this board. */
+static const u8 b43_ac_agc_lna1_gain[] = { 0xff, 0xff, 0x06, 0x0c, 0x12, 0x19 };
+static const u8 b43_ac_agc_lna1_code[] = { 1, 1, 2, 3, 4, 5 };
+static const u8 b43_ac_agc_lna1_max[] = { 0x0b, 0x0c, 0x0e, 0x20, 0x24, 0x28 };
+static const u8 b43_ac_agc_lna2_gain[] = { 0xf8, 0xf8, 0xfc, 0xff, 0x02, 0x02, 0x02 };
+static const u8 b43_ac_agc_lna2_code[] = { 1, 1, 2, 3, 4, 4, 4 };
+static const u8 b43_ac_agc_lna2_max[] = { 0, 0, 0, 3, 3, 3, 3 };
+static const u8 b43_ac_agc_elna_c0[] = { 0x0e, 0x0e };
+static const u8 b43_ac_agc_elna_c1[] = { 0x0c, 0x0c };
+
+static const struct b43_phy_ac_tbl b43_ac_agc_tbls_2g[] = {
+	{ b43_ac_agc_lna1_gain, 6, 0x44, 0x08, 8 },
+	{ b43_ac_agc_lna1_code, 6, 0x45, 0x08, 8 },
+	{ b43_ac_agc_lna1_gain, 6, 0x64, 0x08, 8 },
+	{ b43_ac_agc_lna1_code, 6, 0x65, 0x08, 8 },
+	{ b43_ac_agc_lna1_max, 6, 0x0b, 0x08, 8 },
+	{ b43_ac_agc_lna2_gain, 7, 0x44, 0x10, 8 },
+	{ b43_ac_agc_lna2_code, 7, 0x45, 0x10, 8 },
+	{ b43_ac_agc_lna2_gain, 7, 0x64, 0x10, 8 },
+	{ b43_ac_agc_lna2_code, 7, 0x65, 0x10, 8 },
+	{ b43_ac_agc_lna2_max, 7, 0x0b, 0x10, 8 },
+	{ b43_ac_agc_elna_c0, 2, 0x44, 0x00, 8 },
+	{ b43_ac_agc_elna_c1, 2, 0x64, 0x00, 8 },
+};
+
+static void b43_phy_ac_replay_ch6(struct b43_wldev *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(b43_ac_replay_radio); i++)
+		b43_radio_write(dev, b43_ac_replay_radio[i][0],
+				b43_ac_replay_radio[i][1]);
+	b43_radio_2069_vcocal(dev);
+	for (i = 0; i < ARRAY_SIZE(b43_ac_replay_phy); i++)
+		b43_phy_write(dev, b43_ac_replay_phy[i][0],
+			      b43_ac_replay_phy[i][1]);
+	for (i = 0; i < ARRAY_SIZE(b43_ac_agc_tbls_2g); i++)
+		b43_phy_ac_write_table(dev, &b43_ac_agc_tbls_2g[i]);
+	b43info(dev->wl, "phy_ac: replayed vendor ch6 state (%zu radio, %zu PHY regs, %zu tables)\n",
+		ARRAY_SIZE(b43_ac_replay_radio), ARRAY_SIZE(b43_ac_replay_phy),
+		ARRAY_SIZE(b43_ac_agc_tbls_2g));
 }
 
 static int b43_phy_ac_op_init(struct b43_wldev *dev)

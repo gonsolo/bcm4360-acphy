@@ -38,7 +38,7 @@ grep -iE "bcma|b43|wl|03:00" /proc/interrupts
 echo "b43test: === TEST START ===" > /dev/kmsg
 echo bcma-pci-bridge > /sys/bus/pci/devices/$DEV/driver_override
 echo "$DEV" > /sys/bus/pci/drivers/wl/unbind
-insmod "$PROJ/b43-src/b43.ko" verbose=3
+insmod "$PROJ/b43-src/b43.ko" verbose=3 ac_replay=1
 echo "$DEV" > /sys/bus/pci/drivers_probe
 sync
 
