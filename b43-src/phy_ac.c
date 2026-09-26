@@ -194,6 +194,63 @@ static const struct file_operations b43_ac_dbg_cc_fops = {
 	.write		= b43_ac_dbg_cc_write,
 };
 
+static u16 b43_ac_dump_lo, b43_ac_dump_hi = 0x1fff;
+
+static int b43_ac_dbg_phydump_show(struct seq_file *s, void *unused)
+{
+	struct b43_wldev *dev = b43_ac_dbg_dev;
+	unsigned int r;
+
+	if (!dev)
+		return -ENODEV;
+	mutex_lock(&dev->wl->mutex);
+	if (b43_status(dev) < B43_STAT_INITIALIZED) {
+		mutex_unlock(&dev->wl->mutex);
+		return -ENODEV;
+	}
+	b43_mac_suspend(dev);
+	for (r = b43_ac_dump_lo; r <= b43_ac_dump_hi; r++) {
+		if (r >= 0x00f && r <= 0x011)
+			continue;	/* table data ports auto-increment */
+		seq_printf(s, "%04x %04x\n", r, b43_phy_read(dev, r));
+	}
+	b43_mac_enable(dev);
+	mutex_unlock(&dev->wl->mutex);
+	return 0;
+}
+
+static int b43_ac_dbg_phydump_open(struct inode *inode, struct file *file)
+{
+	return single_open_size(file, b43_ac_dbg_phydump_show, NULL, 128 * 1024);
+}
+
+static ssize_t b43_ac_dbg_phydump_write(struct file *f, const char __user *ubuf,
+					size_t len, loff_t *ppos)
+{
+	char buf[32];
+	unsigned int lo, hi;
+
+	if (len >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len] = 0;
+	if (sscanf(buf, "%x %x", &lo, &hi) != 2 || lo > hi || hi > 0x3fff)
+		return -EINVAL;
+	b43_ac_dump_lo = lo;
+	b43_ac_dump_hi = hi;
+	return len;
+}
+
+static const struct file_operations b43_ac_dbg_phydump_fops = {
+	.owner		= THIS_MODULE,
+	.open		= b43_ac_dbg_phydump_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= b43_ac_dbg_phydump_write,
+};
+
 static const struct file_operations b43_ac_dbg_fops = {
 	.owner	= THIS_MODULE,
 	.open	= simple_open,
@@ -223,6 +280,8 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("shm", 0600, b43_ac_dbg_dir, (void *)2L,
 				    &b43_ac_dbg_fops);
+		debugfs_create_file("phydump", 0600, b43_ac_dbg_dir, NULL,
+				    &b43_ac_dbg_phydump_fops);
 		debugfs_create_file("mmio16", 0600, b43_ac_dbg_dir, (void *)3L,
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("cc", 0600, b43_ac_dbg_dir, NULL,
