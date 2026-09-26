@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 # Capture wl's complete register-access sequence for a full device init.
 #
-# A PCI unbind/rebind with wl loaded crashed the machine (2026-09-26 13:02),
-# so this avoids unbind entirely:
-#   1. pin the device to a nonexistent driver (driver_override)
-#   2. rmmod wl, modprobe wl  -> module loads but cannot bind
-#   3. attach bpftrace to the freshly loaded module
-#   4. clear the pin and probe -> wl's normal first init runs under trace
+# Changing the binding of wl while probes attach crashed the machine twice
+# (PCI unbind/rebind; reload of an unbound wl). This keeps wl loaded and
+# bound, attaches the probes to the running driver (known to work), and
+# triggers a full re-init by taking the interface down and up.
 # Syncs to disk every second so partial data survives a crash.
 #
 #   sudo systemd-run --unit=wltrace --collect --no-block \
@@ -33,16 +31,6 @@ sysctl -w kernel.panic_on_oops=1 kernel.panic=10 \
 	kernel.softlockup_panic=1
 sync
 
-echo "wltrace: === PIN + RMMOD ===" > /dev/kmsg
-echo none > /sys/bus/pci/devices/$DEV/driver_override
-rmmod wl
-sleep 1
-echo "wltrace: === MODPROBE (unbound) ===" > /dev/kmsg
-modprobe wl
-sleep 1
-readlink -f /sys/bus/pci/devices/$DEV/driver
-sync
-
 BPFTRACE_PERF_RB_PAGES=16384 bpftrace "$PROJ/wl_full_trace.bt" >"$TRACE" 2>&1 &
 BT=$!
 for i in $(seq 1 30); do
@@ -54,9 +42,11 @@ if ! grep -q "wl trace start" "$TRACE"; then
 	kill $BT
 fi
 
-echo "wltrace: === PROBE ===" > /dev/kmsg
-echo > /sys/bus/pci/devices/$DEV/driver_override
-echo "$DEV" > /sys/bus/pci/drivers_probe
+echo "wltrace: === IFDOWN ===" > /dev/kmsg
+ip link set wlp3s0 down
+sleep 2
+echo "wltrace: === IFUP ===" > /dev/kmsg
+ip link set wlp3s0 up
 
 # Let NetworkManager reassociate so the trace covers the channel set too.
 sleep 20
@@ -67,7 +57,7 @@ sync
 
 readlink -f /sys/bus/pci/devices/$DEV/driver
 nmcli -t -f DEVICE,STATE device
-dmesg | sed -n '/wltrace: === PIN + RMMOD ===/,$p'
+dmesg | sed -n '/wltrace: === IFDOWN ===/,$p'
 
 kill $SYNCER
 if readlink /sys/bus/pci/devices/$DEV/driver | grep -q '/wl$' &&

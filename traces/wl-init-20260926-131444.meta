@@ -1,0 +1,50 @@
++ SYNCER=2843
++ sleep 5
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sysctl -w kernel.panic_on_oops=1 kernel.panic=10 kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 kernel.softlockup_panic=1
+kernel.panic_on_oops = 1
+kernel.panic = 10
+kernel.hung_task_panic = 1
+kernel.hung_task_timeout_secs = 30
+kernel.softlockup_panic = 1
++ sync
++ echo 'wltrace: === PIN + RMMOD ==='
++ echo none
++ rmmod wl
++ sleep 1
++ sync
++ sleep 1
++ echo 'wltrace: === MODPROBE (unbound) ==='
++ modprobe wl
++ sleep 1
++ sync
++ sleep 1
++ readlink -f /sys/bus/pci/devices/0000:03:00.0/driver
+/sys/devices/pci0000:00/0000:00:1c.2/0000:03:00.0/driver
++ sync
++ BT=2997
++ BPFTRACE_PERF_RB_PAGES=16384
++ bpftrace /home/gonsolo/bcm4360-acphy/wl_full_trace.bt
+++ seq 1 30
++ for i in $(seq 1 30)
++ grep -q 'wl trace start' /home/gonsolo/bcm4360-acphy/traces/wl-init-20260926-131444.trace
++ sleep 1
++ sync
++ sleep 1
++ for i in $(seq 1 30)
++ grep -q 'wl trace start' /home/gonsolo/bcm4360-acphy/traces/wl-init-20260926-131444.trace
++ sleep 1
++ sync
++ sleep 1
++ for i in $(seq 1 30)
++ grep -q 'wl trace start' /home/gonsolo/bcm4360-acphy/traces/wl-init-20260926-131444.trace
++ sleep 1
++ sync
