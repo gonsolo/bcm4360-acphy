@@ -232,6 +232,85 @@ static u8 b43_calc_fallback_rate(u8 bitrate, int gmode)
 }
 
 /* Generate a TX data header. */
+static uint b43_ac_txcore = 1;
+module_param_named(ac_txcore, b43_ac_txcore, uint, 0644);
+MODULE_PARM_DESC(ac_txcore, "AC-PHY TX core mask for PhyTxControlWord_0");
+
+static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
+				 struct sk_buff *skb,
+				 struct ieee80211_tx_info *info, u16 cookie)
+{
+	static const u8 cck[] = { B43_CCK_RATE_1MB, B43_CCK_RATE_2MB,
+				  B43_CCK_RATE_5MB, B43_CCK_RATE_11MB };
+	static const u8 ofdm[] = { B43_OFDM_RATE_6MB, B43_OFDM_RATE_9MB,
+				   B43_OFDM_RATE_12MB, B43_OFDM_RATE_18MB,
+				   B43_OFDM_RATE_24MB, B43_OFDM_RATE_36MB,
+				   B43_OFDM_RATE_48MB, B43_OFDM_RATE_54MB };
+	const struct ieee80211_hdr *wlhdr = (const void *)skb->data;
+	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(dev->wl->hw, info);
+	u8 rate = txrate ? txrate->hw_value : B43_CCK_RATE_1MB;
+	bool is_ofdm = b43_is_ofdm_rate(rate);
+	unsigned int len = skb->len + FCS_LEN;
+	u8 *ri = h + B43_TXH_AC_RATE(0);
+	u16 mac_lo = 0, phy0, idx = 0, chanspec;
+	const u8 *tbl = is_ofdm ? ofdm : cck;
+	unsigned int n = is_ofdm ? ARRAY_SIZE(ofdm) : ARRAY_SIZE(cck);
+
+	/* Hardware crypto needs the AC key fields; load with nohwcrypt=1. */
+	if (info->control.hw_key)
+		return -EOPNOTSUPP;
+
+	memset(h, 0, B43_TXH_AC_LEN);
+	while (idx < n && tbl[idx] != rate)
+		idx++;
+	if (idx == n)
+		idx = 0;
+
+	if (!is_multicast_ether_addr(wlhdr->addr1) &&
+	    !(info->flags & IEEE80211_TX_CTL_NO_ACK))
+		mac_lo |= 0x0080;	/* expect immediate ACK */
+	if (!(le16_to_cpu(wlhdr->seq_ctrl) & IEEE80211_SCTL_FRAG))
+		mac_lo |= 0x4000;	/* start of MSDU */
+	if (ieee80211_is_beacon(wlhdr->frame_control))
+		mac_lo |= 0x0200;	/* ignore PMQ */
+
+	chanspec = dev->phy.channel | 0x1000;	/* 20 MHz */
+	if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
+		chanspec |= 0xc000;
+
+	put_unaligned_le16(mac_lo, h + 0x02);
+	put_unaligned_le16(chanspec, h + 0x06);
+	h[0x08] = ieee80211_hdrlen(wlhdr->frame_control);
+	put_unaligned_le16(len, h + 0x0a);
+	put_unaligned_le16(cookie, h + 0x0c);
+
+	/* Rate entry 0: frame type, always-set bit 2, TX core 0 mask. */
+	phy0 = (is_ofdm ? 1 : 0) | 0x0004 | ((b43_ac_txcore & 0xf) << 6);
+	if (!is_ofdm && rate != B43_CCK_RATE_1MB &&
+	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
+		phy0 |= 0x0010;
+	put_unaligned_le16(phy0, ri + 0x00);
+	put_unaligned_le16(0, ri + 0x02);
+	put_unaligned_le16(idx, ri + 0x04);
+	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06), len, rate);
+	put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
+	put_unaligned_le16(0x0020, ri + 0x10);	/* last rate entry */
+
+	{
+		static atomic_t dumped = ATOMIC_INIT(0);
+
+		if (atomic_inc_return(&dumped) <= 4) {
+			b43info(dev->wl, "AC txhdr cookie %04x rate %02x len %u\n",
+				cookie, rate, len);
+			print_hex_dump(KERN_INFO, "b43 txh: ", DUMP_PREFIX_OFFSET,
+				       16, 1, h, B43_TXH_AC_LEN, false);
+			print_hex_dump(KERN_INFO, "b43 frm: ", DUMP_PREFIX_OFFSET,
+				       16, 1, skb->data, min_t(unsigned int, skb->len, 32), false);
+		}
+	}
+	return 0;
+}
+
 int b43_generate_txhdr(struct b43_wldev *dev,
 		       u8 *_txhdr,
 		       struct sk_buff *skb_frag,
@@ -258,6 +337,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	u8 extra_ft = 0;
 	struct ieee80211_rate *txrate;
 	struct ieee80211_tx_rate *rates;
+
+	if (phy->type == B43_PHYTYPE_AC)
+		return b43_generate_txhdr_ac(dev, _txhdr, skb_frag, info, cookie);
 
 	memset(txhdr, 0, sizeof(*txhdr));
 

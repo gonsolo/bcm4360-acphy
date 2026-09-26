@@ -428,6 +428,10 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
 	/* FIXME: set 40Mhz flag if required */
 	if (0)
 		channelcookie |= B43_SHM_SH_CHAN_40MHZ;
+	/* rev 40+ ucode keeps an 11ac chanspec here (20 MHz; 5 GHz band 0xc000). */
+	if (phy->type == B43_PHYTYPE_AC)
+		channelcookie = new_channel | 0x1000 |
+			(b43_current_band(dev->wl) == NL80211_BAND_5GHZ ? 0xc000 : 0);
 	savedcookie = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN, channelcookie);
 

@@ -188,9 +188,15 @@ struct b43_tx_legacy_rate_phy_ctl_entry {
 #define  B43_TXH_PHY1_MODUL_QAM256	0x2000 /* QAM256 */
 
 
+/* rev 40+ (AC) ucode TX descriptor: packet info + 4 rate entries + cache */
+#define B43_TXH_AC_LEN			124
+#define B43_TXH_AC_RATE(i)		(0x14 + (i) * 0x14)
+
 static inline
 size_t b43_txhdr_size(struct b43_wldev *dev)
 {
+	if (dev->phy.type == B43_PHYTYPE_AC)
+		return B43_TXH_AC_LEN;
 	switch (dev->fw.hdr_format) {
 	case B43_FW_HDR_598:
 		return 112 + sizeof(struct b43_plcp_hdr6);

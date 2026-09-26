@@ -1365,6 +1365,33 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
 			break;
 		v1 = b43_read32(dev, B43_MMIO_XMITSTAT_1);
 
+		if (dev->phy.type == B43_PHYTYPE_AC) {
+			/* rev 40+ ucode: two 4-word records per frame */
+			u32 v2 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
+			u32 v3 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
+			unsigned int n;
+
+			b43_read32(dev, B43_MMIO_XMITSTAT_0);
+			b43_read32(dev, B43_MMIO_XMITSTAT_1);
+			b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
+			b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
+			memset(&stat, 0, sizeof(stat));
+			stat.cookie = v0 >> 16;
+			stat.seq = v1 & 0xffff;
+			stat.phy_stat = (v1 >> 16) & 0xff;
+			stat.intermediate = !!(v0 & 0x0004);
+			stat.pm_indicated = !!(v0 & 0x0008);
+			stat.supp_reason = (v0 & 0x00f0) >> 4;
+			stat.acked = !!(v0 & 0x8000);
+			n = (v2 & 0xff) + ((v2 >> 16) & 0xff) +
+			    (v3 & 0xff) + ((v3 >> 16) & 0xff);
+			stat.frame_count = min(n, 15u);
+			b43dbg(dev->wl, "AC txstatus %08x %08x %08x %08x\n",
+			       v0, v1, v2, v3);
+			b43_handle_txstatus(dev, &stat);
+			continue;
+		}
+
 		stat.cookie = (v0 >> 16);
 		stat.seq = (v1 & 0x0000FFFF);
 		stat.phy_stat = ((v1 & 0x00FF0000) >> 16);
@@ -1395,6 +1422,14 @@ static void drain_txstatus_queue(struct b43_wldev *dev)
 		if (!(dummy & 0x00000001))
 			break;
 		dummy = b43_read32(dev, B43_MMIO_XMITSTAT_1);
+		if (dev->phy.type == B43_PHYTYPE_AC) {
+			int i;
+
+			b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
+			b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
+			for (i = 0; i < 4; i++)
+				b43_read32(dev, B43_MMIO_XMITSTAT_0 + 4 * i);
+		}
 	}
 }
 
@@ -3269,6 +3304,49 @@ static void b43_chip_exit(struct b43_wldev *dev)
 /* Initialize the chip
  * https://bcm-specs.sipsolutions.net/ChipInit
  */
+/* rev 40+ MAC: carve template/TX FIFOs out of MAC memory and set up the
+ * TX queue table (vendor FUN_00168c3d, called from wlc_bmac_init). */
+static void b43_ac_fifo_init(struct b43_wldev *dev)
+{
+	static const u8 fifos[] = { 7, 0, 1, 2, 3, 4, 5 };
+	u16 total = (b43_read32(dev, 0x15c) >> 1) & 0xffc;
+	const u16 tpl = 0x2a, fifo_sz = 0x20, blk = 0xb;
+	unsigned int i;
+	int t;
+
+	b43_write16(dev, 0x542, total);
+	b43_write16(dev, 0x540, 5);
+	for (t = 0; t < 20 && (b43_read16(dev, 0x540) & 1); t++)
+		udelay(10);
+	for (i = 0; i < ARRAY_SIZE(fifos); i++) {
+		if (fifos[i] == 7) {
+			b43_write16(dev, 0x54a, tpl);
+			b43_write16(dev, 0x54c, tpl);
+			b43_write16(dev, 0x520, tpl);
+			b43_write16(dev, 0x54e, ((tpl - 4) << 8) | tpl);
+		} else {
+			b43_write16(dev, 0x54a, total - tpl);
+			b43_write16(dev, 0x54c, fifo_sz);
+			b43_write16(dev, 0x520, blk);
+			b43_write16(dev, 0x54e, ((blk * 2 - 4) << 8) | (blk * 2));
+		}
+		b43_write16(dev, 0x550, 0x740c);
+		b43_write16(dev, 0x548, fifos[i] | 0x10);
+	}
+	for (i = 0; i < 0x2a; i++) {
+		u16 end = min_t(u16, i + 2, 0x29);
+
+		b43_write16(dev, 0x534, i);
+		b43_write16(dev, 0x536, end);
+		b43_write16(dev, 0x532, end + 1 - i);
+		b43_write16(dev, 0x530, (i << 4) | 0x8007);
+		for (t = 0; t < 20 && b43_read16(dev, 0x530); t++)
+			udelay(10);
+	}
+	b43info(dev->wl, "AC FIFO init: total %#x, 0x540=%04x 0x530=%04x\n",
+		total, b43_read16(dev, 0x540), b43_read16(dev, 0x530));
+}
+
 static int b43_chip_init(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -3301,6 +3379,9 @@ static int b43_chip_init(struct b43_wldev *dev)
 	err = b43_upload_initvals_band(dev);
 	if (err)
 		goto err_gpio_clean;
+
+	if (phy->type == B43_PHYTYPE_AC)
+		b43_ac_fifo_init(dev);
 
 	/* Turn the Analog on and initialize the PHY. */
 	phy->ops->switch_analog(dev, 1);
