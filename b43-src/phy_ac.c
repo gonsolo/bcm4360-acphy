@@ -98,6 +98,214 @@ static void b43_phy_ac_op_radio_write(struct b43_wldev *dev, u16 reg,
 	b43_write16(dev, B43_MMIO_RADIO_DATA_LOW, value);
 }
 
+static u8 b43_phy_ac_num_cores(struct b43_wldev *dev)
+{
+	u8 cores = b43_phy_read(dev, 0x00b) & 0x7;
+
+	if (dev->dev->chip_id == 0x4360 &&
+	    (dev->dev->board_type == 0x137 || dev->dev->board_type == 0x117))
+		cores = 2;
+	return cores;
+}
+
+/* prefregs_2069_rev4 from the vendor driver. */
+static const u16 b43_radio_2069r4_prefregs[][2] = {
+	{ 0x063a, 0x0000 }, { 0x063d, 0x000f }, { 0x0645, 0x3000 },
+	{ 0x0646, 0x0303 }, { 0x0647, 0x36e2 }, { 0x0649, 0x6000 },
+	{ 0x064a, 0x0003 }, { 0x065e, 0x0ff4 }, { 0x0666, 0x0b2d },
+	{ 0x0667, 0x03ff }, { 0x0115, 0x3337 }, { 0x0117, 0x1337 },
+	{ 0x0718, 0x7777 }, { 0x071c, 0x1000 }, { 0x0726, 0x0100 },
+	{ 0x0727, 0x0002 }, { 0x0761, 0x0100 }, { 0x0407, 0x8382 },
+	{ 0x055e, 0x0020 }, { 0x0885, 0x0700 }, { 0x08e9, 0x01ce },
+	{ 0x08ea, 0x00ff }, { 0x08ec, 0x06ff }, { 0x0972, 0x0600 },
+};
+
+/*
+ * Radio 2069 rev 4 init (vendor FUN_001a08b2). Skipped: a board-flag
+ * dependent "radio 0x8ea |= 0x100" whose flag source we haven't identified.
+ */
+static void b43_radio_2069_init(struct b43_wldev *dev)
+{
+	u16 s728, s408;
+	unsigned int i;
+	u8 core, cores;
+
+	s728 = b43_phy_read(dev, 0x728);
+	s408 = b43_phy_read(dev, B43_PHY_AC_RFCTL_CMD) & 0xfc38;
+	b43_phy_write(dev, 0x415, 0);
+	b43_phy_write(dev, 0x40e, 0);
+	b43_phy_write(dev, 0x40c, 0x2000);
+	b43_phy_write(dev, B43_PHY_AC_RFCTL_CMD, s408);
+	b43_phy_write(dev, 0x417, 0);
+	b43_phy_write(dev, 0x416, 0xd);
+	b43_phy_write(dev, 0x728, s728 & 0x7e7f);
+	b43_phy_set(dev, 0x720, 0x180);
+	b43_phy_write(dev, B43_PHY_AC_RFCTL_CMD, s408);
+	b43_phy_write(dev, B43_PHY_AC_RFCTL_CMD, s408 | 1);
+	udelay(1);
+	b43_phy_write(dev, B43_PHY_AC_RFCTL_CMD, s408);
+
+	for (i = 0; i < ARRAY_SIZE(b43_radio_2069r4_prefregs); i++)
+		b43_radio_write(dev, b43_radio_2069r4_prefregs[i][0],
+				b43_radio_2069r4_prefregs[i][1]);
+
+	b43_radio_set(dev, 0x96b, 0x0800);
+	b43_radio_set(dev, 0x96b, 0x4000);
+	b43_radio_set(dev, 0x96c, 0x0800);
+	b43_radio_set(dev, 0x96b, 0x8000);
+	b43_radio_set(dev, 0x96b, 0x1000);
+	b43_radio_set(dev, 0x96b, 0x0004);
+	b43_radio_set(dev, 0x407, 0x0002);
+	b43_radio_set(dev, 0x55e, 0x0010);
+
+	cores = b43_phy_ac_num_cores(dev);
+	for (core = 0; core < cores; core++) {
+		u16 c = core << 9;
+
+		b43_radio_maskset(dev, 0x126 | c, ~0x300, 0x100);
+		b43_radio_maskset(dev, 0x127 | c, ~0x003, 0x002);
+		b43_radio_mask(dev, 0x06f | c, ~0x004);
+		b43_radio_mask(dev, 0x06f | c, ~0x001);
+		b43_radio_mask(dev, 0x06f | c, ~0x002);
+		b43_radio_mask(dev, 0x065 | c, ~0x001);
+	}
+
+	b43_radio_mask(dev, 0x40c, ~0x10);
+	b43_phy_write(dev, B43_PHY_AC_RFCTL_CMD, s408 | 6);
+	udelay(100);
+	b43_radio_set(dev, 0x40c, 0x10);
+	b43_phy_write(dev, 0x417, 0xd);
+	b43_phy_write(dev, B43_PHY_AC_RFCTL_CMD, s408 | 2);
+	b43_phy_write(dev, 0x728, s728 | 0x180);
+	udelay(100);
+	b43_phy_write(dev, 0x417, 4);
+	b43_phy_write(dev, 0x728, s728 & 0xfeff);
+
+	b43info(dev->wl, "phy_ac: radio 2069 init done (%u cores)\n", cores);
+}
+
+/*
+ * Resistor calibration: the vendor's default path when SPROM boardflags3
+ * bits 3 and 13 are clear. bcma does not parse boardflags3, so we assume 0.
+ */
+static bool b43_radio_2069_rcal(struct b43_wldev *dev)
+{
+	u16 v = 0;
+	int i;
+
+	b43_radio_set(dev, 0x8ea, 0x40);
+	b43_radio_set(dev, 0x8ea, 0x80);
+	b43_radio_mask(dev, 0x8ed, ~0x600);
+	b43_radio_mask(dev, 0x8ed, ~0x1800);
+	b43_radio_set(dev, 0x548, 0x1);
+	b43_radio_write(dev, 0x549, 0);
+	b43_radio_write(dev, 0x54a, 0);
+	b43_radio_write(dev, 0x54b, 0);
+	b43_radio_write(dev, 0x54c, 0);
+	b43_radio_mask(dev, 0x40b, ~0x1);
+	udelay(1);
+	b43_radio_set(dev, 0x40b, 0x1);
+	for (i = 0; i < 100; i++) {
+		udelay(10);
+		v = b43_radio_read(dev, 0x40b);
+		if (v & 0x8)
+			break;
+	}
+	b43_radio_read(dev, 0x40b);
+	b43_radio_mask(dev, 0x548, ~0x1);
+	b43_radio_mask(dev, 0x8ea, ~0x40);
+	b43_radio_mask(dev, 0x8ea, ~0x80);
+	b43_radio_mask(dev, 0x40b, ~0x1);
+
+	b43info(dev->wl, "phy_ac: RCAL %s after %d polls (0x40b=%04x)\n",
+		(v & 0x8) ? "done" : "TIMEOUT", i, v);
+	return v & 0x8;
+}
+
+/* RC calibration (vendor FUN_0019665e), radio type 0 values. */
+static void b43_radio_2069_rccal(struct b43_wldev *dev)
+{
+	static const u8 cal_a[3] = { 1, 0, 0 };
+	static const u8 cal_b[3] = { 0, 2, 1 };
+	static const u8 cal_c[3] = { 0x1c, 0x70, 0x40 };
+	static const u16 cal_d[3] = { 0x14a, 0x101, 0x11a };
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+	u16 v, r1, r2;
+	int step, i;
+	bool done;
+
+	b43_radio_set(dev, 0x8ea, 0x80);
+	b43_radio_maskset(dev, 0x8ed, ~0x600, 0x400);
+
+	for (step = 0; step < 3; step++) {
+		b43_radio_maskset(dev, 0x410, ~0x1000, cal_a[step] << 12);
+		b43_radio_maskset(dev, 0x410, ~0x0018, cal_b[step] << 3);
+		b43_radio_maskset(dev, 0x411, 0x00ff, cal_c[step] << 8);
+		b43_radio_write(dev, 0x412, cal_d[step]);
+		if (step == 2) {
+			for (core = 0; core < cores; core++) {
+				b43_radio_mask(dev, 0x11d | (core << 9), ~0x4);
+				b43_radio_set(dev, 0x171 | (core << 9), 0x2000);
+			}
+		}
+		b43_radio_mask(dev, 0x410, ~0x1);
+		udelay(1);
+		b43_radio_set(dev, 0x410, 0x1);
+		udelay(35);
+		b43_radio_set(dev, 0x411, 0x1);
+
+		done = false;
+		for (i = 0; i < 100; i++) {
+			udelay(100);
+			if (b43_radio_read(dev, 0x413) & 0x10) {
+				done = true;
+				break;
+			}
+		}
+		b43_radio_mask(dev, 0x411, ~0x1);
+
+		if (done) {
+			if (step == 0) {
+				r1 = b43_radio_read(dev, 0x414);
+				r2 = b43_radio_read(dev, 0x415);
+				b43info(dev->wl, "phy_ac: RCCAL step 0: %04x %04x -> %02x\n",
+					r1, r2, (((u32)(r2 - r1)) * 0xc1 >> 8) & 0xff);
+			} else if (step == 1) {
+				v = b43_radio_read(dev, 0x416);
+				for (core = 0; core < cores; core++) {
+					b43_radio_maskset(dev, 0x126 | (core << 9),
+							  ~0x1f, v & 0x1f);
+					b43_radio_maskset(dev, 0x043 | (core << 9),
+							  ~0x1f, v & 0x1f);
+				}
+				b43info(dev->wl, "phy_ac: RCCAL step 1: %04x\n", v);
+			} else {
+				v = b43_radio_read(dev, 0x416);
+				for (core = 0; core < cores; core++)
+					b43_radio_mask(dev, 0x171 | (core << 9),
+						       ~0x2000);
+				b43info(dev->wl, "phy_ac: RCCAL step 2: %04x\n", v);
+			}
+		} else {
+			b43info(dev->wl, "phy_ac: RCCAL step %d TIMEOUT\n", step);
+		}
+		b43_radio_mask(dev, 0x410, ~0x1);
+	}
+	b43_radio_mask(dev, 0x8ea, ~0x80);
+}
+
+/* Radio power-up (vendor wlc_phy_switch_radio_acphy, on, radio type 0). */
+static void b43_radio_2069_power_up(struct b43_wldev *dev)
+{
+	b43_radio_2069_init(dev);
+	b43_phy_mask(dev, 0x16b, ~0x400);
+	udelay(3);
+	b43_phy_write(dev, 0x175, 0);
+	udelay(3);
+	b43_radio_2069_rcal(dev);
+	b43_radio_2069_rccal(dev);
+}
+
 /*
  * Decompiled from wlc_phy_switch_radio_acphy(), resolved specifically for
  * acphychipid == 0x4360 (this chip - see notes/session log). The power-down
@@ -108,15 +316,8 @@ static void b43_phy_ac_op_radio_write(struct b43_wldev *dev, u16 reg,
  * means we expect probe/attach to get further than before but TX/RX will
  * not work until switch-on and PHY .init are implemented.
  */
-static void b43_phy_ac_op_switch_analog(struct b43_wldev *dev, bool on)
+static void b43_radio_2069_power_down(struct b43_wldev *dev)
 {
-	b43info(dev->wl, "phy_ac: switch_analog(%s)\n", on ? "on" : "off");
-
-	if (on) {
-		/* TODO: vendor radio power-up sequence not yet resolved. */
-		return;
-	}
-
 	b43_phy_write(dev, 0x173e, 0x1c00);
 	b43_phy_write(dev, 0x1739, 0);
 	b43_phy_write(dev, 0x173a, 0);
@@ -128,13 +329,35 @@ static void b43_phy_ac_op_switch_analog(struct b43_wldev *dev, bool on)
 	b43_phy_maskset(dev, B43_PHY_AC_RFCTL_CMD, ~2, 0);
 	b43_phy_write(dev, 0x417, 0);
 	b43_phy_write(dev, 0x416, 1);
-	b43info(dev->wl, "phy_ac: switch_analog(off) done\n");
+	dev->phy.ac->radio_on = false;
+	b43info(dev->wl, "phy_ac: radio powered down\n");
+}
+
+/* The vendor's radio on/off lives in software_rfkill; nothing extra here yet. */
+static void b43_phy_ac_op_switch_analog(struct b43_wldev *dev, bool on)
+{
+	if (!on)
+		b43_radio_2069_power_down(dev);
 }
 
 static void b43_phy_ac_op_software_rfkill(struct b43_wldev *dev, bool blocked)
 {
+	struct b43_phy_ac *phy_ac = dev->phy.ac;
+
 	b43info(dev->wl, "phy_ac: software_rfkill(blocked=%d)\n", blocked);
-	b43_phy_ac_op_switch_analog(dev, !blocked);
+	if (blocked) {
+		b43_radio_2069_power_down(dev);
+		return;
+	}
+	if (phy_ac->radio_on)
+		return;
+	if (dev->phy.radio_ver != 0x2069 || dev->phy.radio_rev != 4) {
+		b43err(dev->wl, "phy_ac: no power-up sequence for radio %04x rev %u\n",
+		       dev->phy.radio_ver, dev->phy.radio_rev);
+		return;
+	}
+	b43_radio_2069_power_up(dev);
+	phy_ac->radio_on = true;
 }
 
 static void b43_phy_ac_op_prepare_structs(struct b43_wldev *dev)
@@ -268,10 +491,9 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
  */
 static int b43_phy_ac_op_init(struct b43_wldev *dev)
 {
-	b43info(dev->wl, "phy_ac: init (core_rev %u, radio24=%d)\n",
-		dev->dev->core_rev, b43_phy_ac_use_radio24(dev));
-	b43_phy_ac_op_switch_analog(dev, true);
-	b43info(dev->wl, "phy_ac: init done\n");
+	b43info(dev->wl, "phy_ac: init (core_rev %u, radio24=%d, chip %04x, board %04x, radio_on %d)\n",
+		dev->dev->core_rev, b43_phy_ac_use_radio24(dev),
+		dev->dev->chip_id, dev->dev->board_type, dev->phy.ac->radio_on);
 
 	return 0;
 }

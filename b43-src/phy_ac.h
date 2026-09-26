@@ -35,6 +35,7 @@ struct b43_phy_ac {
 	/* Band of the last channel switch; valid once chan_set is true. */
 	bool chan_set;
 	bool last_5ghz;
+	bool radio_on;
 };
 
 extern const struct b43_phy_operations b43_phyops_ac;
