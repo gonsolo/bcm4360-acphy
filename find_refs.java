@@ -16,7 +16,7 @@ public class find_refs extends GhidraScript {
         String outDir = args.length > 0 ? args[0] : "/tmp/refs_out";
         new File(outDir).mkdirs();
 
-        String[] targets = {"d11ac1initvals42", "d11ucode42"};
+        String[] targets = {"prefregs_2069_rev4"};
 
         SymbolTable st = currentProgram.getSymbolTable();
         DecompInterface ifc = new DecompInterface();

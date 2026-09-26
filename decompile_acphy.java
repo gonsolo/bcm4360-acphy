@@ -49,7 +49,7 @@ public class decompile_acphy extends GhidraScript {
             "write_radio_reg", "read_radio_reg", "and_radio_reg", "or_radio_reg",
             "xor_radio_reg", "gen_radio_reg", "wlc_phy_write_table_ext",
             "wlc_phy_read_table_ext", "wlapi_suspend_mac_and_wait",
-            "wlapi_enable_mac", "cal_perical", "mphase"};
+            "wlapi_enable_mac", "cal_perical", "mphase", "init_radio_prefregs"};
 
         DecompInterface ifc = new DecompInterface();
         ifc.openProgram(currentProgram);

@@ -32,6 +32,9 @@
 #define  B43_PHY_AC_C3_CLIP_DIS			0x4000
 
 struct b43_phy_ac {
+	/* Band of the last channel switch; valid once chan_set is true. */
+	bool chan_set;
+	bool last_5ghz;
 };
 
 extern const struct b43_phy_operations b43_phyops_ac;

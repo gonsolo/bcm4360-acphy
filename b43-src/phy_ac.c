@@ -8,6 +8,7 @@
 
 #include "b43.h"
 #include "phy_ac.h"
+#include "radio_2069.h"
 
 /**************************************************
  * Basic PHY ops
@@ -146,14 +147,117 @@ static void b43_phy_ac_op_prepare_structs(struct b43_wldev *dev)
 }
 
 /*
- * Channel switching is not implemented yet. b43_switch_channel() calls this
- * op unconditionally, so it must exist. Touches no hardware.
+ * Radio registers written from entries [2..51] of the 2069 tuning table, in
+ * table order. Resolved for acphychipid 0x4360 from the vendor driver's
+ * channel-set code (see notes/05-channel-tuning.md).
+ */
+static const u16 b43_radio_2069_tune_regs[B43_RADIO_2069_TUNE_REGS] = {
+	0x8e0, 0x8e1, 0x8dd, 0x8dc, 0x8e6, 0x8e7, 0x8c4, 0x8c5, 0x8e5, 0x8eb,
+	0x8d6, 0x113, 0x8db, 0x8da, 0x8d7, 0x885, 0x886, 0x887, 0x8d9, 0x8d8,
+	0x8c9, 0x8ca, 0x8cc, 0x8c7, 0x8c8, 0x892, 0x894, 0x895, 0x896, 0x897,
+	0x899, 0x89a, 0x89b, 0x89c, 0x112, 0x629, 0x65b, 0x65e, 0x668, 0x11a,
+	0x11b, 0x719, 0x630, 0x65c, 0x662, 0x66d, 0x893, 0x145, 0x146, 0x723,
+};
+
+static const struct b43_radio_2069_chan *
+b43_radio_2069_find_chan(struct b43_wldev *dev, unsigned int channel)
+{
+	unsigned int i;
+
+	if (dev->phy.radio_ver != 0x2069 || dev->phy.radio_rev != 4)
+		return NULL;
+	for (i = 0; i < b43_radio_2069r4_chans_n; i++)
+		if (b43_radio_2069r4_chans[i].channel == channel)
+			return &b43_radio_2069r4_chans[i];
+	return NULL;
+}
+
+/* Synthesizer VCO calibration kick. */
+static void b43_radio_2069_vcocal(struct b43_wldev *dev)
+{
+	b43_radio_mask(dev, 0x8e5, ~0x4000);
+	b43_radio_mask(dev, 0x8d0, ~0x0001);
+	b43_radio_mask(dev, 0x8e8, ~0x0040);
+	b43_radio_mask(dev, 0x8dc, ~0x2000);
+	udelay(11);
+	b43_radio_set(dev, 0x8d0, 0x0001);
+	b43_radio_set(dev, 0x8e8, 0x0040);
+	udelay(1);
+	b43_radio_set(dev, 0x8dc, 0x2000);
+}
+
+/* Reset clear-channel assessment (PHY rev 1 variant). */
+static void b43_phy_ac_resetcca(struct b43_wldev *dev)
+{
+	u16 bbcfg;
+
+	b43_phy_force_clock(dev, true);
+	bbcfg = b43_phy_read(dev, B43_PHY_AC_BBCFG);
+	b43_phy_write(dev, B43_PHY_AC_BBCFG, bbcfg | B43_PHY_AC_BBCFG_RSTCCA);
+	udelay(1);
+	b43_phy_write(dev, B43_PHY_AC_BBCFG, bbcfg & ~B43_PHY_AC_BBCFG_RSTCCA);
+	b43_phy_force_clock(dev, false);
+	udelay(2);
+}
+
+/*
+ * Follows the vendor driver's channel-set sequence for radio 2069 rev 4 at
+ * 20 MHz. Not yet ported: carrier-search suppression during the switch,
+ * the 5 GHz PLL setup, TX gain tables, and the per-channel PHY tweaks that
+ * follow the BW registers.
  */
 static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 					unsigned int new_channel)
 {
-	b43info(dev->wl, "phy_ac: switch_channel(%u) - not implemented, no-op\n",
-		new_channel);
+	struct b43_phy_ac *phy_ac = dev->phy.ac;
+	const struct b43_radio_2069_chan *e;
+	bool is_5ghz = b43_current_band(dev->wl) == NL80211_BAND_5GHZ;
+	u16 save;
+	int i;
+
+	e = b43_radio_2069_find_chan(dev, new_channel);
+	if (!e) {
+		b43err(dev->wl, "phy_ac: no tuning data for channel %u (radio %04x rev %u)\n",
+		       new_channel, dev->phy.radio_ver, dev->phy.radio_rev);
+		return -ESRCH;
+	}
+	if (is_5ghz) {
+		b43info(dev->wl, "phy_ac: 5 GHz tuning not implemented (channel %u)\n",
+			new_channel);
+		return -EOPNOTSUPP;
+	}
+	b43info(dev->wl, "phy_ac: switch_channel(%u) -> %u MHz\n",
+		new_channel, e->freq);
+
+	save = b43_phy_read(dev, 0x19e);
+	b43_phy_set(dev, 0x19e, 0x3);
+
+	b43_phy_maskset(dev, B43_PHY_AC_BANDCTL, ~0x0100, is_5ghz ? 0x0100 : 0);
+
+	if (!phy_ac->chan_set || phy_ac->last_5ghz != is_5ghz) {
+		b43_phy_set(dev, 0x728, 0x0100);
+		udelay(1);
+		b43_phy_mask(dev, 0x728, ~0x0100);
+	}
+	phy_ac->chan_set = true;
+	phy_ac->last_5ghz = is_5ghz;
+
+	for (i = 0; i < B43_RADIO_2069_TUNE_REGS; i++)
+		b43_radio_write(dev, b43_radio_2069_tune_regs[i], e->radio[i]);
+	if (new_channel == 4) {
+		b43_radio_write(dev, 0x8d6, 0x0ce4);
+		b43_radio_maskset(dev, 0x8ec, ~0x0070, 0x0050);
+	}
+	b43_radio_set(dev, 0x645, 0x7000);
+	b43_radio_write(dev, 0x723, 0x83e0);
+	b43_radio_2069_vcocal(dev);
+
+	b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
+
+	for (i = 0; i < 6; i++)
+		b43_phy_write(dev, B43_PHY_AC_BW1A + i, e->bw[i]);
+
+	b43_phy_ac_resetcca(dev);
 	return 0;
 }
 
