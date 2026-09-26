@@ -1,1 +1,7 @@
 traces/*.trace
+result
+b43-src/result
+tools/iw
+tools/tcpdump
+tools/bar0peek
+tools/bar0rd

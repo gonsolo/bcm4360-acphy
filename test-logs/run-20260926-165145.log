@@ -1,0 +1,313 @@
++ sleep 5
++ sysctl -w kernel.panic_on_oops=1 kernel.panic=10 kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 kernel.softlockup_panic=1
+kernel.panic_on_oops = 1
+kernel.panic = 10
+kernel.hung_task_panic = 1
+kernel.hung_task_timeout_secs = 30
+kernel.softlockup_panic = 1
++ echo /home/gonsolo/bcm4360-acphy/firmware
++ modprobe mac80211
++ modprobe ssb
++ modprobe cordic
++ modprobe bcma
++ sync
++ echo '===== interrupts before ====='
+===== interrupts before =====
++ grep -iE 'bcma|b43|wl|03:00' /proc/interrupts
+ 18:       4866          0          0          0 IR-IO-APIC  18-fasteoi   wlp3s0, i801_smbus
++ echo 'b43test: === TEST START ==='
++ echo bcma-pci-bridge
++ echo 0000:03:00.0
++ insmod /home/gonsolo/bcm4360-acphy/b43-src/b43.ko verbose=3 ac_replay=1
++ echo 0000:03:00.0
++ sync
++ IW=/home/gonsolo/bcm4360-acphy/tools/iw/bin/iw
++ sleep 10
+++ head -1
+++ ls '/sys/bus/pci/devices/0000:03:00.0/bcma*/*/net/'
++ IF=
++ '[' -z '' ']'
+++ for i in /sys/class/net/*
+++ head -1
+++ readlink /sys/class/net/lo/device/driver
+++ grep -q b43
+++ for i in /sys/class/net/*
+++ readlink /sys/class/net/wlp3s0b1/device/driver
+++ grep -q b43
+++ basename /sys/class/net/wlp3s0b1
++ IF=wlp3s0b1
++ echo 'b43 interface: wlp3s0b1'
+b43 interface: wlp3s0b1
++ nmcli dev set wlp3s0b1 managed no
++ ip link set wlp3s0b1 down
++ /home/gonsolo/bcm4360-acphy/tools/iw/bin/iw dev wlp3s0b1 set type monitor
++ ip link set wlp3s0b1 up
++ /home/gonsolo/bcm4360-acphy/tools/iw/bin/iw dev wlp3s0b1 set channel 6
++ /home/gonsolo/bcm4360-acphy/tools/iw/bin/iw dev wlp3s0b1 info
+Interface wlp3s0b1
+	ifindex 3
+	wdev 0x100000001
+	addr 00:01:00:00:84:38
+	type monitor
+	wiphy 1
+	channel 6 (2437 MHz), width: 20 MHz (no HT), center1: 2437 MHz
+	txpower 20.00 dBm
+	multicast TXQ:
+		qsz-byt	qsz-pkt	flows	drops	marks	overlmt	hashcol	tx-bytes	tx-packets
+		0	0	0	0	0	0	0	0		0
++ echo 'b43test: === MONITOR CH6 ==='
++ sync
++ sleep 65
++ echo '===== ip link ====='
+===== ip link =====
++ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+3: wlp3s0b1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ieee802.11/radiotap 00:01:00:00:84:38 brd ff:ff:ff:ff:ff:ff
+    altname wlx000100008438
++ echo '===== interrupts after ====='
+===== interrupts after =====
++ grep -iE 'bcma|b43|wl|03:00' /proc/interrupts
+ 18:       4867          0          0          0 IR-IO-APIC  18-fasteoi   i801_smbus, b43
++ echo '===== netdev counters ====='
+===== netdev counters =====
+++ ls /sys/class/net
++ for ifc in $(ls /sys/class/net)
++ readlink /sys/class/net/lo/device/driver
++ grep -q b43
++ for ifc in $(ls /sys/class/net)
++ readlink /sys/class/net/wlp3s0b1/device/driver
++ grep -q b43
+++ cat /sys/class/net/wlp3s0b1/statistics/rx_packets
+++ cat /sys/class/net/wlp3s0b1/statistics/tx_packets
++ echo 'wlp3s0b1 rx_packets=0' tx_packets=0
+wlp3s0b1 rx_packets=0 tx_packets=0
++ echo '===== scan results (wlp3s0b1) ====='
+===== scan results (wlp3s0b1) =====
++ nmcli -f SSID,BSSID,CHAN,SIGNAL dev wifi list ifname wlp3s0b1 --rescan yes
+SSID  BSSID  CHAN  SIGNAL 
++ echo '===== dmesg since test start ====='
+===== dmesg since test start =====
++ dmesg
++ sed -n '/b43test: === TEST START ===/,$p'
+[  109.228129] b43test: === TEST START ===
+[  109.274170] Broadcom 43xx driver loaded [ Features: PNL ]
+[  109.279041] bcma-pci-bridge 0000:03:00.0: bus0: Found chip with id 0x4360, rev 0x03 and package 0x00
+[  109.279093] bcma-pci-bridge 0000:03:00.0: bus0: Core 0 found: ChipCommon (manuf 0x4BF, id 0x800, rev 0x2B, class 0x0)
+[  109.279121] bcma-pci-bridge 0000:03:00.0: bus0: Core 1 found: IEEE 802.11 (manuf 0x4BF, id 0x812, rev 0x2A, class 0x0)
+[  109.279167] bcma-pci-bridge 0000:03:00.0: bus0: Core 2 found: ARM CR4 (manuf 0x4BF, id 0x83E, rev 0x02, class 0x0)
+[  109.279217] bcma-pci-bridge 0000:03:00.0: bus0: Core 3 found: PCIe Gen2 (manuf 0x4BF, id 0x83C, rev 0x01, class 0x0)
+[  109.279243] bcma-pci-bridge 0000:03:00.0: bus0: Core 4 found: USB 2.0 Device (manuf 0x4BF, id 0x81A, rev 0x11, class 0x0)
+[  109.357598] b43-phy1: Broadcom 4360 WLAN found (core revision 42)
+[  109.358032] b43-phy1: Found PHY: Analog 12, Type 11 (AC), Revision 1
+[  109.358046] b43-phy1: Found Radio: Manuf 0x17F, ID 0x2069, Revision 4, Version 0
+[  109.358347] b43-phy1: phy_ac: radio powered down
+[  109.358488] bcma-pci-bridge 0000:03:00.0: bus0: Bus registered
+[  109.359862] ieee80211 phy1: Selected rate control algorithm 'minstrel_ht'
+[  109.360455] b43-phy1 warning: LEDs: Unknown behaviour 0x33
+[  109.360461] b43-phy1 warning: LEDs: Unknown behaviour 0x58
+[  109.360464] b43-phy1 warning: LEDs: Unknown behaviour 0x11
+[  109.459115] b43 bcma0:1 wlp3s0b1: renamed from wlan0
+[  109.594264] b43-phy1: phy_ac: prepare_structs
+[  109.756320] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[  109.756637] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  109.756987] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  109.757096] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  109.757889] b43-phy1: phy_ac: RCCAL step 0: 0a80 0b55 -> a0
+[  109.758668] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  109.759457] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  109.761544] b43-phy1: phy_ac: wrote 23 PHY tables
+[  109.761623] b43-phy1: phy_ac: first-init registers done
+[  109.761624] b43-phy1: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[  109.761629] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  109.770328] b43-phy1 debug: Chip initialized
+[  109.770367] b43-phy1: DMA: 64-bit engine, index registers hold bus addresses
+[  109.770429] b43-phy1: DMA tx0: ctl=00000801 ring=80000001:8435e000
+[  109.770452] b43-phy1: DMA tx1: ctl=00000801 ring=80000001:84360000
+[  109.770472] b43-phy1: DMA tx2: ctl=00000801 ring=80000001:84362000
+[  109.770534] b43-phy1: DMA tx3: ctl=00000801 ring=80000001:842c6000
+[  109.770598] b43-phy1: DMA tx4: ctl=00000801 ring=80000001:07fc0000
+[  109.771056] b43-phy1: DMA rx0: ctl=0000084d ring=80000001:07fc2000
+[  109.771060] b43-phy1 debug: 64-bit DMA initialized
+[  109.771143] b43-phy1 debug: QoS enabled
+[  109.772037] b43-phy1 debug: Wireless interface started
+[  109.772108] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  109.781341] b43-phy1 debug: Adding Interface type 2
+[  109.781413] b43-phy1: phy_ac: MACCTL=c4020403 IRQ reason=00000000 mask=38058a64 pio=0
+[  109.781427] b43-phy1: phy_ac: DMA rx status=10002000 tx(BE) status=20000000
+[  109.781594] b43-phy1: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
+[  109.781610] b43-phy1: phy_ac: gpio in=00002046 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[  109.781966] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  109.803620] b43-phy1 debug: Removing Interface type 2
+[  109.803794] b43-phy1 debug: Wireless interface stopped
+[  109.814210] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[  109.814236] b43-phy1: phy_ac: radio powered down
+[  109.814248] b43-phy1: phy_ac: radio powered down
+[  109.818220] b43-phy1: phy_ac: prepare_structs
+[  109.983297] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[  109.983613] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  109.983962] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  109.984071] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  109.984850] b43-phy1: phy_ac: RCCAL step 0: 0a80 0b55 -> a0
+[  109.985628] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  109.986423] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  109.988570] b43-phy1: phy_ac: wrote 23 PHY tables
+[  109.988650] b43-phy1: phy_ac: first-init registers done
+[  109.988652] b43-phy1: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[  109.988660] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  109.997253] b43-phy1 debug: Chip initialized
+[  109.997292] b43-phy1: DMA: 64-bit engine, index registers hold bus addresses
+[  109.997353] b43-phy1: DMA tx0: ctl=00000801 ring=80000001:7c7fe000
+[  109.997376] b43-phy1: DMA tx1: ctl=00000801 ring=80000001:84354000
+[  109.997396] b43-phy1: DMA tx2: ctl=00000801 ring=80000001:7dc8a000
+[  109.997416] b43-phy1: DMA tx3: ctl=00000801 ring=80000001:1afee000
+[  109.997443] b43-phy1: DMA tx4: ctl=00000801 ring=80000001:7c7f8000
+[  109.997889] b43-phy1: DMA rx0: ctl=0000084d ring=80000001:7f034000
+[  109.997893] b43-phy1 debug: 64-bit DMA initialized
+[  109.997975] b43-phy1 debug: QoS enabled
+[  109.998820] b43-phy1 debug: Wireless interface started
+[  109.998847] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  110.007253] b43-phy1 debug: Adding Interface type 2
+[  110.007324] b43-phy1: phy_ac: MACCTL=c4020403 IRQ reason=00000000 mask=38058a64 pio=0
+[  110.007338] b43-phy1: phy_ac: DMA rx status=10004000 tx(BE) status=20004000
+[  110.007517] b43-phy1: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
+[  110.007532] b43-phy1: phy_ac: gpio in=00002046 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[  110.031014] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  110.040364] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  110.112300] b43-phy1 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  110.183209] b43-phy1 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  110.254271] b43-phy1 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  110.325262] b43-phy1 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  110.396173] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  110.398468] b43-phy1: phy_ac: replayed vendor ch6 state (121 radio, 250 PHY regs, 969 table entries)
+[  110.469305] b43-phy1 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  110.540224] b43-phy1 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[  110.611105] b43-phy1 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[  110.682122] b43-phy1 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[  110.753106] b43-phy1 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[  110.824155] b43-phy1 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[  110.895128] b43-phy1 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[  110.973224] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  113.921171] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  113.929828] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  114.000724] b43-phy1 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  114.071726] b43-phy1 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  114.142708] b43-phy1 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  114.213718] b43-phy1 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  114.284696] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  114.286939] b43-phy1: phy_ac: replayed vendor ch6 state (121 radio, 250 PHY regs, 969 table entries)
+[  114.357740] b43-phy1 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  114.428688] b43-phy1 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[  114.499641] b43-phy1 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[  114.570677] b43-phy1 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[  114.641656] b43-phy1 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[  114.712653] b43-phy1 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[  114.783645] b43-phy1 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[  114.862688] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  118.921923] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  118.930462] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  119.001324] b43-phy1 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  119.072320] b43-phy1 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  119.143374] b43-phy1 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  119.214312] b43-phy1 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  119.285322] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  119.287618] b43-phy1: phy_ac: replayed vendor ch6 state (121 radio, 250 PHY regs, 969 table entries)
+[  119.358367] b43-phy1 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  119.439310] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  119.448540] b43-phy1 debug: Removing Interface type 2
+[  119.448767] b43-phy1 debug: Wireless interface stopped
+[  119.479156] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[  119.479185] b43-phy1: phy_ac: radio powered down
+[  119.479195] b43-phy1: phy_ac: radio powered down
+[  119.480171] b43-phy1: phy_ac: prepare_structs
+[  119.642271] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[  119.642587] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  119.642937] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  119.643046] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  119.643836] b43-phy1: phy_ac: RCCAL step 0: 0a82 0b57 -> a0
+[  119.644620] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  119.645422] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  119.647525] b43-phy1: phy_ac: wrote 23 PHY tables
+[  119.647605] b43-phy1: phy_ac: first-init registers done
+[  119.647607] b43-phy1: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[  119.647613] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  119.656221] b43-phy1 debug: Chip initialized
+[  119.656260] b43-phy1: DMA: 64-bit engine, index registers hold bus addresses
+[  119.656321] b43-phy1: DMA tx0: ctl=00000801 ring=80000001:7c7f8000
+[  119.656343] b43-phy1: DMA tx1: ctl=00000801 ring=80000001:1afee000
+[  119.656363] b43-phy1: DMA tx2: ctl=00000801 ring=80000001:7cc00000
+[  119.656383] b43-phy1: DMA tx3: ctl=00000801 ring=80000001:84348000
+[  119.656404] b43-phy1: DMA tx4: ctl=00000801 ring=80000001:842c6000
+[  119.656833] b43-phy1: DMA rx0: ctl=0000084d ring=80000001:84362000
+[  119.656836] b43-phy1 debug: 64-bit DMA initialized
+[  119.656918] b43-phy1 debug: QoS enabled
+[  119.657753] b43-phy1 debug: Wireless interface started
+[  119.657788] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  119.666269] b43-phy1 debug: Adding Interface type 2
+[  119.666342] b43-phy1: phy_ac: MACCTL=c4020403 IRQ reason=00000000 mask=38058a64 pio=0
+[  119.666357] b43-phy1: phy_ac: DMA rx status=10002000 tx(BE) status=2000e000
+[  119.666525] b43-phy1: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
+[  119.666540] b43-phy1: phy_ac: gpio in=00002046 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[  119.680523] b43-phy1 debug: Removing Interface type 2
+[  119.680747] b43-phy1 debug: Wireless interface stopped
+[  119.693117] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[  119.693158] b43-phy1: phy_ac: radio powered down
+[  119.693168] b43-phy1: phy_ac: radio powered down
+[  119.698198] b43-phy1: phy_ac: prepare_structs
+[  119.861196] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[  119.861511] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  119.861862] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  119.861971] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  119.862751] b43-phy1: phy_ac: RCCAL step 0: 0a81 0b57 -> a1
+[  119.863548] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  119.864343] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  119.866446] b43-phy1: phy_ac: wrote 23 PHY tables
+[  119.866525] b43-phy1: phy_ac: first-init registers done
+[  119.866526] b43-phy1: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[  119.866532] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  119.875251] b43-phy1 debug: Chip initialized
+[  119.875290] b43-phy1: DMA: 64-bit engine, index registers hold bus addresses
+[  119.875351] b43-phy1: DMA tx0: ctl=00000801 ring=80000001:1ad30000
+[  119.875373] b43-phy1: DMA tx1: ctl=00000801 ring=80000001:8435e000
+[  119.875395] b43-phy1: DMA tx2: ctl=00000801 ring=80000001:07fc2000
+[  119.875414] b43-phy1: DMA tx3: ctl=00000801 ring=80000001:07fc4000
+[  119.875442] b43-phy1: DMA tx4: ctl=00000801 ring=80000001:07fc6000
+[  119.875877] b43-phy1: DMA rx0: ctl=0000084d ring=80000001:0c488000
+[  119.875881] b43-phy1 debug: 64-bit DMA initialized
+[  119.875964] b43-phy1 debug: QoS enabled
+[  119.876678] b43-phy1 debug: Wireless interface started
+[  119.876749] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  119.885342] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  119.894336] b43-phy1: phy_ac: MACCTL=c4520403 IRQ reason=00000000 mask=38058a64 pio=0
+[  119.894357] b43-phy1: phy_ac: DMA rx status=10008000 tx(BE) status=2000e000
+[  119.894526] b43-phy1: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
+[  119.894544] b43-phy1: phy_ac: gpio in=00002046 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[  119.897590] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  119.906272] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  119.908540] b43-phy1: phy_ac: replayed vendor ch6 state (121 radio, 250 PHY regs, 969 table entries)
+[  119.919921] b43test: === MONITOR CH6 ===
+[  135.220041] b43-phy1: phy_ac: MACCTL=c4520403 IRQ reason=00000000 mask=38058a64 pio=0
+[  135.220100] b43-phy1: phy_ac: DMA rx status=10008000 tx(BE) status=2000e000
+[  135.220272] b43-phy1: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0004 0000 0058 001f 0000 0000 0000 0000 0000 0000 000e 0002 000b 0004 0004 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0058 0000 0000 0000
+[  135.220290] b43-phy1: phy_ac: gpio in=00002046 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[  151.091906] b43-phy1: phy_ac: MACCTL=c4520403 IRQ reason=00000000 mask=38058a64 pio=0
+[  151.091966] b43-phy1: phy_ac: DMA rx status=10008000 tx(BE) status=2000e000
+[  151.092140] b43-phy1: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 000b 0000 00f9 0050 0000 0000 0000 0000 0000 0000 0025 0005 001b 000c 0008 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 00f8 0000 0000 0000
+[  151.092163] b43-phy1: phy_ac: gpio in=00002046 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[  166.964001] b43-phy1: phy_ac: MACCTL=c4520403 IRQ reason=00004000 mask=38058a64 pio=0
+[  166.964068] b43-phy1: phy_ac: DMA rx status=10008000 tx(BE) status=2000e000
+[  166.964241] b43-phy1: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0014 0000 015f 008e 0000 0000 0000 0000 0000 0000 003f 0008 0033 0015 0010 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0001 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 015e 0000 0000 0000
+[  166.964260] b43-phy1: phy_ac: gpio in=00002046 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[  181.811928] b43-phy1: phy_ac: MACCTL=c4520403 IRQ reason=00004000 mask=38058a64 pio=0
+[  181.811983] b43-phy1: phy_ac: DMA rx status=10008000 tx(BE) status=2000e000
+[  181.812154] b43-phy1: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0024 0000 0287 00f2 0000 0000 0000 0000 0000 0000 0062 000c 0060 0029 001e 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0001 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0286 0000 0000 0000
+[  181.812172] b43-phy1: phy_ac: gpio in=00002046 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
++ journalctl --sync
++ sync
++ echo 'b43test: === DONE, rebooting ==='
++ echo '===== DONE, rebooting ====='
+===== DONE, rebooting =====
++ journalctl --sync
++ sync
++ systemctl reboot

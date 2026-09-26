@@ -1,0 +1,287 @@
++ date -u
+Sat Sep 26 02:24:48 PM UTC 2026
++ /nix/store/9rhwm6526aq8nlilicalmjgsbvvvgv81-nixos-system-zitrone-26.05.10529.c508844df6c2/bin/switch-to-configuration boot
+Not checking switch inhibitors (action = boot)
++ sync
++ sleep 10
++ sysctl -w kernel.panic_on_oops=1 kernel.panic=10 kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 kernel.softlockup_panic=1
+kernel.panic_on_oops = 1
+kernel.panic = 10
+kernel.hung_task_panic = 1
+kernel.hung_task_timeout_secs = 30
+kernel.softlockup_panic = 1
++ sync
++ echo /home/gonsolo/bcm4360-acphy/firmware
++ modprobe mac80211
++ modprobe ssb
++ modprobe cordic
++ modprobe bcma
++ sync
++ echo '===== interrupts before ====='
+===== interrupts before =====
++ grep -iE 'bcma|b43|wl|03:00' /proc/interrupts
++ echo '===== driver bound to device before insmod ====='
+===== driver bound to device before insmod =====
++ readlink -f /sys/bus/pci/devices/0000:03:00.0/driver
+/sys/bus/pci/drivers/bcma-pci-bridge
++ echo 'coldboot: === INSMOD ==='
++ insmod /home/gonsolo/bcm4360-acphy/b43-src/b43.ko verbose=3
++ sync
++ sleep 90
++ echo '===== ip link ====='
+===== ip link =====
++ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: wlp3s0b1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DORMANT group default qlen 1000
+    link/ether c6:39:93:c5:8e:61 brd ff:ff:ff:ff:ff:ff permaddr 00:01:00:00:84:38
+    altname wlx000100008438
++ echo '===== interrupts after ====='
+===== interrupts after =====
++ grep -iE 'bcma|b43|wl|03:00' /proc/interrupts
+ 18:          0          0          4          0 IR-IO-APIC  18-fasteoi   i801_smbus, b43
++ echo '===== nmcli device ====='
+===== nmcli device =====
++ nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device
+lo:loopback:connected (externally):lo
+wlp3s0b1:wifi:disconnected:
++ echo '===== netdev counters ====='
+===== netdev counters =====
+++ ls /sys/class/net
++ for ifc in $(ls /sys/class/net)
++ readlink /sys/class/net/lo/device/driver
++ grep -q b43
++ for ifc in $(ls /sys/class/net)
++ readlink /sys/class/net/wlp3s0b1/device/driver
++ grep -q b43
+++ cat /sys/class/net/wlp3s0b1/statistics/rx_packets
+++ cat /sys/class/net/wlp3s0b1/statistics/tx_packets
++ echo 'wlp3s0b1 rx_packets=0' tx_packets=0
+wlp3s0b1 rx_packets=0 tx_packets=0
++ echo '===== scan results (wlp3s0b1) ====='
+===== scan results (wlp3s0b1) =====
++ nmcli -f SSID,BSSID,CHAN,SIGNAL dev wifi list ifname wlp3s0b1 --rescan yes
+SSID  BSSID  CHAN  SIGNAL 
++ echo '===== dmesg since INSMOD ====='
+===== dmesg since INSMOD =====
++ dmesg
++ sed -n '/coldboot: === INSMOD ===/,$p'
+[   21.769777] coldboot: === INSMOD ===
+[   21.799040] b43: loading out-of-tree module taints kernel.
+[   21.805042] b43-phy0: Broadcom 4360 WLAN found (core revision 42)
+[   21.806247] b43-phy0: Found PHY: Analog 12, Type 11 (AC), Revision 1
+[   21.806256] b43-phy0: Found Radio: Manuf 0x17F, ID 0x2069, Revision 4, Version 0
+[   21.806548] b43-phy0: phy_ac: radio powered down
+[   21.806642] Broadcom 43xx driver loaded [ Features: PNL ]
+[   21.808416] ieee80211 phy0: Selected rate control algorithm 'minstrel_ht'
+[   21.811975] b43-phy0 warning: LEDs: Unknown behaviour 0x33
+[   21.811983] b43-phy0 warning: LEDs: Unknown behaviour 0x58
+[   21.811985] b43-phy0 warning: LEDs: Unknown behaviour 0x11
+[   21.830098] b43 bcma0:1 wlp3s0b1: renamed from wlan0
+[   21.975357] b43-phy0: phy_ac: prepare_structs
+[   22.139742] b43-phy0: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[   22.140054] b43-phy0: phy_ac: software_rfkill(blocked=0)
+[   22.140405] b43-phy0: phy_ac: radio 2069 init done (2 cores)
+[   22.142239] b43-phy0: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[   22.143032] b43-phy0: phy_ac: RCCAL step 0: 0a7c 0b53 -> a2
+[   22.145949] b43-phy0: phy_ac: RCCAL step 1: 000b
+[   22.146760] b43-phy0: phy_ac: RCCAL step 2: 01eb
+[   22.149379] b43-phy0: phy_ac: wrote 23 PHY tables
+[   22.149477] b43-phy0: phy_ac: first-init registers done
+[   22.149481] b43-phy0: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[   22.149490] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   22.158608] b43-phy0 debug: Chip initialized
+[   22.158647] b43-phy0: DMA: 64-bit engine, index registers hold bus addresses
+[   22.158709] b43-phy0: DMA tx0: ctl=00000801 ring=80000001:03cf6000
+[   22.158731] b43-phy0: DMA tx1: ctl=00000801 ring=80000001:0d7dc000
+[   22.158752] b43-phy0: DMA tx2: ctl=00000801 ring=80000001:342c0000
+[   22.158771] b43-phy0: DMA tx3: ctl=00000801 ring=80000001:248d8000
+[   22.158795] b43-phy0: DMA tx4: ctl=00000801 ring=80000001:312bc000
+[   22.159209] b43-phy0: DMA rx0: ctl=0000084d ring=80000001:24904000
+[   22.159214] b43-phy0 debug: 64-bit DMA initialized
+[   22.159298] b43-phy0 debug: QoS enabled
+[   22.160604] b43-phy0 debug: Wireless interface started
+[   22.160631] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   22.170558] b43-phy0 debug: Adding Interface type 2
+[   22.170627] b43-phy0: phy_ac: MACCTL=c4020403 IRQ reason=00000000 mask=38058a64 pio=0
+[   22.170638] b43-phy0: phy_ac: DMA rx status=10004000 tx(BE) status=2000c000
+[   22.170995] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   22.185626] b43-phy0 debug: Removing Interface type 2
+[   22.185841] b43-phy0 debug: Wireless interface stopped
+[   22.195563] b43-phy0: phy_ac: software_rfkill(blocked=1)
+[   22.195589] b43-phy0: phy_ac: radio powered down
+[   22.195601] b43-phy0: phy_ac: radio powered down
+[   22.198629] b43-phy0: phy_ac: prepare_structs
+[   22.360628] b43-phy0: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[   22.360933] b43-phy0: phy_ac: software_rfkill(blocked=0)
+[   22.361283] b43-phy0: phy_ac: radio 2069 init done (2 cores)
+[   22.361391] b43-phy0: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[   22.362183] b43-phy0: phy_ac: RCCAL step 0: 0a7e 0b53 -> a0
+[   22.362961] b43-phy0: phy_ac: RCCAL step 1: 000b
+[   22.363757] b43-phy0: phy_ac: RCCAL step 2: 01eb
+[   22.365845] b43-phy0: phy_ac: wrote 23 PHY tables
+[   22.365924] b43-phy0: phy_ac: first-init registers done
+[   22.365925] b43-phy0: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[   22.365931] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   22.374623] b43-phy0 debug: Chip initialized
+[   22.374662] b43-phy0: DMA: 64-bit engine, index registers hold bus addresses
+[   22.374724] b43-phy0: DMA tx0: ctl=00000801 ring=80000001:3a1aa000
+[   22.374746] b43-phy0: DMA tx1: ctl=00000801 ring=80000001:3a1ae000
+[   22.374809] b43-phy0: DMA tx2: ctl=00000801 ring=80000001:3a1b0000
+[   22.374829] b43-phy0: DMA tx3: ctl=00000801 ring=80000001:3a1b2000
+[   22.374848] b43-phy0: DMA tx4: ctl=00000801 ring=80000001:3a1b4000
+[   22.375357] b43-phy0: DMA rx0: ctl=0000084d ring=80000001:3a1b6000
+[   22.375362] b43-phy0 debug: 64-bit DMA initialized
+[   22.375444] b43-phy0 debug: QoS enabled
+[   22.376203] b43-phy0 debug: Wireless interface started
+[   22.376227] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   22.384637] b43-phy0 debug: Adding Interface type 2
+[   22.384705] b43-phy0: phy_ac: MACCTL=c4020403 IRQ reason=00000000 mask=38058a64 pio=0
+[   22.384719] b43-phy0: phy_ac: DMA rx status=10006000 tx(BE) status=2000e000
+[   22.408103] NET: Registered PF_PACKET protocol family
+[   22.434603] rfkill: input handler enabled
+[   22.442937] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   22.454034] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   22.524545] b43-phy0 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[   22.596532] b43-phy0 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[   22.667554] b43-phy0 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[   22.738542] b43-phy0 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[   22.809527] b43-phy0 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[   22.880512] b43-phy0 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[   22.952607] b43-phy0 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[   23.023570] b43-phy0 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[   23.095511] b43-phy0 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[   23.167538] b43-phy0 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[   23.238546] b43-phy0 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[   23.360513] b43-phy0 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[   23.489528] b43-phy0 debug: phy_ac: switch_channel(14) -> 2484 MHz
+[   23.624558] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   24.658056] rfkill: input handler disabled
+[   26.003926] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   26.012845] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   26.085519] b43-phy0 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[   26.157529] b43-phy0 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[   26.228531] b43-phy0 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[   26.300533] b43-phy0 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[   26.373528] b43-phy0 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[   26.445530] b43-phy0 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[   26.517519] b43-phy0 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[   26.589526] b43-phy0 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[   26.660529] b43-phy0 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[   26.731527] b43-phy0 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[   26.802521] b43-phy0 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[   26.928539] b43-phy0 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[   27.056521] b43-phy0 debug: phy_ac: switch_channel(14) -> 2484 MHz
+[   27.189579] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   31.003139] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   31.011610] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   31.083520] b43-phy0 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[   31.158532] b43-phy0 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[   31.231529] b43-phy0 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[   31.302530] b43-phy0 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[   31.373535] b43-phy0 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[   31.446523] b43-phy0 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[   31.518538] b43-phy0 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[   31.590523] b43-phy0 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[   31.662536] b43-phy0 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[   31.733540] b43-phy0 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[   31.804522] b43-phy0 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[   31.928522] b43-phy0 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[   32.056540] b43-phy0 debug: phy_ac: switch_channel(14) -> 2484 MHz
+[   32.192544] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   38.003112] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   38.011642] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   38.024616] b43-phy0: phy_ac: MACCTL=c4120403 IRQ reason=00000000 mask=38058a64 pio=0
+[   38.024633] b43-phy0: phy_ac: DMA rx status=10006000 tx(BE) status=2000e000
+[   38.084534] b43-phy0 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[   38.156523] b43-phy0 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[   38.227566] b43-phy0 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[   38.298545] b43-phy0 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[   38.369531] b43-phy0 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[   38.440575] b43-phy0 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[   38.511540] b43-phy0 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[   38.582529] b43-phy0 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[   38.654526] b43-phy0 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[   38.725552] b43-phy0 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[   38.798548] b43-phy0 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[   38.920538] b43-phy0 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[   39.048901] b43-phy0 debug: phy_ac: switch_channel(14) -> 2484 MHz
+[   39.178631] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   48.012199] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   48.020737] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   48.091642] b43-phy0 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[   48.162651] b43-phy0 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[   48.233637] b43-phy0 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[   48.304657] b43-phy0 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[   48.375637] b43-phy0 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[   48.446641] b43-phy0 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[   48.517637] b43-phy0 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[   48.588641] b43-phy0 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[   48.659645] b43-phy0 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[   48.731658] b43-phy0 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[   48.802662] b43-phy0 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[   48.928647] b43-phy0 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[   49.056645] b43-phy0 debug: phy_ac: switch_channel(14) -> 2484 MHz
+[   49.192721] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   52.872727] b43-phy0: phy_ac: MACCTL=c4020403 IRQ reason=00000000 mask=38058a64 pio=0
+[   52.872791] b43-phy0: phy_ac: DMA rx status=10006000 tx(BE) status=2000e000
+[   62.006479] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   62.015743] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   62.086641] b43-phy0 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[   62.157644] b43-phy0 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[   62.228657] b43-phy0 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[   62.299660] b43-phy0 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[   62.370638] b43-phy0 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[   62.441641] b43-phy0 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[   62.512645] b43-phy0 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[   62.583639] b43-phy0 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[   62.654658] b43-phy0 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[   62.725640] b43-phy0 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[   62.796640] b43-phy0 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[   62.920659] b43-phy0 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[   63.048644] b43-phy0 debug: phy_ac: switch_channel(14) -> 2484 MHz
+[   63.183707] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   68.232649] b43-phy0: phy_ac: MACCTL=c4020403 IRQ reason=00004000 mask=38058a64 pio=0
+[   68.232707] b43-phy0: phy_ac: DMA rx status=10006000 tx(BE) status=2000e000
+[   82.022180] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   82.030777] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   82.101646] b43-phy0 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[   82.172644] b43-phy0 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[   82.243657] b43-phy0 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[   82.314578] b43-phy0 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[   82.385628] b43-phy0 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[   82.456647] b43-phy0 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[   82.527641] b43-phy0 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[   82.598643] b43-phy0 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[   82.669658] b43-phy0 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[   82.740641] b43-phy0 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[   82.811585] b43-phy0 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[   82.936648] b43-phy0 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[   83.064636] b43-phy0 debug: phy_ac: switch_channel(14) -> 2484 MHz
+[   83.196711] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[   84.104546] b43-phy0: phy_ac: MACCTL=c4020403 IRQ reason=00004000 mask=38058a64 pio=0
+[   84.104611] b43-phy0: phy_ac: DMA rx status=10006000 tx(BE) status=2000e000
+[   98.952652] b43-phy0: phy_ac: MACCTL=c4020403 IRQ reason=00004000 mask=38058a64 pio=0
+[   98.952719] b43-phy0: phy_ac: DMA rx status=10006000 tx(BE) status=2000e000
+[  111.031212] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  111.039763] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  111.110596] b43-phy0 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  111.181642] b43-phy0 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  111.252645] b43-phy0 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  111.323563] b43-phy0 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  111.394641] b43-phy0 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  111.465643] b43-phy0 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  111.536578] b43-phy0 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[  111.607572] b43-phy0 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[  111.678621] b43-phy0 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[  111.749649] b43-phy0 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[  111.820643] b43-phy0 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[  111.944627] b43-phy0 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[  112.072654] b43-phy0 debug: phy_ac: switch_channel(14) -> 2484 MHz
+[  112.208686] b43-phy0 debug: phy_ac: switch_channel(1) -> 2412 MHz
++ journalctl --sync
++ sync
++ echo 'coldboot: === DONE, rebooting to reverted default ==='
++ journalctl --sync
++ sync
++ systemctl reboot

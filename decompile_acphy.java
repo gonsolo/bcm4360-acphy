@@ -49,7 +49,7 @@ public class decompile_acphy extends GhidraScript {
             "write_radio_reg", "read_radio_reg", "and_radio_reg", "or_radio_reg",
             "xor_radio_reg", "gen_radio_reg", "wlc_phy_write_table_ext",
             "wlc_phy_read_table_ext", "wlapi_suspend_mac_and_wait",
-            "wlapi_enable_mac", "cal_perical", "mphase", "init_radio_prefregs"};
+            "wlapi_enable_mac", "cal_perical", "mphase", "init_radio_prefregs", "femctrl_bt_wlan_ovrd"};
 
         DecompInterface ifc = new DecompInterface();
         ifc.openProgram(currentProgram);
@@ -62,7 +62,7 @@ public class decompile_acphy extends GhidraScript {
             "001b0ce9", "001b1f67",
             "00193d3a", "0019454f", "00195603", "001982a2",
             "0019ccd9", "0019d3ac", "0019d550", "0019d65d",
-            "00199491", "0019d224", "001986fc", "00161ca7", "0010f3af", "001a1924", "001a784f", "0019f839", "0019173d", "0019bc45", "0019ae61", "0019b279", "00196f43", "00193c3b", "0019a2eb"
+            "00199491", "0019d224", "001986fc", "00161ca7", "0010f3af", "001a1924", "001a784f", "0019f839", "0019173d", "0019bc45", "0019ae61", "0019b279", "00196f43", "00193c3b", "0019a2eb", "0019a398", "0019a60c"
         };
         for (String a : explicitAddrs) {
             Function f = getFunctionAt(toAddr("0x" + a));
