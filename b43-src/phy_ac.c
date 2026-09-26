@@ -723,6 +723,22 @@ static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 			b43_shm_write16(dev, b43_ac_por5g_shm[i].routing,
 					b43_ac_por5g_shm[i].off,
 					b43_ac_por5g_shm[i].val);
+	if (dev->dev->bus_type == B43_BUS_BCMA) {
+		struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
+
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_cc); i++)
+			if (b43_ac_por5g_cc[i][0] != 0xffff)
+				bcma_cc_write32(cc, b43_ac_por5g_cc[i][0],
+						b43_ac_por5g_cc[i][1]);
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_pmu); i++) {
+			if (b43_ac_por5g_pmu[i].kind == 0)
+				bcma_chipco_chipctl_maskset(cc, b43_ac_por5g_pmu[i].idx,
+							    0, b43_ac_por5g_pmu[i].val);
+			else if (b43_ac_por5g_pmu[i].kind == 1)
+				bcma_chipco_regctl_maskset(cc, b43_ac_por5g_pmu[i].idx,
+							   0, b43_ac_por5g_pmu[i].val);
+		}
+	}
 	b43info(dev->wl, "phy_ac: applied 5 GHz first-load state\n");
 }
 
