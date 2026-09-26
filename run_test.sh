@@ -42,7 +42,23 @@ insmod "$PROJ/b43-src/b43.ko" verbose=3 ac_replay=1
 echo "$DEV" > /sys/bus/pci/drivers_probe
 sync
 
-sleep 75
+# Park the radio on the router's channel (6) in monitor mode so the ucode
+# RX counters are comparable to wl's, and any received frame counts.
+IW=$PROJ/tools/iw/bin/iw
+sleep 10
+IF=$(ls /sys/bus/pci/devices/$DEV/bcma*/*/net/ 2>/dev/null | head -1)
+[ -z "$IF" ] && IF=$(for i in /sys/class/net/*; do readlink $i/device/driver | grep -q b43 && basename $i; done | head -1)
+echo "b43 interface: $IF"
+nmcli dev set "$IF" managed no
+ip link set "$IF" down
+$IW dev "$IF" set type monitor
+ip link set "$IF" up
+$IW dev "$IF" set channel 6
+$IW dev "$IF" info
+echo "b43test: === MONITOR CH6 ===" > /dev/kmsg
+sync
+
+sleep 65
 
 echo "===== ip link ====="
 ip link
