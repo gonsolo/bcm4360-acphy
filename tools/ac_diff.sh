@@ -3,7 +3,7 @@
 # usage: sudo tools/ac_diff.sh phy|radio
 set -u
 W=${1:-phy}
-F=/home/gonsolo/bcm4360-acphy/traces/wl-final-$W-2g-ch6.txt
+F=${2:-/home/gonsolo/bcm4360-acphy/traces/wl-final-$W-2g-ch6.txt}
 D=/sys/kernel/debug/b43ac/$W
 n=0; d=0
 while read -r a v; do

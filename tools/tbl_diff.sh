@@ -2,7 +2,7 @@
 # Read back PHY table entries and compare with wl's final ch6 values.
 # usage: sudo tools/tbl_diff.sh   (needs /sys/kernel/debug/b43ac/phy)
 P=/sys/kernel/debug/b43ac/phy
-F=/home/gonsolo/bcm4360-acphy/traces/wl-final-tables-2g-ch6.txt
+F=${1:-/home/gonsolo/bcm4360-acphy/traces/wl-final-tables-2g-ch6.txt}
 n=0; d=0
 while read -r id off w val; do
 	echo "00d $(printf %x $id)" > $P

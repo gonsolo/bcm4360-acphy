@@ -49,7 +49,15 @@ static ssize_t b43_ac_dbg_read(struct file *f, char __user *ubuf, size_t len,
 	else if (which == 2)
 		val = b43_shm_read16(dev, B43_SHM_SHARED, addr);
 	else
+		{
+		bool susp = which == 0;
+
+		if (susp)
+			b43_mac_suspend(dev);
 		val = which ? b43_radio_read(dev, addr) : b43_phy_read(dev, addr);
+		if (susp)
+			b43_mac_enable(dev);
+	}
 	mutex_unlock(&dev->wl->mutex);
 	n = scnprintf(buf, sizeof(buf), "%04x %04x\n", addr, val);
 	return simple_read_from_buffer(ubuf, len, ppos, buf, n);
@@ -87,8 +95,11 @@ static ssize_t b43_ac_dbg_write(struct file *f, const char __user *ubuf,
 			b43_shm_write16(dev, B43_SHM_SHARED, addr, val);
 		else if (which)
 			b43_radio_write(dev, addr, val);
-		else
+		else {
+			b43_mac_suspend(dev);
 			b43_phy_write(dev, addr, val);
+			b43_mac_enable(dev);
+		}
 		mutex_unlock(&dev->wl->mutex);
 	}
 	return len;
@@ -695,6 +706,24 @@ static void b43_phy_ac_resetcca(struct b43_wldev *dev)
  * the 5 GHz PLL setup, TX gain tables, and the per-channel PHY tweaks that
  * follow the BW registers.
  */
+/* Final per-core RF control state of wl (first-load trace) that our init
+ * doesn't reach; diagnostic until the owning init step is ported. */
+static void b43_phy_ac_rfctrl_wl(struct b43_wldev *dev)
+{
+	static const u16 regs[][2] = {
+		{ 0x645, 0x024d }, { 0x845, 0x025f },
+		{ 0x725, 0x0600 }, { 0x925, 0x0600 },
+		{ 0x727, 0x0004 }, { 0x927, 0x0004 },
+		{ 0x728, 0x0880 }, { 0x928, 0x0880 },
+		{ 0x729, 0x1000 }, { 0x929, 0x1000 },
+		{ 0x73a, 0x0180 }, { 0x93a, 0x0180 },
+	};
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++)
+		b43_phy_write(dev, regs[i][0], regs[i][1]);
+}
+
 static void b43_phy_ac_tune(struct b43_wldev *dev,
 			    const struct b43_radio_2069_chan *e,
 			    unsigned int channel)
@@ -760,6 +789,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_replay_ch6(dev);
 	if (b43_ac_por && new_channel == 6)
 		b43_phy_ac_apply_por(dev);
+	if (b43_ac_por)
+		b43_phy_ac_rfctrl_wl(dev);
 
 	b43_phy_ac_resetcca(dev);
 	return 0;
