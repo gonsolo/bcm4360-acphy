@@ -3282,6 +3282,14 @@ static void b43_set_phytxctl_defaults(struct b43_wldev *dev)
 {
 	u16 ctl = 0;
 
+	if (dev->phy.type == B43_PHYTYPE_AC) {
+		/* rev 40+ ucode: AC PhyTxControlWord_0 format (CCK, core 0),
+		 * as wl sets it. 0x54/0x188 mean something else here. */
+		b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_ACKCTSPHYCTL,
+				0x0040);
+		return;
+	}
+
 	ctl |= B43_TXH_PHY_ENC_CCK;
 	ctl |= B43_TXH_PHY_ANT01AUTO;
 	ctl |= B43_TXH_PHY_TXPWR;
@@ -3297,6 +3305,8 @@ static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
 	u16 ant;
 	u16 tmp;
 
+	if (dev->phy.type == B43_PHYTYPE_AC)
+		return;
 	ant = b43_antenna_to_phyctl(antenna);
 
 	/* For ACK/CTS */
