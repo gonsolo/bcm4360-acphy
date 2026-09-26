@@ -5304,8 +5304,10 @@ static int b43_setup_bands(struct b43_wldev *dev,
 				&b43_band_5GHz_nphy_limited :
 				&b43_band_5GHz_nphy;
 	} else if (dev->phy.type == B43_PHYTYPE_AC) {
-		if (have_5ghz_phy)
-			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_acphy;
+		/* 5 GHz channel tuning isn't implemented yet (see phy_ac.c). Don't
+		 * advertise the band: a software scan hitting a 5 GHz channel and
+		 * getting -EOPNOTSUPP from switch_channel can abort the whole scan,
+		 * silently losing 2.4 GHz results too. */
 	} else {
 		if (have_5ghz_phy)
 			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
