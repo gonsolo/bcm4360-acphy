@@ -40,4 +40,6 @@ struct b43_phy_ac {
 
 extern const struct b43_phy_operations b43_phyops_ac;
 
+extern bool b43_ac_5ghz;
+
 #endif /* B43_PHY_AC_H_ */

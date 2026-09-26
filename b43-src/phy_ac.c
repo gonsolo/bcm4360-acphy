@@ -670,6 +670,10 @@ MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channe
 
 static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
 
+bool b43_ac_5ghz;
+module_param_named(ac_5ghz, b43_ac_5ghz, bool, 0444);
+MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (experimental)");
+
 static bool b43_ac_init_state;
 module_param_named(ac_init_state, b43_ac_init_state, bool, 0444);
 MODULE_PARM_DESC(ac_init_state, "AC-PHY: apply wl's captured state at PHY init (else on the first switch to channel 6)");
@@ -874,8 +878,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		       new_channel, dev->phy.radio_ver, dev->phy.radio_rev);
 		return -ESRCH;
 	}
-	if (is_5ghz) {
-		b43dbg(dev->wl, "phy_ac: 5 GHz tuning not implemented (channel %u)\n",
+	if (is_5ghz && !b43_ac_5ghz) {
+		b43dbg(dev->wl, "phy_ac: 5 GHz disabled (channel %u, ac_5ghz=0)\n",
 			new_channel);
 		return -EOPNOTSUPP;
 	}

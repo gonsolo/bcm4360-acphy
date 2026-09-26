@@ -36,6 +36,7 @@
 #include "main.h"
 #include "debugfs.h"
 #include "phy_common.h"
+#include "phy_ac.h"
 #include "phy_g.h"
 #include "phy_n.h"
 #include "dma.h"
@@ -5457,10 +5458,10 @@ static int b43_setup_bands(struct b43_wldev *dev,
 				&b43_band_5GHz_nphy_limited :
 				&b43_band_5GHz_nphy;
 	} else if (dev->phy.type == B43_PHYTYPE_AC) {
-		/* 5 GHz channel tuning isn't implemented yet (see phy_ac.c). Don't
-		 * advertise the band: a software scan hitting a 5 GHz channel and
-		 * getting -EOPNOTSUPP from switch_channel can abort the whole scan,
-		 * silently losing 2.4 GHz results too. */
+		/* Experimental: without ac_5ghz, a software scan hitting a 5 GHz
+		 * channel gets -EOPNOTSUPP and can abort the whole scan. */
+		if (have_5ghz_phy && b43_ac_5ghz)
+			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_acphy;
 	} else {
 		if (have_5ghz_phy)
 			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
