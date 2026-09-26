@@ -446,11 +446,11 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		return -ESRCH;
 	}
 	if (is_5ghz) {
-		b43info(dev->wl, "phy_ac: 5 GHz tuning not implemented (channel %u)\n",
+		b43dbg(dev->wl, "phy_ac: 5 GHz tuning not implemented (channel %u)\n",
 			new_channel);
 		return -EOPNOTSUPP;
 	}
-	b43info(dev->wl, "phy_ac: switch_channel(%u) -> %u MHz\n",
+	b43dbg(dev->wl, "phy_ac: switch_channel(%u) -> %u MHz\n",
 		new_channel, e->freq);
 
 	save = b43_phy_read(dev, 0x19e);
@@ -550,10 +550,64 @@ static void b43_phy_ac_tables_init(struct b43_wldev *dev)
 	b43info(dev->wl, "phy_ac: wrote %u PHY tables\n", b43_phy_ac_tbls_rev0_n);
 }
 
+/*
+ * First-init PHY register setup (vendor FUN_001a1924), resolved for PHY rev
+ * 0/1. Not ported yet: wlc_phy_hwaci_setup_acphy (interference mitigation).
+ */
+static void b43_phy_ac_first_init(struct b43_wldev *dev)
+{
+	bool is_2ghz = b43_current_band(dev->wl) == NL80211_BAND_2GHZ;
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+	static const u16 core_reg[3] = { 0x690, 0x890, 0xa90 };
+
+	b43_phy_set(dev, 0x19e, 0x1c0);
+	if (is_2ghz)
+		b43_phy_write(dev, 0x3c4, 0x668);
+	b43_phy_set(dev, 0x19e, 0x200);
+	b43_phy_maskset(dev, 0x19e, ~0x3c, 0x10);
+	b43_phy_write(dev, 0x1f2, 0xc8);
+	b43_phy_write(dev, 0x026, 0x92);
+	b43_phy_write(dev, 0x1ed, 0x50);
+	b43_phy_write(dev, 0x025, 0x30);
+
+	if (dev->dev->bus_type == B43_BUS_BCMA)
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL,
+			      bcma_aread32(dev->dev->bdev, BCMA_IOCTL) |
+			      B43_BCMA_IOCTL_MACPHYCLKEN);
+
+	b43_phy_mask(dev, 0x40f, ~0x200);
+	b43_phy_mask(dev, 0x2f1, ~0x20);
+	b43_phy_mask(dev, 0x2ed, ~0x20);
+	b43_phy_mask(dev, 0x2f9, ~0x20);
+	b43_phy_mask(dev, 0x2f5, ~0x20);
+	b43_phy_maskset(dev, 0x2ef, ~0xff, 0x55);
+	b43_phy_maskset(dev, 0x2eb, ~0xff, 0x55);
+	b43_phy_maskset(dev, 0x2f7, ~0xff, 0x55);
+	b43_phy_maskset(dev, 0x2f3, ~0xff, 0x55);
+
+	b43_phy_write(dev, 0x400, 0);
+	b43_phy_mask(dev, 0x1ca, ~0x1000);
+	b43_phy_ac_resetcca(dev);
+	b43_phy_set(dev, 0x072, 0x4);
+	b43_phy_mask(dev, 0x1b0, ~0x20);
+	b43_phy_set(dev, 0x1b1, 0x1000);
+	b43_phy_mask(dev, 0x1b6, 0x7fff);
+	for (core = 0; core < cores && core < 3; core++) {
+		b43_phy_set(dev, core_reg[core], 0x200);
+		b43_phy_set(dev, core_reg[core], 0x400);
+	}
+	b43_phy_write(dev, 0x1e6, 0x30);
+	b43_phy_write(dev, 0x358, 0xc07f);
+
+	b43info(dev->wl, "phy_ac: first-init registers done\n");
+}
+
 static int b43_phy_ac_op_init(struct b43_wldev *dev)
 {
-	if (dev->phy.rev <= 1)
+	if (dev->phy.rev <= 1) {
 		b43_phy_ac_tables_init(dev);
+		b43_phy_ac_first_init(dev);
+	}
 	else
 		b43err(dev->wl, "phy_ac: no table set for PHY rev %u\n",
 		       dev->phy.rev);
