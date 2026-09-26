@@ -1,0 +1,397 @@
++ sleep 5
++ sysctl -w kernel.panic_on_oops=1 kernel.panic=10 kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 kernel.softlockup_panic=1
+kernel.panic_on_oops = 1
+kernel.panic = 10
+kernel.hung_task_panic = 1
+kernel.hung_task_timeout_secs = 30
+kernel.softlockup_panic = 1
++ echo /home/gonsolo/bcm4360-acphy/firmware
++ modprobe mac80211
++ modprobe ssb
++ modprobe cordic
++ modprobe bcma
++ sync
++ echo '===== interrupts before ====='
+===== interrupts before =====
++ grep -iE 'bcma|b43|wl|03:00' /proc/interrupts
+ 18:      39471          0          0          0 IR-IO-APIC  18-fasteoi   wlp3s0, i801_smbus
++ echo 'b43test: === TEST START ==='
++ echo bcma-pci-bridge
++ echo 0000:03:00.0
++ insmod /home/gonsolo/bcm4360-acphy/b43-src/b43.ko verbose=3 ac_replay=1
++ echo 0000:03:00.0
++ sync
++ sleep 20
++ echo '===== ip link ====='
+===== ip link =====
++ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+3: wlp3s0b1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DORMANT group default qlen 1000
+    link/ether aa:43:ee:72:d0:1b brd ff:ff:ff:ff:ff:ff permaddr 00:01:00:00:84:38
+    altname wlx000100008438
++ echo '===== interrupts after ====='
+===== interrupts after =====
++ grep -iE 'bcma|b43|wl|03:00' /proc/interrupts
+ 18:      39471          0          0          0 IR-IO-APIC  18-fasteoi   i801_smbus, b43
++ echo '===== netdev counters ====='
+===== netdev counters =====
+++ ls /sys/class/net
++ for ifc in $(ls /sys/class/net)
++ readlink /sys/class/net/lo/device/driver
++ grep -q b43
++ for ifc in $(ls /sys/class/net)
++ readlink /sys/class/net/wlp3s0b1/device/driver
++ grep -q b43
+++ cat /sys/class/net/wlp3s0b1/statistics/rx_packets
+++ cat /sys/class/net/wlp3s0b1/statistics/tx_packets
++ echo 'wlp3s0b1 rx_packets=0' tx_packets=0
+wlp3s0b1 rx_packets=0 tx_packets=0
++ echo '===== scan results (wlp3s0b1) ====='
+===== scan results (wlp3s0b1) =====
++ nmcli -f SSID,BSSID,CHAN,SIGNAL dev wifi list ifname wlp3s0b1 --rescan yes
+SSID  BSSID  CHAN  SIGNAL 
++ echo '===== dmesg since test start ====='
+===== dmesg since test start =====
++ dmesg
++ sed -n '/b43test: === TEST START ===/,$p'
+[  701.866151] b43test: === TEST START ===
+[  701.912787] Broadcom 43xx driver loaded [ Features: PNL ]
+[  701.916616] bcma-pci-bridge 0000:03:00.0: bus0: Found chip with id 0x4360, rev 0x03 and package 0x00
+[  701.916669] bcma-pci-bridge 0000:03:00.0: bus0: Core 0 found: ChipCommon (manuf 0x4BF, id 0x800, rev 0x2B, class 0x0)
+[  701.916698] bcma-pci-bridge 0000:03:00.0: bus0: Core 1 found: IEEE 802.11 (manuf 0x4BF, id 0x812, rev 0x2A, class 0x0)
+[  701.916747] bcma-pci-bridge 0000:03:00.0: bus0: Core 2 found: ARM CR4 (manuf 0x4BF, id 0x83E, rev 0x02, class 0x0)
+[  701.916798] bcma-pci-bridge 0000:03:00.0: bus0: Core 3 found: PCIe Gen2 (manuf 0x4BF, id 0x83C, rev 0x01, class 0x0)
+[  701.916825] bcma-pci-bridge 0000:03:00.0: bus0: Core 4 found: USB 2.0 Device (manuf 0x4BF, id 0x81A, rev 0x11, class 0x0)
+[  701.988201] b43-phy1: Broadcom 4360 WLAN found (core revision 42)
+[  701.989530] b43-phy1: Found PHY: Analog 12, Type 11 (AC), Revision 1
+[  701.989543] b43-phy1: Found Radio: Manuf 0x17F, ID 0x2069, Revision 4, Version 0
+[  701.989997] b43-phy1: phy_ac: radio powered down
+[  701.990347] bcma-pci-bridge 0000:03:00.0: bus0: Bus registered
+[  701.993460] ieee80211 phy1: Selected rate control algorithm 'minstrel_ht'
+[  701.993998] b43-phy1 warning: LEDs: Unknown behaviour 0x33
+[  701.994004] b43-phy1 warning: LEDs: Unknown behaviour 0x58
+[  701.994006] b43-phy1 warning: LEDs: Unknown behaviour 0x11
+[  702.106956] b43 bcma0:1 wlp3s0b1: renamed from wlan0
+[  702.238502] b43-phy1: phy_ac: prepare_structs
+[  702.409190] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[  702.409502] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  702.409853] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  702.409962] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  702.410762] b43-phy1: phy_ac: RCCAL step 0: 0a7f 0b56 -> a2
+[  702.411542] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  702.412333] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  702.414444] b43-phy1: phy_ac: wrote 23 PHY tables
+[  702.414525] b43-phy1: phy_ac: first-init registers done
+[  702.414527] b43-phy1: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[  702.414534] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  702.423194] b43-phy1 debug: Chip initialized
+[  702.423234] b43-phy1: DMA: 64-bit engine, index registers hold bus addresses
+[  702.423303] b43-phy1: DMA tx0: ctl=00000801 ring=80000001:8c128000
+[  702.423325] b43-phy1: DMA tx1: ctl=00000801 ring=80000001:8c106000
+[  702.423346] b43-phy1: DMA tx2: ctl=00000801 ring=80000001:8192c000
+[  702.423366] b43-phy1: DMA tx3: ctl=00000801 ring=80000001:8c122000
+[  702.423390] b43-phy1: DMA tx4: ctl=00000801 ring=80000001:81218000
+[  702.423826] b43-phy1: DMA rx0: ctl=0000084d ring=80000001:8c502000
+[  702.423829] b43-phy1 debug: 64-bit DMA initialized
+[  702.423912] b43-phy1 debug: QoS enabled
+[  702.424755] b43-phy1 debug: Wireless interface started
+[  702.424783] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  702.433201] b43-phy1 debug: Adding Interface type 2
+[  702.433614] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  702.451483] b43-phy1 debug: Removing Interface type 2
+[  702.451654] b43-phy1 debug: Wireless interface stopped
+[  702.461143] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[  702.461168] b43-phy1: phy_ac: radio powered down
+[  702.461180] b43-phy1: phy_ac: radio powered down
+[  702.462846] b43-phy1: phy_ac: prepare_structs
+[  702.625190] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[  702.625502] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  702.625853] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  702.625962] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  702.626745] b43-phy1: phy_ac: RCCAL step 0: 0a7f 0b55 -> a1
+[  702.627526] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  702.628312] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  702.630414] b43-phy1: phy_ac: wrote 23 PHY tables
+[  702.630493] b43-phy1: phy_ac: first-init registers done
+[  702.630494] b43-phy1: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[  702.630499] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  702.639193] b43-phy1 debug: Chip initialized
+[  702.639232] b43-phy1: DMA: 64-bit engine, index registers hold bus addresses
+[  702.639302] b43-phy1: DMA tx0: ctl=00000801 ring=80000001:8c108000
+[  702.639324] b43-phy1: DMA tx1: ctl=00000801 ring=80000001:8c11e000
+[  702.639344] b43-phy1: DMA tx2: ctl=00000801 ring=80000001:247f4000
+[  702.639364] b43-phy1: DMA tx3: ctl=00000801 ring=80000001:8c10c000
+[  702.639388] b43-phy1: DMA tx4: ctl=00000801 ring=80000001:8c126000
+[  702.639814] b43-phy1: DMA rx0: ctl=0000084d ring=80000001:8c11c000
+[  702.639817] b43-phy1 debug: 64-bit DMA initialized
+[  702.639900] b43-phy1 debug: QoS enabled
+[  702.640637] b43-phy1 debug: Wireless interface started
+[  702.640661] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  702.649195] b43-phy1 debug: Adding Interface type 2
+[  702.672593] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  702.681287] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  702.752188] b43-phy1 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  702.823141] b43-phy1 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  702.894189] b43-phy1 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  702.965190] b43-phy1 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  703.036205] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  703.036672] b43-phy1: phy_ac: replayed vendor ch6 state (121 radio, 250 PHY regs, 12 tables)
+[  703.107218] b43-phy1 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  703.178213] b43-phy1 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[  703.249194] b43-phy1 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[  703.320134] b43-phy1 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[  703.391188] b43-phy1 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[  703.462186] b43-phy1 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[  703.533184] b43-phy1 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[  703.604177] b43-phy1 debug: Switching to 5 GHz band
+[  703.604193] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[  703.604238] b43-phy1: phy_ac: radio powered down
+[  703.604276] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  703.604626] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  703.604736] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  703.605517] b43-phy1: phy_ac: RCCAL step 0: 0a80 0b56 -> a1
+[  703.606310] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  703.607100] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  703.609194] b43-phy1: phy_ac: wrote 23 PHY tables
+[  703.609280] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  703.609296] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  703.674199] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 40)
+[  703.736171] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 44)
+[  703.798188] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 48)
+[  703.860171] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 52)
+[  703.974192] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 56)
+[  704.086175] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 60)
+[  704.198165] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 64)
+[  704.310161] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 100)
+[  704.422195] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 104)
+[  704.534153] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 108)
+[  704.646157] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 112)
+[  704.758153] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 116)
+[  704.870156] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 120)
+[  704.982167] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 124)
+[  705.094161] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 128)
+[  705.206063] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 132)
+[  705.318089] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 136)
+[  705.430073] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 140)
+[  705.542158] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 149)
+[  705.604139] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 153)
+[  705.666125] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 157)
+[  705.728139] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 161)
+[  705.790135] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 165)
+[  705.856167] b43-phy1 debug: Switching to 2.4 GHz band
+[  705.861284] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  705.870107] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  706.087283] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  706.096224] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  706.167092] b43-phy1 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  706.238137] b43-phy1 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  706.309124] b43-phy1 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  706.380111] b43-phy1 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  706.451109] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  706.522114] b43-phy1 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  706.593096] b43-phy1 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[  706.664111] b43-phy1 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[  706.735114] b43-phy1 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[  706.806013] b43-phy1 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[  706.877094] b43-phy1 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[  706.948113] b43-phy1 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[  707.019101] b43-phy1 debug: Switching to 5 GHz band
+[  707.024177] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  707.024198] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  707.089086] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 40)
+[  707.151103] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 44)
+[  707.213080] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 48)
+[  707.275100] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 52)
+[  707.390091] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 56)
+[  707.502085] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 60)
+[  707.614073] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 64)
+[  707.726087] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 100)
+[  707.838072] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 104)
+[  707.950035] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 108)
+[  708.062081] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 112)
+[  708.174075] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 116)
+[  708.286339] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 120)
+[  708.398059] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 124)
+[  708.510055] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 128)
+[  708.622046] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 132)
+[  708.734045] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 136)
+[  708.845985] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 140)
+[  708.958084] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 149)
+[  709.020076] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 153)
+[  709.082056] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 157)
+[  709.143976] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 161)
+[  709.206040] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 165)
+[  709.272017] b43-phy1 debug: Switching to 2.4 GHz band
+[  709.272033] net_ratelimit: 45 callbacks suppressed
+[  709.272038] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[  709.272082] b43-phy1: phy_ac: radio powered down
+[  709.272121] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  709.272471] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  709.272581] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  709.273366] b43-phy1: phy_ac: RCCAL step 0: 0a7f 0b56 -> a2
+[  709.274175] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  709.274956] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  709.277061] b43-phy1: phy_ac: wrote 23 PHY tables
+[  709.277149] b43-phy1: phy_ac: first-init registers done
+[  709.277157] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  709.286007] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  710.962468] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  710.971105] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  711.041980] b43-phy1 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  711.112982] b43-phy1 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  711.183963] b43-phy1 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  711.254979] b43-phy1 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  711.326000] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  711.396979] b43-phy1 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  711.467991] b43-phy1 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[  711.538972] b43-phy1 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[  711.609959] b43-phy1 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[  711.680969] b43-phy1 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[  711.751982] b43-phy1 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[  711.822960] b43-phy1 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[  711.893953] b43-phy1 debug: Switching to 5 GHz band
+[  711.899028] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  711.899049] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  711.963955] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 40)
+[  712.025966] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 44)
+[  712.087950] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 48)
+[  712.149962] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 52)
+[  712.261952] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 56)
+[  712.373939] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 60)
+[  712.485934] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 64)
+[  712.597933] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 100)
+[  712.709936] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 104)
+[  712.821956] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 108)
+[  712.933952] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 112)
+[  713.045950] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 116)
+[  713.157933] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 120)
+[  713.269865] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 124)
+[  713.381917] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 128)
+[  713.493926] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 132)
+[  713.605912] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 136)
+[  713.717919] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 140)
+[  713.829908] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 149)
+[  713.891902] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 153)
+[  713.953916] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 157)
+[  714.015897] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 161)
+[  714.077913] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 165)
+[  714.143920] b43-phy1 debug: Switching to 2.4 GHz band
+[  714.148979] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  714.157871] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  717.963837] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  717.972838] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  718.043798] b43-phy1 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  718.114798] b43-phy1 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  718.185794] b43-phy1 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  718.256792] b43-phy1 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  718.327794] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  718.328261] net_ratelimit: 34 callbacks suppressed
+[  718.328265] b43-phy1: phy_ac: replayed vendor ch6 state (121 radio, 250 PHY regs, 12 tables)
+[  718.398792] b43-phy1 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  718.469790] b43-phy1 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[  718.540786] b43-phy1 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[  718.611783] b43-phy1 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[  718.682792] b43-phy1 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[  718.753792] b43-phy1 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[  718.824775] b43-phy1 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[  718.895791] b43-phy1 debug: Switching to 5 GHz band
+[  718.895807] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[  718.895851] b43-phy1: phy_ac: radio powered down
+[  718.895891] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  718.896243] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  718.896353] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  718.897166] b43-phy1: phy_ac: RCCAL step 0: 0a7f 0b56 -> a2
+[  718.897952] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  718.898750] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  718.900839] b43-phy1: phy_ac: wrote 23 PHY tables
+[  718.900924] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  718.900940] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  718.965763] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 40)
+[  719.027782] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 44)
+[  719.089769] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 48)
+[  719.151767] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 52)
+[  719.269672] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 56)
+[  719.381773] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 60)
+[  719.493766] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 64)
+[  719.605775] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 100)
+[  719.717759] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 104)
+[  719.829754] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 108)
+[  719.941751] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 112)
+[  720.053748] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 116)
+[  720.165754] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 120)
+[  720.277704] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 124)
+[  720.389743] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 128)
+[  720.501744] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 132)
+[  720.613738] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 136)
+[  720.725735] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 140)
+[  720.837736] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 149)
+[  720.899731] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 153)
+[  720.961720] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 157)
+[  721.023722] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 161)
+[  721.085717] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 165)
+[  721.151785] b43-phy1 debug: Switching to 2.4 GHz band
+[  721.156879] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  721.165689] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  722.080184] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  722.088776] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  722.159672] b43-phy1 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[  722.230670] b43-phy1 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[  722.301633] b43-phy1 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[  722.372677] b43-phy1 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[  722.443687] b43-phy1 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[  722.514646] b43-phy1 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[  722.585683] b43-phy1 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[  722.656685] b43-phy1 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[  722.727664] b43-phy1 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[  722.798681] b43-phy1 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[  722.869689] b43-phy1 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[  722.940687] b43-phy1 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[  723.011651] b43-phy1 debug: Switching to 5 GHz band
+[  723.016703] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  723.016724] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 36)
+[  723.081674] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 40)
+[  723.143657] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 44)
+[  723.205665] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 48)
+[  723.267668] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 52)
+[  723.381660] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 56)
+[  723.493668] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 60)
+[  723.605657] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 64)
+[  723.717657] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 100)
+[  723.829653] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 104)
+[  723.941667] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 108)
+[  724.053649] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 112)
+[  724.165660] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 116)
+[  724.277601] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 120)
+[  724.389674] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 124)
+[  724.501630] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 128)
+[  724.613626] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 132)
+[  724.725624] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 136)
+[  724.837630] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 140)
+[  724.949626] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 149)
+[  725.011640] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 153)
+[  725.073623] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 157)
+[  725.135619] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 161)
+[  725.197619] b43-phy1 debug: phy_ac: 5 GHz tuning not implemented (channel 165)
+[  725.263655] b43-phy1 debug: Switching to 2.4 GHz band
+[  725.263684] net_ratelimit: 45 callbacks suppressed
+[  725.263689] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[  725.263732] b43-phy1: phy_ac: radio powered down
+[  725.263771] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[  725.264122] b43-phy1: phy_ac: radio 2069 init done (2 cores)
+[  725.264231] b43-phy1: phy_ac: RCAL done after 1 polls (0x40b=0169)
+[  725.265028] b43-phy1: phy_ac: RCCAL step 0: 0a80 0b55 -> a0
+[  725.265812] b43-phy1: phy_ac: RCCAL step 1: 000b
+[  725.266610] b43-phy1: phy_ac: RCCAL step 2: 01eb
+[  725.268707] b43-phy1: phy_ac: wrote 23 PHY tables
+[  725.268789] b43-phy1: phy_ac: first-init registers done
+[  725.268797] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[  725.277530] b43-phy1 debug: phy_ac: switch_channel(1) -> 2412 MHz
++ journalctl --sync
++ sync
++ echo 'b43test: === DONE, rebooting ==='
++ echo '===== DONE, rebooting ====='
+===== DONE, rebooting =====
++ journalctl --sync
++ sync
++ systemctl reboot

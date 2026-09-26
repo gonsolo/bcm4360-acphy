@@ -10,6 +10,7 @@
 #include "phy_ac.h"
 #include "radio_2069.h"
 #include "tables_phy_ac.h"
+#include "dma.h"
 
 /**************************************************
  * Basic PHY ops
@@ -673,6 +674,23 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 	return 0;
 }
 
+/* Diagnostic: MAC, interrupt and DMA state, every 15 seconds. */
+static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
+{
+	struct b43_dmaring *rx = dev->dma.rx_ring;
+	struct b43_dmaring *tx = dev->dma.tx_ring_AC_BE;
+
+	b43info(dev->wl, "phy_ac: MACCTL=%08x IRQ reason=%08x mask=%08x pio=%d\n",
+		b43_read32(dev, B43_MMIO_MACCTL),
+		b43_read32(dev, B43_MMIO_GEN_IRQ_REASON),
+		b43_read32(dev, B43_MMIO_GEN_IRQ_MASK),
+		dev->__using_pio_transfers);
+	if (!dev->__using_pio_transfers && rx && tx)
+		b43info(dev->wl, "phy_ac: DMA rx status=%08x tx(BE) status=%08x\n",
+			b43_read32(dev, rx->mmio_base + B43_DMA64_RXSTATUS),
+			b43_read32(dev, tx->mmio_base + B43_DMA64_TXSTATUS));
+}
+
 static unsigned int b43_phy_ac_op_get_default_chan(struct b43_wldev *dev)
 {
 	if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
@@ -709,4 +727,5 @@ const struct b43_phy_operations b43_phyops_ac = {
 	.get_default_chan	= b43_phy_ac_op_get_default_chan,
 	.recalc_txpower		= b43_phy_ac_op_recalc_txpower,
 	.adjust_txpower		= b43_phy_ac_op_adjust_txpower,
+	.pwork_15sec		= b43_phy_ac_op_pwork_15sec,
 };
