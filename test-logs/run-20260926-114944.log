@@ -1,0 +1,955 @@
++ sleep 5
++ sysctl -w kernel.panic_on_oops=1 kernel.panic=10 kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 kernel.softlockup_panic=1
+kernel.panic_on_oops = 1
+kernel.panic = 10
+kernel.hung_task_panic = 1
+kernel.hung_task_timeout_secs = 30
+kernel.softlockup_panic = 1
++ echo /home/gonsolo/bcm4360-acphy/firmware
++ modprobe mac80211
++ modprobe ssb
++ modprobe cordic
++ modprobe bcma
++ sync
++ echo 'b43test: === TEST START ==='
++ echo bcma-pci-bridge
++ echo 0000:03:00.0
++ insmod /home/gonsolo/bcm4360-acphy/b43-src/b43.ko
++ echo 0000:03:00.0
++ sync
++ sleep 20
++ echo '===== ip link ====='
+===== ip link =====
++ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+3: wlp3s0b1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DORMANT group default qlen 1000
+    link/ether 8a:f0:5f:f9:a1:f8 brd ff:ff:ff:ff:ff:ff permaddr 00:01:00:00:84:38
+    altname wlx000100008438
++ echo '===== iw dev ====='
+===== iw dev =====
++ iw dev
+/home/gonsolo/bcm4360-acphy/run_test.sh: line 43: iw: command not found
++ echo '===== dmesg since test start ====='
+===== dmesg since test start =====
++ dmesg
++ sed -n '/b43test: === TEST START ===/,$p'
+[ 1001.539840] b43test: === TEST START ===
+[ 1001.584187] Broadcom 43xx driver loaded [ Features: PNL ]
+[ 1001.592118] bcma-pci-bridge 0000:03:00.0: bus0: Found chip with id 0x4360, rev 0x03 and package 0x00
+[ 1001.592170] bcma-pci-bridge 0000:03:00.0: bus0: Core 0 found: ChipCommon (manuf 0x4BF, id 0x800, rev 0x2B, class 0x0)
+[ 1001.592198] bcma-pci-bridge 0000:03:00.0: bus0: Core 1 found: IEEE 802.11 (manuf 0x4BF, id 0x812, rev 0x2A, class 0x0)
+[ 1001.592246] bcma-pci-bridge 0000:03:00.0: bus0: Core 2 found: ARM CR4 (manuf 0x4BF, id 0x83E, rev 0x02, class 0x0)
+[ 1001.592296] bcma-pci-bridge 0000:03:00.0: bus0: Core 3 found: PCIe Gen2 (manuf 0x4BF, id 0x83C, rev 0x01, class 0x0)
+[ 1001.592322] bcma-pci-bridge 0000:03:00.0: bus0: Core 4 found: USB 2.0 Device (manuf 0x4BF, id 0x81A, rev 0x11, class 0x0)
+[ 1001.671029] b43-phy1: Broadcom 4360 WLAN found (core revision 42)
+[ 1001.671459] b43-phy1: Found PHY: Analog 12, Type 11 (AC), Revision 1
+[ 1001.671470] b43-phy1: Found Radio: Manuf 0x17F, ID 0x2069, Revision 4, Version 0
+[ 1001.672111] b43-phy1: phy_ac: switch_analog(on)
+[ 1001.672156] b43-phy1: phy_ac: switch_analog(off)
+[ 1001.672165] b43-phy1: phy_ac: switch_analog(off) done
+[ 1001.672289] bcma-pci-bridge 0000:03:00.0: bus0: Bus registered
+[ 1001.673648] ieee80211 phy1: Selected rate control algorithm 'minstrel_ht'
+[ 1001.674204] b43-phy1 warning: LEDs: Unknown behaviour 0x33
+[ 1001.674211] b43-phy1 warning: LEDs: Unknown behaviour 0x58
+[ 1001.674214] b43-phy1 warning: LEDs: Unknown behaviour 0x11
+[ 1001.780079] b43 bcma0:1 wlp3s0b1: renamed from wlan0
+[ 1001.915824] b43-phy1: phy_ac: switch_analog(on)
+[ 1001.915835] b43-phy1: phy_ac: prepare_structs
+[ 1002.078766] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[ 1002.079078] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.079081] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.079083] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[ 1002.079085] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.079087] b43-phy1: phy_ac: init (core_rev 42, radio24=1)
+[ 1002.079090] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.079092] b43-phy1: phy_ac: init done
+[ 1002.079096] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.089188] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.097846] b43-phy1 ERROR: Fatal DMA error: 0x00001000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000
+[ 1002.097861] b43-phy1 ERROR: This device does not support DMA on your system. It will now be switched to PIO.
+[ 1002.097865] b43-phy1: Controller RESET (DMA error) ...
+[ 1002.098154] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.116722] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[ 1002.116737] b43-phy1: phy_ac: switch_analog(off)
+[ 1002.116749] b43-phy1: phy_ac: switch_analog(off) done
+[ 1002.116758] b43-phy1: phy_ac: switch_analog(off)
+[ 1002.116768] b43-phy1: phy_ac: switch_analog(off) done
+[ 1002.117203] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.117209] b43-phy1: phy_ac: prepare_structs
+[ 1002.279756] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[ 1002.280068] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.280071] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.280073] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[ 1002.280075] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.280077] b43-phy1: phy_ac: init (core_rev 42, radio24=1)
+[ 1002.280080] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.280082] b43-phy1: phy_ac: init done
+[ 1002.280087] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.288783] b43-phy1 warning: Forced PIO by use_pio module parameter. This should not be needed and will result in lower performance.
+[ 1002.289686] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.298866] b43-phy1: Controller restarted
+[ 1002.316188] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[ 1002.316201] b43-phy1: phy_ac: switch_analog(off)
+[ 1002.316244] b43-phy1: phy_ac: switch_analog(off) done
+[ 1002.316251] b43-phy1: phy_ac: switch_analog(off)
+[ 1002.316264] b43-phy1: phy_ac: switch_analog(off) done
+[ 1002.317899] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.317908] b43-phy1: phy_ac: prepare_structs
+[ 1002.480715] b43-phy1: Loading firmware version 832.127 (2014-09-19 06:43:13)
+[ 1002.481034] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.481038] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.481041] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[ 1002.481044] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.481047] b43-phy1: phy_ac: init (core_rev 42, radio24=1)
+[ 1002.481051] b43-phy1: phy_ac: switch_analog(on)
+[ 1002.481053] b43-phy1: phy_ac: init done
+[ 1002.481096] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.489741] b43-phy1 warning: Forced PIO by use_pio module parameter. This should not be needed and will result in lower performance.
+[ 1002.490658] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.520312] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.528845] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1002.599825] b43-phy1: phy_ac: switch_channel(2) - not implemented, no-op
+[ 1006.298639] ------------[ cut here ]------------
+[ 1006.298649] control:5960.000 MHz width:0 center: 5960.000/0 MHz
+[ 1006.298701] WARNING: CPU: 1 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.298989] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1006.299174]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1006.299296] CPU: 1 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1006.299310] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1006.299313] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1006.299318] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1006.299573] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.299821] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1006.299830] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1006.299840] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1006.299847] RDX: ffff8c5c2729e548 RSI: 0000000000000001 RDI: ffff8c5c2729e540
+[ 1006.299854] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1006.299859] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1006.299865] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5b469db018
+[ 1006.299872] FS:  0000000000000000(0000) GS:ffff8c5c73dbc000(0000) knlGS:0000000000000000
+[ 1006.299879] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1006.299885] CR2: 00007f661ce00010 CR3: 0000000193a24005 CR4: 00000000001726f0
+[ 1006.299893] Call Trace:
+[ 1006.299903]  <TASK>
+[ 1006.299920]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1006.300184]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1006.300471]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1006.300740]  process_one_work+0x18e/0x350
+[ 1006.300761]  worker_thread+0x165/0x2d0
+[ 1006.300777]  ? __pfx_worker_thread+0x10/0x10
+[ 1006.300789]  kthread+0xfb/0x260
+[ 1006.300802]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1006.300818]  ? __pfx_kthread+0x10/0x10
+[ 1006.300827]  ? __pfx_kthread+0x10/0x10
+[ 1006.300837]  ret_from_fork+0x22d/0x260
+[ 1006.300848]  ? __pfx_kthread+0x10/0x10
+[ 1006.300856]  ret_from_fork_asm+0x1a/0x30
+[ 1006.300876]  </TASK>
+[ 1006.300881] ---[ end trace 0000000000000000 ]---
+[ 1006.362571] ------------[ cut here ]------------
+[ 1006.362580] control:5980.000 MHz width:0 center: 5980.000/0 MHz
+[ 1006.362625] WARNING: CPU: 0 PID: 48 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.362837] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1006.363013]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1006.363132] CPU: 0 UID: 0 PID: 48 Comm: kworker/u16:2 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1006.363144] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1006.363148] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1006.363153] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1006.363347] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.363549] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1006.363556] RSP: 0018:ffffcddcc01d7d10 EFLAGS: 00010246
+[ 1006.363563] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1006.363568] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1006.363572] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1006.363577] R10: ffffffffb2a60fa0 R11: ffffcddcc01d7bb8 R12: 0000000000000008
+[ 1006.363581] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5b469db018
+[ 1006.363586] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1006.363591] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1006.363596] CR2: 000002fcfab93000 CR3: 0000000193a24001 CR4: 00000000001726f0
+[ 1006.363603] Call Trace:
+[ 1006.363609]  <TASK>
+[ 1006.363620]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1006.363794]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1006.363988]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1006.364158]  process_one_work+0x18e/0x350
+[ 1006.364174]  worker_thread+0x165/0x2d0
+[ 1006.364183]  ? __pfx_worker_thread+0x10/0x10
+[ 1006.364193]  kthread+0xfb/0x260
+[ 1006.364200]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1006.364214]  ? __pfx_kthread+0x10/0x10
+[ 1006.364219]  ? __pfx_kthread+0x10/0x10
+[ 1006.364225]  ret_from_fork+0x22d/0x260
+[ 1006.364232]  ? __pfx_kthread+0x10/0x10
+[ 1006.364238]  ret_from_fork_asm+0x1a/0x30
+[ 1006.364249]  </TASK>
+[ 1006.364252] ---[ end trace 0000000000000000 ]---
+[ 1006.425632] ------------[ cut here ]------------
+[ 1006.425644] control:6000.000 MHz width:0 center: 6000.000/0 MHz
+[ 1006.425694] WARNING: CPU: 0 PID: 48 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.425928] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1006.426113]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1006.426238] CPU: 0 UID: 0 PID: 48 Comm: kworker/u16:2 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1006.426252] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1006.426255] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1006.426261] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1006.426486] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.426719] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1006.426726] RSP: 0018:ffffcddcc01d7d10 EFLAGS: 00010246
+[ 1006.426734] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1006.426738] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1006.426743] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1006.426747] R10: ffffffffb2a60fa0 R11: ffffcddcc01d7bb8 R12: 0000000000000008
+[ 1006.426751] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5b469db018
+[ 1006.426756] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1006.426761] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1006.426766] CR2: 000002fcfab93000 CR3: 0000000193a24001 CR4: 00000000001726f0
+[ 1006.426772] Call Trace:
+[ 1006.426778]  <TASK>
+[ 1006.426790]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1006.426948]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1006.427121]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1006.427277]  process_one_work+0x18e/0x350
+[ 1006.427292]  worker_thread+0x165/0x2d0
+[ 1006.427302]  ? __pfx_worker_thread+0x10/0x10
+[ 1006.427311]  kthread+0xfb/0x260
+[ 1006.427319]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1006.427331]  ? __pfx_kthread+0x10/0x10
+[ 1006.427336]  ? __pfx_kthread+0x10/0x10
+[ 1006.427341]  ret_from_fork+0x22d/0x260
+[ 1006.427349]  ? __pfx_kthread+0x10/0x10
+[ 1006.427354]  ret_from_fork_asm+0x1a/0x30
+[ 1006.427365]  </TASK>
+[ 1006.427369] ---[ end trace 0000000000000000 ]---
+[ 1006.488636] ------------[ cut here ]------------
+[ 1006.488647] control:6020.000 MHz width:0 center: 6020.000/0 MHz
+[ 1006.488695] WARNING: CPU: 1 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.488945] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1006.489150]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1006.489318] CPU: 1 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1006.489330] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1006.489333] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1006.489338] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1006.489559] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.489813] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1006.489823] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1006.489834] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1006.489840] RDX: ffff8c5c2729e548 RSI: 0000000000000001 RDI: ffff8c5c2729e540
+[ 1006.489848] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1006.489855] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1006.489863] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5b469db018
+[ 1006.489870] FS:  0000000000000000(0000) GS:ffff8c5c73dbc000(0000) knlGS:0000000000000000
+[ 1006.489879] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1006.489887] CR2: 00007f661ce00010 CR3: 0000000193a24006 CR4: 00000000001726f0
+[ 1006.489896] Call Trace:
+[ 1006.489906]  <TASK>
+[ 1006.489924]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1006.490191]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1006.490471]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1006.490746]  process_one_work+0x18e/0x350
+[ 1006.490768]  worker_thread+0x165/0x2d0
+[ 1006.490783]  ? __pfx_worker_thread+0x10/0x10
+[ 1006.490797]  kthread+0xfb/0x260
+[ 1006.490811]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1006.490827]  ? __pfx_kthread+0x10/0x10
+[ 1006.490837]  ? __pfx_kthread+0x10/0x10
+[ 1006.490848]  ret_from_fork+0x22d/0x260
+[ 1006.490860]  ? __pfx_kthread+0x10/0x10
+[ 1006.490870]  ret_from_fork_asm+0x1a/0x30
+[ 1006.490891]  </TASK>
+[ 1006.490897] ---[ end trace 0000000000000000 ]---
+[ 1006.552627] ------------[ cut here ]------------
+[ 1006.552637] control:6040.000 MHz width:0 center: 6040.000/0 MHz
+[ 1006.552690] WARNING: CPU: 1 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.552969] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1006.553153]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1006.553273] CPU: 1 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1006.553286] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1006.553290] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1006.553295] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1006.553538] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.553786] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1006.553795] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1006.553805] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1006.553812] RDX: ffff8c5c2729e548 RSI: 0000000000000001 RDI: ffff8c5c2729e540
+[ 1006.553818] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1006.553824] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1006.553830] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5b469db018
+[ 1006.553837] FS:  0000000000000000(0000) GS:ffff8c5c73dbc000(0000) knlGS:0000000000000000
+[ 1006.553845] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1006.553851] CR2: 00007f661ce00010 CR3: 0000000193a24006 CR4: 00000000001726f0
+[ 1006.553860] Call Trace:
+[ 1006.553869]  <TASK>
+[ 1006.553886]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1006.554150]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1006.554431]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1006.554701]  process_one_work+0x18e/0x350
+[ 1006.554723]  worker_thread+0x165/0x2d0
+[ 1006.554738]  ? __pfx_worker_thread+0x10/0x10
+[ 1006.554752]  kthread+0xfb/0x260
+[ 1006.554765]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1006.554783]  ? __pfx_kthread+0x10/0x10
+[ 1006.554793]  ? __pfx_kthread+0x10/0x10
+[ 1006.554803]  ret_from_fork+0x22d/0x260
+[ 1006.554816]  ? __pfx_kthread+0x10/0x10
+[ 1006.554826]  ret_from_fork_asm+0x1a/0x30
+[ 1006.554847]  </TASK>
+[ 1006.554852] ---[ end trace 0000000000000000 ]---
+[ 1006.616643] ------------[ cut here ]------------
+[ 1006.616653] control:6060.000 MHz width:0 center: 6060.000/0 MHz
+[ 1006.616700] WARNING: CPU: 0 PID: 48 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.616940] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1006.617125]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1006.617249] CPU: 0 UID: 0 PID: 48 Comm: kworker/u16:2 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1006.617261] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1006.617265] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1006.617271] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1006.617533] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.617702] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1006.617708] RSP: 0018:ffffcddcc01d7d10 EFLAGS: 00010246
+[ 1006.617715] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1006.617720] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1006.617724] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1006.617728] R10: ffffffffb2a60fa0 R11: ffffcddcc01d7bb8 R12: 0000000000000008
+[ 1006.617732] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5b469db018
+[ 1006.617737] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1006.617742] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1006.617747] CR2: 000002fcfab93000 CR3: 0000000193a24001 CR4: 00000000001726f0
+[ 1006.617753] Call Trace:
+[ 1006.617759]  <TASK>
+[ 1006.617772]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1006.617928]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1006.618101]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1006.618256]  process_one_work+0x18e/0x350
+[ 1006.618270]  worker_thread+0x165/0x2d0
+[ 1006.618280]  ? __pfx_worker_thread+0x10/0x10
+[ 1006.618289]  kthread+0xfb/0x260
+[ 1006.618297]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1006.618308]  ? __pfx_kthread+0x10/0x10
+[ 1006.618314]  ? __pfx_kthread+0x10/0x10
+[ 1006.618319]  ret_from_fork+0x22d/0x260
+[ 1006.618327]  ? __pfx_kthread+0x10/0x10
+[ 1006.618332]  ret_from_fork_asm+0x1a/0x30
+[ 1006.618343]  </TASK>
+[ 1006.618347] ---[ end trace 0000000000000000 ]---
+[ 1006.679570] ------------[ cut here ]------------
+[ 1006.679584] control:6080.000 MHz width:0 center: 6080.000/0 MHz
+[ 1006.679637] WARNING: CPU: 0 PID: 48 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.679827] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1006.680006]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1006.680127] CPU: 0 UID: 0 PID: 48 Comm: kworker/u16:2 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1006.680139] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1006.680142] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1006.680147] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1006.680317] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1006.680471] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1006.680477] RSP: 0018:ffffcddcc01d7d10 EFLAGS: 00010246
+[ 1006.680484] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1006.680516] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1006.680524] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1006.680530] R10: ffffffffb2a60fa0 R11: ffffcddcc01d7bb8 R12: 0000000000000008
+[ 1006.680536] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5b469db018
+[ 1006.680543] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1006.680550] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1006.680557] CR2: 000002fcfab93000 CR3: 0000000193a24002 CR4: 00000000001726f0
+[ 1006.680565] Call Trace:
+[ 1006.680573]  <TASK>
+[ 1006.680589]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1006.680843]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1006.681125]  ? tty_port_default_receive_buf+0x57/0x70
+[ 1006.681144]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1006.681404]  process_one_work+0x18e/0x350
+[ 1006.681423]  worker_thread+0x165/0x2d0
+[ 1006.681438]  ? __pfx_worker_thread+0x10/0x10
+[ 1006.681452]  kthread+0xfb/0x260
+[ 1006.681465]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1006.681481]  ? __pfx_kthread+0x10/0x10
+[ 1006.681512]  ? __pfx_kthread+0x10/0x10
+[ 1006.681522]  ret_from_fork+0x22d/0x260
+[ 1006.681535]  ? __pfx_kthread+0x10/0x10
+[ 1006.681544]  ret_from_fork_asm+0x1a/0x30
+[ 1006.681563]  </TASK>
+[ 1006.681569] ---[ end trace 0000000000000000 ]---
+[ 1007.124605] net_ratelimit: 63 callbacks suppressed
+[ 1007.124616] b43-phy1: phy_ac: switch_channel(3) - not implemented, no-op
+[ 1007.195667] b43-phy1: phy_ac: switch_channel(4) - not implemented, no-op
+[ 1007.266651] b43-phy1: phy_ac: switch_channel(5) - not implemented, no-op
+[ 1007.337609] b43-phy1: phy_ac: switch_channel(6) - not implemented, no-op
+[ 1007.408651] b43-phy1: phy_ac: switch_channel(7) - not implemented, no-op
+[ 1007.479601] b43-phy1: phy_ac: switch_channel(8) - not implemented, no-op
+[ 1007.550662] b43-phy1: phy_ac: switch_channel(9) - not implemented, no-op
+[ 1007.621666] b43-phy1: phy_ac: switch_channel(10) - not implemented, no-op
+[ 1007.692607] b43-phy1: phy_ac: switch_channel(11) - not implemented, no-op
+[ 1007.763571] b43-phy1: phy_ac: switch_channel(12) - not implemented, no-op
+[ 1010.754543] ------------[ cut here ]------------
+[ 1010.754553] control:5960.000 MHz width:0 center: 5960.000/0 MHz
+[ 1010.754607] WARNING: CPU: 0 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1010.754874] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1010.755056]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1010.755178] CPU: 0 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1010.755190] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1010.755194] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1010.755199] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1010.755473] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1010.755715] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1010.755726] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1010.755737] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1010.755744] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1010.755751] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1010.755758] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1010.755764] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2ac18
+[ 1010.755771] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1010.755780] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1010.755786] CR2: 000002fd03ee9000 CR3: 0000000193a24003 CR4: 00000000001726f0
+[ 1010.755796] Call Trace:
+[ 1010.755805]  <TASK>
+[ 1010.755824]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1010.756092]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1010.756375]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1010.756652]  process_one_work+0x18e/0x350
+[ 1010.756674]  worker_thread+0x165/0x2d0
+[ 1010.756690]  ? __pfx_worker_thread+0x10/0x10
+[ 1010.756704]  kthread+0xfb/0x260
+[ 1010.756716]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1010.756732]  ? __pfx_kthread+0x10/0x10
+[ 1010.756742]  ? __pfx_kthread+0x10/0x10
+[ 1010.756752]  ret_from_fork+0x22d/0x260
+[ 1010.756764]  ? __pfx_kthread+0x10/0x10
+[ 1010.756773]  ret_from_fork_asm+0x1a/0x30
+[ 1010.756794]  </TASK>
+[ 1010.756799] ---[ end trace 0000000000000000 ]---
+[ 1010.818502] ------------[ cut here ]------------
+[ 1010.818508] control:5980.000 MHz width:0 center: 5980.000/0 MHz
+[ 1010.818543] WARNING: CPU: 0 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1010.818694] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1010.818806]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1010.818881] CPU: 0 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1010.818889] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1010.818891] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1010.818894] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1010.819028] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1010.819138] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1010.819142] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1010.819146] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1010.819149] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1010.819152] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1010.819155] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1010.819157] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2ac18
+[ 1010.819160] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1010.819164] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1010.819166] CR2: 000002fd03ee9000 CR3: 0000000193a24003 CR4: 00000000001726f0
+[ 1010.819170] Call Trace:
+[ 1010.819174]  <TASK>
+[ 1010.819182]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1010.819297]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1010.819444]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1010.819694]  process_one_work+0x18e/0x350
+[ 1010.819715]  worker_thread+0x165/0x2d0
+[ 1010.819728]  ? __pfx_worker_thread+0x10/0x10
+[ 1010.819741]  kthread+0xfb/0x260
+[ 1010.819752]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1010.819768]  ? __pfx_kthread+0x10/0x10
+[ 1010.819777]  ? __pfx_kthread+0x10/0x10
+[ 1010.819788]  ret_from_fork+0x22d/0x260
+[ 1010.819799]  ? __pfx_kthread+0x10/0x10
+[ 1010.819807]  ret_from_fork_asm+0x1a/0x30
+[ 1010.819827]  </TASK>
+[ 1010.819833] ---[ end trace 0000000000000000 ]---
+[ 1010.881530] ------------[ cut here ]------------
+[ 1010.881540] control:6000.000 MHz width:0 center: 6000.000/0 MHz
+[ 1010.881591] WARNING: CPU: 3 PID: 3354 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1010.881872] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1010.882057]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1010.882180] CPU: 3 UID: 0 PID: 3354 Comm: kworker/u16:4 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1010.882193] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1010.882196] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1010.882201] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1010.882453] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1010.882641] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1010.882647] RSP: 0018:ffffcddcc04a3d10 EFLAGS: 00010246
+[ 1010.882654] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1010.882659] RDX: ffff8c5c2739e548 RSI: 0000000000000001 RDI: ffff8c5c2739e540
+[ 1010.882664] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1010.882668] R10: ffffffffb2a60fa0 R11: ffffcddcc04a3bb8 R12: 0000000000000008
+[ 1010.882672] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2ac18
+[ 1010.882677] FS:  0000000000000000(0000) GS:ffff8c5c73ebc000(0000) knlGS:0000000000000000
+[ 1010.882683] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1010.882688] CR2: 000002fcfbcd7000 CR3: 0000000193a24002 CR4: 00000000001726f0
+[ 1010.882693] Call Trace:
+[ 1010.882700]  <TASK>
+[ 1010.882713]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1010.882894]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1010.883091]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1010.883265]  process_one_work+0x18e/0x350
+[ 1010.883282]  worker_thread+0x165/0x2d0
+[ 1010.883293]  ? __pfx_worker_thread+0x10/0x10
+[ 1010.883303]  kthread+0xfb/0x260
+[ 1010.883311]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1010.883325]  ? __pfx_kthread+0x10/0x10
+[ 1010.883331]  ? __pfx_kthread+0x10/0x10
+[ 1010.883337]  ret_from_fork+0x22d/0x260
+[ 1010.883346]  ? __pfx_kthread+0x10/0x10
+[ 1010.883352]  ret_from_fork_asm+0x1a/0x30
+[ 1010.883365]  </TASK>
+[ 1010.883368] ---[ end trace 0000000000000000 ]---
+[ 1010.944441] ------------[ cut here ]------------
+[ 1010.944456] control:6020.000 MHz width:0 center: 6020.000/0 MHz
+[ 1010.944516] WARNING: CPU: 3 PID: 3354 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1010.944813] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1010.945135]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1010.945338] CPU: 3 UID: 0 PID: 3354 Comm: kworker/u16:4 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1010.945356] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1010.945361] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1010.945368] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1010.945666] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1010.945920] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1010.945930] RSP: 0018:ffffcddcc04a3d10 EFLAGS: 00010246
+[ 1010.945941] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1010.945948] RDX: ffff8c5c2739e548 RSI: 0000000000000001 RDI: ffff8c5c2739e540
+[ 1010.945955] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1010.945961] R10: ffffffffb2a60fa0 R11: ffffcddcc04a3bb8 R12: 0000000000000008
+[ 1010.945968] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2ac18
+[ 1010.945975] FS:  0000000000000000(0000) GS:ffff8c5c73ebc000(0000) knlGS:0000000000000000
+[ 1010.945984] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1010.945992] CR2: 000002fcfbcd7000 CR3: 0000000193a24002 CR4: 00000000001726f0
+[ 1010.946001] Call Trace:
+[ 1010.946011]  <TASK>
+[ 1010.946027]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1010.946186]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1010.946359]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1010.946530]  process_one_work+0x18e/0x350
+[ 1010.946545]  worker_thread+0x165/0x2d0
+[ 1010.946555]  ? __pfx_worker_thread+0x10/0x10
+[ 1010.946567]  kthread+0xfb/0x260
+[ 1010.946579]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1010.946594]  ? __pfx_kthread+0x10/0x10
+[ 1010.946602]  ? __pfx_kthread+0x10/0x10
+[ 1010.946611]  ret_from_fork+0x22d/0x260
+[ 1010.946622]  ? __pfx_kthread+0x10/0x10
+[ 1010.946630]  ret_from_fork_asm+0x1a/0x30
+[ 1010.946648]  </TASK>
+[ 1010.946653] ---[ end trace 0000000000000000 ]---
+[ 1011.008439] ------------[ cut here ]------------
+[ 1011.008453] control:6040.000 MHz width:0 center: 6040.000/0 MHz
+[ 1011.008513] WARNING: CPU: 1 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1011.008737] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1011.008920]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1011.009042] CPU: 1 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1011.009055] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1011.009058] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1011.009063] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1011.009237] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1011.009428] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1011.009437] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1011.009447] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1011.009453] RDX: ffff8c5c2729e548 RSI: 0000000000000001 RDI: ffff8c5c2729e540
+[ 1011.009459] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1011.009466] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1011.009472] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2ac18
+[ 1011.009478] FS:  0000000000000000(0000) GS:ffff8c5c73dbc000(0000) knlGS:0000000000000000
+[ 1011.009486] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1011.009493] CR2: 000002fcfab90000 CR3: 0000000193a24004 CR4: 00000000001726f0
+[ 1011.009501] Call Trace:
+[ 1011.009510]  <TASK>
+[ 1011.009525]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1011.009779]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1011.010065]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1011.010324]  process_one_work+0x18e/0x350
+[ 1011.010344]  worker_thread+0x165/0x2d0
+[ 1011.010359]  ? __pfx_worker_thread+0x10/0x10
+[ 1011.010373]  kthread+0xfb/0x260
+[ 1011.010404]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1011.010422]  ? __pfx_kthread+0x10/0x10
+[ 1011.010432]  ? __pfx_kthread+0x10/0x10
+[ 1011.010441]  ret_from_fork+0x22d/0x260
+[ 1011.010454]  ? __pfx_kthread+0x10/0x10
+[ 1011.010464]  ret_from_fork_asm+0x1a/0x30
+[ 1011.010482]  </TASK>
+[ 1011.010488] ---[ end trace 0000000000000000 ]---
+[ 1011.072468] ------------[ cut here ]------------
+[ 1011.072480] control:6060.000 MHz width:0 center: 6060.000/0 MHz
+[ 1011.072528] WARNING: CPU: 1 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1011.072803] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1011.072985]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1011.073107] CPU: 1 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1011.073119] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1011.073122] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1011.073127] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1011.073299] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1011.073499] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1011.073509] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1011.073520] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1011.073526] RDX: ffff8c5c2729e548 RSI: 0000000000000001 RDI: ffff8c5c2729e540
+[ 1011.073532] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1011.073538] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1011.073544] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2ac18
+[ 1011.073552] FS:  0000000000000000(0000) GS:ffff8c5c73dbc000(0000) knlGS:0000000000000000
+[ 1011.073560] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1011.073567] CR2: 000002fcfab90000 CR3: 0000000193a24004 CR4: 00000000001726f0
+[ 1011.073575] Call Trace:
+[ 1011.073584]  <TASK>
+[ 1011.073600]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1011.073853]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1011.074136]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1011.074411]  process_one_work+0x18e/0x350
+[ 1011.074432]  worker_thread+0x165/0x2d0
+[ 1011.074447]  ? __pfx_worker_thread+0x10/0x10
+[ 1011.074461]  kthread+0xfb/0x260
+[ 1011.074474]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1011.074492]  ? __pfx_kthread+0x10/0x10
+[ 1011.074502]  ? __pfx_kthread+0x10/0x10
+[ 1011.074513]  ret_from_fork+0x22d/0x260
+[ 1011.074525]  ? __pfx_kthread+0x10/0x10
+[ 1011.074533]  ret_from_fork_asm+0x1a/0x30
+[ 1011.074552]  </TASK>
+[ 1011.074558] ---[ end trace 0000000000000000 ]---
+[ 1011.136518] ------------[ cut here ]------------
+[ 1011.136528] control:6080.000 MHz width:0 center: 6080.000/0 MHz
+[ 1011.136581] WARNING: CPU: 1 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1011.136851] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1011.137033]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1011.137154] CPU: 1 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1011.137168] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1011.137171] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1011.137176] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1011.137424] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1011.137664] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1011.137674] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1011.137686] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1011.137694] RDX: ffff8c5c2729e548 RSI: 0000000000000001 RDI: ffff8c5c2729e540
+[ 1011.137702] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1011.137708] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1011.137715] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2ac18
+[ 1011.137723] FS:  0000000000000000(0000) GS:ffff8c5c73dbc000(0000) knlGS:0000000000000000
+[ 1011.137731] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1011.137737] CR2: 000002fcfab90000 CR3: 0000000193a24004 CR4: 00000000001726f0
+[ 1011.137745] Call Trace:
+[ 1011.137754]  <TASK>
+[ 1011.137770]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1011.138036]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1011.138324]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1011.138597]  process_one_work+0x18e/0x350
+[ 1011.138619]  worker_thread+0x165/0x2d0
+[ 1011.138635]  ? __pfx_worker_thread+0x10/0x10
+[ 1011.138649]  kthread+0xfb/0x260
+[ 1011.138661]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1011.138679]  ? __pfx_kthread+0x10/0x10
+[ 1011.138687]  ? __pfx_kthread+0x10/0x10
+[ 1011.138699]  ret_from_fork+0x22d/0x260
+[ 1011.138710]  ? __pfx_kthread+0x10/0x10
+[ 1011.138720]  ret_from_fork_asm+0x1a/0x30
+[ 1011.138741]  </TASK>
+[ 1011.138746] ---[ end trace 0000000000000000 ]---
+[ 1012.150452] net_ratelimit: 61 callbacks suppressed
+[ 1012.150461] b43-phy1: phy_ac: switch_channel(11) - not implemented, no-op
+[ 1012.221518] b43-phy1: phy_ac: switch_channel(12) - not implemented, no-op
+[ 1012.292542] b43-phy1: phy_ac: switch_channel(13) - not implemented, no-op
+[ 1012.363556] b43-phy1: phy_ac: software_rfkill(blocked=1)
+[ 1012.363572] b43-phy1: phy_ac: switch_analog(off)
+[ 1012.363616] b43-phy1: phy_ac: switch_analog(off) done
+[ 1012.363657] b43-phy1: phy_ac: switch_analog(on)
+[ 1012.363660] b43-phy1: phy_ac: software_rfkill(blocked=0)
+[ 1012.363663] b43-phy1: phy_ac: switch_analog(on)
+[ 1012.363666] b43-phy1: phy_ac: init (core_rev 42, radio24=1)
+[ 1015.210355] ------------[ cut here ]------------
+[ 1015.210364] control:5960.000 MHz width:0 center: 5960.000/0 MHz
+[ 1015.210409] WARNING: CPU: 0 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.210650] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1015.210869]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1015.210988] CPU: 0 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1015.211000] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1015.211003] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1015.211008] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1015.211163] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.211335] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1015.211345] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1015.211355] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1015.211361] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1015.211368] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1015.211374] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1015.211381] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2a418
+[ 1015.211389] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1015.211397] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1015.211404] CR2: 000002fcf2dfc000 CR3: 0000000193a24003 CR4: 00000000001726f0
+[ 1015.211413] Call Trace:
+[ 1015.211420]  <TASK>
+[ 1015.211436]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1015.211684]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1015.211975]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1015.212225]  process_one_work+0x18e/0x350
+[ 1015.212247]  worker_thread+0x165/0x2d0
+[ 1015.212263]  ? __pfx_worker_thread+0x10/0x10
+[ 1015.212276]  kthread+0xfb/0x260
+[ 1015.212308]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1015.212325]  ? __pfx_kthread+0x10/0x10
+[ 1015.212335]  ? __pfx_kthread+0x10/0x10
+[ 1015.212345]  ret_from_fork+0x22d/0x260
+[ 1015.212357]  ? __pfx_kthread+0x10/0x10
+[ 1015.212367]  ret_from_fork_asm+0x1a/0x30
+[ 1015.212387]  </TASK>
+[ 1015.212392] ---[ end trace 0000000000000000 ]---
+[ 1015.274351] ------------[ cut here ]------------
+[ 1015.274361] control:5980.000 MHz width:0 center: 5980.000/0 MHz
+[ 1015.274408] WARNING: CPU: 3 PID: 3354 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.274596] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1015.274778]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1015.274902] CPU: 3 UID: 0 PID: 3354 Comm: kworker/u16:4 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1015.274914] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1015.274918] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1015.274923] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1015.275097] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.275250] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1015.275257] RSP: 0018:ffffcddcc04a3d10 EFLAGS: 00010246
+[ 1015.275263] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1015.275268] RDX: ffff8c5c2739e548 RSI: 0000000000000001 RDI: ffff8c5c2739e540
+[ 1015.275273] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1015.275277] R10: ffffffffb2a60fa0 R11: ffffcddcc04a3bb8 R12: 0000000000000008
+[ 1015.275300] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2a418
+[ 1015.275305] FS:  0000000000000000(0000) GS:ffff8c5c73ebc000(0000) knlGS:0000000000000000
+[ 1015.275311] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1015.275315] CR2: 000002fd08025000 CR3: 0000000193a24006 CR4: 00000000001726f0
+[ 1015.275321] Call Trace:
+[ 1015.275328]  <TASK>
+[ 1015.275342]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1015.275498]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1015.275670]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1015.275819]  process_one_work+0x18e/0x350
+[ 1015.275834]  worker_thread+0x165/0x2d0
+[ 1015.275844]  ? __pfx_worker_thread+0x10/0x10
+[ 1015.275854]  kthread+0xfb/0x260
+[ 1015.275862]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1015.275875]  ? __pfx_kthread+0x10/0x10
+[ 1015.275880]  ? __pfx_kthread+0x10/0x10
+[ 1015.275886]  ret_from_fork+0x22d/0x260
+[ 1015.275894]  ? __pfx_kthread+0x10/0x10
+[ 1015.275899]  ret_from_fork_asm+0x1a/0x30
+[ 1015.275911]  </TASK>
+[ 1015.275914] ---[ end trace 0000000000000000 ]---
+[ 1015.337434] ------------[ cut here ]------------
+[ 1015.337444] control:6000.000 MHz width:0 center: 6000.000/0 MHz
+[ 1015.337495] WARNING: CPU: 0 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.337782] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1015.337970]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1015.338092] CPU: 0 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1015.338105] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1015.338108] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1015.338113] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1015.338390] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.338638] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1015.338648] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1015.338659] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1015.338666] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1015.338673] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1015.338679] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1015.338685] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2a418
+[ 1015.338693] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1015.338703] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1015.338711] CR2: 000002fcf2dfc000 CR3: 0000000193a24003 CR4: 00000000001726f0
+[ 1015.338720] Call Trace:
+[ 1015.338729]  <TASK>
+[ 1015.338747]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1015.339015]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1015.339331]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1015.339587]  process_one_work+0x18e/0x350
+[ 1015.339608]  worker_thread+0x165/0x2d0
+[ 1015.339623]  ? __pfx_worker_thread+0x10/0x10
+[ 1015.339638]  kthread+0xfb/0x260
+[ 1015.339651]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1015.339668]  ? __pfx_kthread+0x10/0x10
+[ 1015.339679]  ? __pfx_kthread+0x10/0x10
+[ 1015.339689]  ret_from_fork+0x22d/0x260
+[ 1015.339701]  ? __pfx_kthread+0x10/0x10
+[ 1015.339711]  ret_from_fork_asm+0x1a/0x30
+[ 1015.339732]  </TASK>
+[ 1015.339738] ---[ end trace 0000000000000000 ]---
+[ 1015.401437] ------------[ cut here ]------------
+[ 1015.401446] control:6020.000 MHz width:0 center: 6020.000/0 MHz
+[ 1015.401499] WARNING: CPU: 0 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.401784] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1015.401968]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1015.402087] CPU: 0 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1015.402099] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1015.402102] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1015.402107] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1015.402371] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.402615] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1015.402625] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1015.402636] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1015.402643] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1015.402650] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1015.402656] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1015.402662] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2a418
+[ 1015.402670] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1015.402679] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1015.402687] CR2: 000002fcf2dfc000 CR3: 0000000193a24003 CR4: 00000000001726f0
+[ 1015.402697] Call Trace:
+[ 1015.402705]  <TASK>
+[ 1015.402723]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1015.402984]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1015.403272]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1015.403548]  process_one_work+0x18e/0x350
+[ 1015.403570]  worker_thread+0x165/0x2d0
+[ 1015.403585]  ? __pfx_worker_thread+0x10/0x10
+[ 1015.403598]  kthread+0xfb/0x260
+[ 1015.403611]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1015.403629]  ? __pfx_kthread+0x10/0x10
+[ 1015.403638]  ? __pfx_kthread+0x10/0x10
+[ 1015.403648]  ret_from_fork+0x22d/0x260
+[ 1015.403660]  ? __pfx_kthread+0x10/0x10
+[ 1015.403670]  ret_from_fork_asm+0x1a/0x30
+[ 1015.403690]  </TASK>
+[ 1015.403695] ---[ end trace 0000000000000000 ]---
+[ 1015.465403] ------------[ cut here ]------------
+[ 1015.465413] control:6040.000 MHz width:0 center: 6040.000/0 MHz
+[ 1015.465460] WARNING: CPU: 0 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.465696] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1015.465880]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1015.466005] CPU: 0 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1015.466017] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1015.466021] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1015.466027] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1015.466251] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.466494] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1015.466504] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1015.466515] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1015.466521] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1015.466528] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1015.466534] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1015.466539] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2a418
+[ 1015.466546] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1015.466554] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1015.466561] CR2: 000002fcf2dfc000 CR3: 0000000193a24003 CR4: 00000000001726f0
+[ 1015.466569] Call Trace:
+[ 1015.466578]  <TASK>
+[ 1015.466594]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1015.466848]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1015.467143]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1015.467426]  process_one_work+0x18e/0x350
+[ 1015.467445]  worker_thread+0x165/0x2d0
+[ 1015.467461]  ? __pfx_worker_thread+0x10/0x10
+[ 1015.467473]  kthread+0xfb/0x260
+[ 1015.467483]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1015.467498]  ? __pfx_kthread+0x10/0x10
+[ 1015.467507]  ? __pfx_kthread+0x10/0x10
+[ 1015.467517]  ret_from_fork+0x22d/0x260
+[ 1015.467528]  ? __pfx_kthread+0x10/0x10
+[ 1015.467537]  ret_from_fork_asm+0x1a/0x30
+[ 1015.467556]  </TASK>
+[ 1015.467562] ---[ end trace 0000000000000000 ]---
+[ 1015.529415] ------------[ cut here ]------------
+[ 1015.529426] control:6060.000 MHz width:0 center: 6060.000/0 MHz
+[ 1015.529478] WARNING: CPU: 0 PID: 14 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.529759] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1015.529947]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1015.530069] CPU: 0 UID: 0 PID: 14 Comm: kworker/u16:1 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1015.530082] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1015.530086] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1015.530091] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1015.530338] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.530581] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1015.530590] RSP: 0018:ffffcddcc00a3d10 EFLAGS: 00010246
+[ 1015.530602] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1015.530610] RDX: ffff8c5c2721e548 RSI: 0000000000000001 RDI: ffff8c5c2721e540
+[ 1015.530618] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1015.530625] R10: ffffffffb2a60fa0 R11: ffffcddcc00a3bb8 R12: 0000000000000008
+[ 1015.530632] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2a418
+[ 1015.530639] FS:  0000000000000000(0000) GS:ffff8c5c73d3c000(0000) knlGS:0000000000000000
+[ 1015.530647] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1015.530653] CR2: 000002fcf2dfc000 CR3: 0000000193a24003 CR4: 00000000001726f0
+[ 1015.530662] Call Trace:
+[ 1015.530671]  <TASK>
+[ 1015.530689]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1015.530953]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1015.531241]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1015.531518]  process_one_work+0x18e/0x350
+[ 1015.531540]  worker_thread+0x165/0x2d0
+[ 1015.531555]  ? __pfx_worker_thread+0x10/0x10
+[ 1015.531569]  kthread+0xfb/0x260
+[ 1015.531583]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1015.531600]  ? __pfx_kthread+0x10/0x10
+[ 1015.531608]  ? __pfx_kthread+0x10/0x10
+[ 1015.531620]  ret_from_fork+0x22d/0x260
+[ 1015.531631]  ? __pfx_kthread+0x10/0x10
+[ 1015.531641]  ret_from_fork_asm+0x1a/0x30
+[ 1015.531662]  </TASK>
+[ 1015.531668] ---[ end trace 0000000000000000 ]---
+[ 1015.593409] ------------[ cut here ]------------
+[ 1015.593420] control:6080.000 MHz width:0 center: 6080.000/0 MHz
+[ 1015.593472] WARNING: CPU: 3 PID: 3354 at net/mac80211/main.c:135 ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.593747] Modules linked in: b43(O) bcma cordic ssb mac80211 libarc4 qrtr rfcomm snd_seq_dummy snd_hrtimer snd_seq snd_seq_device af_packet cmac algif_hash algif_skcipher af_alg bnep snd_hda_codec_intelhdmi snd_hda_codec_hdmi ofpart cmdlinepart spi_nor mtd intel_rapl_msr intel_rapl_common x86_pkg_temp_thermal intel_powerclamp coretemp nls_iso8859_1 polyval_clmulni ghash_clmulni_intel aesni_intel nls_cp437 rapl intel_cstate i2c_i801 vfat iTCO_wdt spi_intel_platform intel_pmc_bxt fat watchdog spi_intel mei_hdcp mei_pxp joydev applesmc intel_uncore thunderbolt btusb i2c_smbus i2c_mux lpc_ich btrtl btintel i915 btmtk btbcm mei_me mei bcm5974 bluetooth snd_hda_codec_cs420x spi_pxa2xx_pci snd_hda_codec_generic dw_dmac_pci ecdh_generic snd_hda_intel evdev snd_hda_codec ecc snd_hda_core applespi sbs snd_intel_dspcfg snd_intel_sdw_acpi drm_buddy mousedev snd_hwdep input_leds snd_pcm acpi_als ttm industrialio_triggered_buffer kfifo_buf spi_pxa2xx_platform industrialio sbshc mac_hid snd_timer dw_dmac rtc_cmos dw_dmac_core
+[ 1015.593929]  drm_display_helper snd spi_pxa2xx_core cec intel_gtt i2c_algo_bit soundcore apple_mfi_fastcharge tiny_power_button video wmi ac button xt_conntrack nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4 xt_tcpudp ip6t_rpfilter ipt_rpfilter xt_pkttype nft_compat x_tables nf_tables nfnetlink sch_fq_codel wl(PO) kvm_intel cfg80211 kvm atkbd rfkill libps2 serio irqbypass loop vivaldi_fmap fuse configfs dmi_sysfs ext4 crc16 mbcache jbd2 hid_apple led_class hid_generic usbhid hid sd_mod ahci libahci libata xhci_pci scsi_mod xhci_hcd scsi_common dm_mod efivarfs autofs4
+[ 1015.594053] CPU: 3 UID: 0 PID: 3354 Comm: kworker/u16:4 Tainted: P        W  O        6.18.53 #1-NixOS PREEMPT(lazy) 
+[ 1015.594065] Tainted: [P]=PROPRIETARY_MODULE, [W]=WARN, [O]=OOT_MODULE
+[ 1015.594068] Hardware name: Apple Inc. MacBookAir6,1/Mac-35C1E88140C3E6CF, BIOS 478.0.0.0.0 01/13/2023
+[ 1015.594074] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[ 1015.594317] RIP: 0010:ieee80211_calc_hw_conf_chan+0x2b5/0x490 [mac80211]
+[ 1015.594499] Code: 1c 44 8b 44 24 0c 8b 4c 24 08 48 85 c0 0f 84 66 01 00 00 0f b7 78 08 8b 70 04 52 89 fa 48 c7 c7 e8 84 2b c2 e8 2c 7e c0 ee 90 <0f> 0b 90 90 58 45 31 e4 e9 33 ff ff ff 48 8b 14 24 8b 44 24 08 c7
+[ 1015.594505] RSP: 0018:ffffcddcc04a3d10 EFLAGS: 00010246
+[ 1015.594512] RAX: 0000000000000000 RBX: 0000000000000002 RCX: 0000000000000027
+[ 1015.594517] RDX: ffff8c5c2739e548 RSI: 0000000000000001 RDI: ffff8c5c2739e540
+[ 1015.594522] RBP: ffff8c5ac5d18960 R08: 0000000000000000 R09: 00000000ffffdfff
+[ 1015.594526] R10: ffffffffb2a60fa0 R11: ffffcddcc04a3bb8 R12: 0000000000000008
+[ 1015.594529] R13: 0000000000000000 R14: ffff8c5ac554ca80 R15: ffff8c5ae3b2a418
+[ 1015.594535] FS:  0000000000000000(0000) GS:ffff8c5c73ebc000(0000) knlGS:0000000000000000
+[ 1015.594540] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[ 1015.594545] CR2: 000002fd08025000 CR3: 0000000193a24006 CR4: 00000000001726f0
+[ 1015.594550] Call Trace:
+[ 1015.594556]  <TASK>
+[ 1015.594568]  ieee80211_hw_conf_chan+0x3f/0x80 [mac80211]
+[ 1015.594749]  ieee80211_scan_work+0x3be/0x650 [mac80211]
+[ 1015.594947]  cfg80211_wiphy_work+0xc2/0x1a0 [cfg80211]
+[ 1015.595121]  process_one_work+0x18e/0x350
+[ 1015.595138]  worker_thread+0x165/0x2d0
+[ 1015.595149]  ? __pfx_worker_thread+0x10/0x10
+[ 1015.595159]  kthread+0xfb/0x260
+[ 1015.595168]  ? finish_task_switch.isra.0+0x9c/0x310
+[ 1015.595182]  ? __pfx_kthread+0x10/0x10
+[ 1015.595188]  ? __pfx_kthread+0x10/0x10
+[ 1015.595194]  ret_from_fork+0x22d/0x260
+[ 1015.595203]  ? __pfx_kthread+0x10/0x10
+[ 1015.595209]  ret_from_fork_asm+0x1a/0x30
+[ 1015.595222]  </TASK>
+[ 1015.595225] ---[ end trace 0000000000000000 ]---
+[ 1017.980587] net_ratelimit: 42 callbacks suppressed
+[ 1017.980602] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1017.989513] b43-phy1: phy_ac: switch_channel(1) - not implemented, no-op
+[ 1018.060347] b43-phy1: phy_ac: switch_channel(2) - not implemented, no-op
+[ 1018.131392] b43-phy1: phy_ac: switch_channel(3) - not implemented, no-op
+[ 1018.203408] b43-phy1: phy_ac: switch_channel(4) - not implemented, no-op
+[ 1018.274402] b43-phy1: phy_ac: switch_channel(5) - not implemented, no-op
+[ 1018.345340] b43-phy1: phy_ac: switch_channel(6) - not implemented, no-op
+[ 1018.416307] b43-phy1: phy_ac: switch_channel(7) - not implemented, no-op
+[ 1018.487395] b43-phy1: phy_ac: switch_channel(8) - not implemented, no-op
+[ 1018.558403] b43-phy1: phy_ac: switch_channel(9) - not implemented, no-op
++ journalctl --sync
++ sync
++ echo '===== RECOVERY ====='
+===== RECOVERY =====
+++ ls /sys/class/net
++ for ifc in $(ls /sys/class/net)
++ readlink /sys/class/net/lo/device/driver
++ grep -q b43
++ for ifc in $(ls /sys/class/net)
++ readlink /sys/class/net/wlp3s0b1/device/driver
++ grep -q b43
++ ip link set wlp3s0b1 down
++ rmmod b43
++ echo
++ rmmod bcma
++ echo
++ modprobe wl
++ echo 0000:03:00.0
++ sleep 3
++ readlink -f /sys/bus/pci/devices/0000:03:00.0/driver
+/sys/devices/pci0000:00/0000:00:1c.2/0000:03:00.0/driver
++ nmcli radio wifi on
++ sysctl -w kernel.panic_on_oops=0 kernel.panic=0 kernel.hung_task_panic=0 kernel.hung_task_timeout_secs=120 kernel.softlockup_panic=0
+kernel.panic_on_oops = 0
+kernel.panic = 0
+kernel.hung_task_panic = 0
+kernel.hung_task_timeout_secs = 120
+kernel.softlockup_panic = 0
++ echo 'b43test: === DONE ==='
++ echo '===== DONE ====='
+===== DONE =====
++ sync
