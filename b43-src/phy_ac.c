@@ -650,11 +650,20 @@ static void b43_phy_ac_replay_ch6(struct b43_wldev *dev)
 	for (i = 0; i < ARRAY_SIZE(b43_ac_replay_phy); i++)
 		b43_phy_write(dev, b43_ac_replay_phy[i][0],
 			      b43_ac_replay_phy[i][1]);
+	for (i = 0; i < ARRAY_SIZE(b43_ac_replay_tbl); i++) {
+		b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_replay_tbl[i].id);
+		b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, b43_ac_replay_tbl[i].off);
+		if (b43_ac_replay_tbl[i].width == 32)
+			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2,
+				      b43_ac_replay_tbl[i].val >> 16);
+		b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
+			      b43_ac_replay_tbl[i].val & 0xffff);
+	}
 	for (i = 0; i < ARRAY_SIZE(b43_ac_agc_tbls_2g); i++)
 		b43_phy_ac_write_table(dev, &b43_ac_agc_tbls_2g[i]);
-	b43info(dev->wl, "phy_ac: replayed vendor ch6 state (%zu radio, %zu PHY regs, %zu tables)\n",
+	b43info(dev->wl, "phy_ac: replayed vendor ch6 state (%zu radio, %zu PHY regs, %zu table entries)\n",
 		ARRAY_SIZE(b43_ac_replay_radio), ARRAY_SIZE(b43_ac_replay_phy),
-		ARRAY_SIZE(b43_ac_agc_tbls_2g));
+		ARRAY_SIZE(b43_ac_replay_tbl));
 }
 
 static int b43_phy_ac_op_init(struct b43_wldev *dev)
