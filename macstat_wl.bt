@@ -1,0 +1,9 @@
+kprobe:osl_writel /(arg1 & 0xfff) == 0x160/ {
+  $w = arg0 & 0xffffffff;
+  @cur[tid] = (($w & 0x1ffff) >= 0x10038 && ($w & 0x1ffff) <= 0x10057) ? $w : 0;
+  if (@cur[tid]) { printf("C %08x\n", $w); }
+}
+kprobe:osl_readl /@cur[tid] && (arg0 & 0xfff) == 0x164/ { @rd[tid] = 1; }
+kprobe:osl_readw /@cur[tid] && ((arg0 & 0xfff) == 0x164 || (arg0 & 0xfff) == 0x166)/ { @rd[tid] = arg0 & 0xfff; }
+kretprobe:osl_readl /@rd[tid] == 1/ { printf("L %08x\n", retval & 0xffffffff); @rd[tid] = 0; }
+kretprobe:osl_readw /@rd[tid] > 2/ { printf("W%x %04x\n", @rd[tid], retval & 0xffff); @rd[tid] = 0; }

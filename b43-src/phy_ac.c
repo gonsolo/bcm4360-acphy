@@ -694,6 +694,18 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 	return 0;
 }
 
+/* Ucode MAC statistics block (wl's M_UCODE_MACSTAT), decoded by tools/macstat_decode.pl. */
+static void b43_phy_ac_log_macstat(struct b43_wldev *dev)
+{
+	char line[64 * 5 + 1];
+	int i;
+
+	for (i = 0; i < 64; i++)
+		snprintf(line + i * 5, 6, " %04x",
+			 b43_shm_read16(dev, B43_SHM_SHARED, 0xe0 + i * 2));
+	b43info(dev->wl, "phy_ac: macstat:%s\n", line);
+}
+
 /* Diagnostic: MAC, interrupt and DMA state, every 15 seconds. */
 static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 {
@@ -709,6 +721,7 @@ static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 		b43info(dev->wl, "phy_ac: DMA rx status=%08x tx(BE) status=%08x\n",
 			b43_read32(dev, rx->mmio_base + B43_DMA64_RXSTATUS),
 			b43_read32(dev, tx->mmio_base + B43_DMA64_TXSTATUS));
+	b43_phy_ac_log_macstat(dev);
 }
 
 static unsigned int b43_phy_ac_op_get_default_chan(struct b43_wldev *dev)

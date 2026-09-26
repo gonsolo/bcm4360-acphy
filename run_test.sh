@@ -42,7 +42,7 @@ insmod "$PROJ/b43-src/b43.ko" verbose=3 ac_replay=1
 echo "$DEV" > /sys/bus/pci/drivers_probe
 sync
 
-sleep 40
+sleep 75
 
 echo "===== ip link ====="
 ip link
