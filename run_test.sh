@@ -32,6 +32,9 @@ modprobe cordic
 modprobe bcma
 sync
 
+echo "===== interrupts before ====="
+grep -iE "bcma|b43|wl|03:00" /proc/interrupts
+
 echo "b43test: === TEST START ===" > /dev/kmsg
 echo bcma-pci-bridge > /sys/bus/pci/devices/$DEV/driver_override
 echo "$DEV" > /sys/bus/pci/drivers/wl/unbind
@@ -43,8 +46,17 @@ sleep 20
 
 echo "===== ip link ====="
 ip link
-echo "===== iw dev ====="
-iw dev 2>&1
+echo "===== interrupts after ====="
+grep -iE "bcma|b43|wl|03:00" /proc/interrupts
+echo "===== netdev counters ====="
+for ifc in $(ls /sys/class/net); do
+	if readlink "/sys/class/net/$ifc/device/driver" | grep -q b43; then
+		echo "$ifc rx_packets=$(cat /sys/class/net/$ifc/statistics/rx_packets)" \
+			"tx_packets=$(cat /sys/class/net/$ifc/statistics/tx_packets)"
+		echo "===== scan results ($ifc) ====="
+		nmcli -f SSID,BSSID,CHAN,SIGNAL dev wifi list ifname "$ifc" --rescan yes 2>&1
+	fi
+done
 echo "===== dmesg since test start ====="
 dmesg | sed -n '/b43test: === TEST START ===/,$p'
 journalctl --sync
