@@ -24,7 +24,7 @@
 
 static struct dentry *b43_ac_dbg_dir;
 static struct b43_wldev *b43_ac_dbg_dev;
-static u16 b43_ac_dbg_addr[3];
+static u16 b43_ac_dbg_addr[4];
 
 static ssize_t b43_ac_dbg_read(struct file *f, char __user *ubuf, size_t len,
 			       loff_t *ppos)
@@ -44,7 +44,9 @@ static ssize_t b43_ac_dbg_read(struct file *f, char __user *ubuf, size_t len,
 		mutex_unlock(&dev->wl->mutex);
 		return -ENODEV;
 	}
-	if (which == 2)
+	if (which == 3)
+		val = b43_read16(dev, addr);
+	else if (which == 2)
 		val = b43_shm_read16(dev, B43_SHM_SHARED, addr);
 	else
 		val = which ? b43_radio_read(dev, addr) : b43_phy_read(dev, addr);
@@ -79,7 +81,9 @@ static ssize_t b43_ac_dbg_write(struct file *f, const char __user *ubuf,
 			mutex_unlock(&dev->wl->mutex);
 			return -ENODEV;
 		}
-		if (which == 2)
+		if (which == 3)
+			b43_write16(dev, addr, val);
+		else if (which == 2)
 			b43_shm_write16(dev, B43_SHM_SHARED, addr, val);
 		else if (which)
 			b43_radio_write(dev, addr, val);
@@ -122,6 +126,25 @@ static int b43_ac_dbg_cc_show(struct seq_file *s, void *unused)
 				   bcma_cc_read32(cc, ind[i].data));
 		}
 	mutex_unlock(&dev->wl->mutex);
+	{
+		struct ssb_sprom *sp = dev->dev->bus_sprom;
+
+		seq_printf(s, "sprom rev %u boardflags lo %04x hi %04x flags2 lo %04x hi %04x board_rev %04x board_type %04x\n",
+			   sp->revision, sp->boardflags_lo, sp->boardflags_hi,
+			   sp->boardflags2_lo, sp->boardflags2_hi, sp->board_rev,
+			   sp->board_type);
+		seq_printf(s, "sprom ant_avail a %x bg %x txchain %x rxchain %x antswitch %x\n",
+			   sp->ant_available_a, sp->ant_available_bg,
+			   sp->txchain, sp->rxchain, sp->antswitch);
+		seq_printf(s, "sprom fem2g tssipos %u extpa_gain %u pdet_range %u tr_iso %u antswlut %u\n",
+			   sp->fem.ghz2.tssipos, sp->fem.ghz2.extpa_gain,
+			   sp->fem.ghz2.pdet_range, sp->fem.ghz2.tr_iso,
+			   sp->fem.ghz2.antswlut);
+		seq_printf(s, "sprom fem5g tssipos %u extpa_gain %u pdet_range %u tr_iso %u antswlut %u\n",
+			   sp->fem.ghz5.tssipos, sp->fem.ghz5.extpa_gain,
+			   sp->fem.ghz5.pdet_range, sp->fem.ghz5.tr_iso,
+			   sp->fem.ghz5.antswlut);
+	}
 	return 0;
 }
 static int b43_ac_dbg_cc_open(struct inode *inode, struct file *file)
@@ -188,6 +211,8 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 		debugfs_create_file("radio", 0600, b43_ac_dbg_dir, (void *)1L,
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("shm", 0600, b43_ac_dbg_dir, (void *)2L,
+				    &b43_ac_dbg_fops);
+		debugfs_create_file("mmio16", 0600, b43_ac_dbg_dir, (void *)3L,
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("cc", 0600, b43_ac_dbg_dir, NULL,
 				    &b43_ac_dbg_cc_fops);
