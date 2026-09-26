@@ -13,6 +13,160 @@
 #include "dma.h"
 #include "main.h"
 
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+
+/**************************************************
+ * Debug: live PHY/radio register access.
+ * /sys/kernel/debug/b43ac/{phy,radio}: write "addr" to select, "addr val"
+ * to write; read returns "addr val" for the selected register.
+ **************************************************/
+
+static struct dentry *b43_ac_dbg_dir;
+static struct b43_wldev *b43_ac_dbg_dev;
+static u16 b43_ac_dbg_addr[3];
+
+static ssize_t b43_ac_dbg_read(struct file *f, char __user *ubuf, size_t len,
+			       loff_t *ppos)
+{
+	long which = (long)f->private_data;
+	struct b43_wldev *dev = b43_ac_dbg_dev;
+	u16 addr = b43_ac_dbg_addr[which], val;
+	char buf[16];
+	int n;
+
+	if (*ppos)
+		return 0;
+	if (!dev)
+		return -ENODEV;
+	mutex_lock(&dev->wl->mutex);
+	if (b43_status(dev) < B43_STAT_INITIALIZED) {
+		mutex_unlock(&dev->wl->mutex);
+		return -ENODEV;
+	}
+	if (which == 2)
+		val = b43_shm_read16(dev, B43_SHM_SHARED, addr);
+	else
+		val = which ? b43_radio_read(dev, addr) : b43_phy_read(dev, addr);
+	mutex_unlock(&dev->wl->mutex);
+	n = scnprintf(buf, sizeof(buf), "%04x %04x\n", addr, val);
+	return simple_read_from_buffer(ubuf, len, ppos, buf, n);
+}
+
+static ssize_t b43_ac_dbg_write(struct file *f, const char __user *ubuf,
+				size_t len, loff_t *ppos)
+{
+	long which = (long)f->private_data;
+	struct b43_wldev *dev = b43_ac_dbg_dev;
+	char buf[32];
+	unsigned int addr, val;
+	int n;
+
+	if (!dev)
+		return -ENODEV;
+	if (len >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len] = 0;
+	n = sscanf(buf, "%x %x", &addr, &val);
+	if (n < 1 || addr > 0xffff || (n == 2 && val > 0xffff))
+		return -EINVAL;
+	b43_ac_dbg_addr[which] = addr;
+	if (n == 2) {
+		mutex_lock(&dev->wl->mutex);
+		if (b43_status(dev) < B43_STAT_INITIALIZED) {
+			mutex_unlock(&dev->wl->mutex);
+			return -ENODEV;
+		}
+		if (which == 2)
+			b43_shm_write16(dev, B43_SHM_SHARED, addr, val);
+		else if (which)
+			b43_radio_write(dev, addr, val);
+		else
+			b43_phy_write(dev, addr, val);
+		mutex_unlock(&dev->wl->mutex);
+	}
+	return len;
+}
+
+static int b43_ac_dbg_cc_show(struct seq_file *s, void *unused)
+{
+	static const struct { u16 off; const char *name; } regs[] = {
+		{ 0x000, "chipid" }, { 0x028, "chipcontrol" }, { 0x02c, "chipstatus" },
+		{ 0x064, "gpioout" }, { 0x068, "gpioouten" }, { 0x06c, "gpiocontrol" },
+		{ 0x600, "pmucontrol" }, { 0x604, "pmucap" }, { 0x608, "pmustatus" },
+		{ 0x60c, "res_state" }, { 0x618, "min_res_mask" }, { 0x61c, "max_res_mask" },
+	};
+	static const struct { u16 addr, data; const char *name; } ind[] = {
+		{ BCMA_CC_PMU_CHIPCTL_ADDR, BCMA_CC_PMU_CHIPCTL_DATA, "chipctl" },
+		{ BCMA_CC_PMU_REGCTL_ADDR, BCMA_CC_PMU_REGCTL_DATA, "regctl" },
+		{ BCMA_CC_PMU_PLLCTL_ADDR, BCMA_CC_PMU_PLLCTL_DATA, "pllctl" },
+	};
+	struct b43_wldev *dev = b43_ac_dbg_dev;
+	struct bcma_drv_cc *cc;
+	int i, j;
+
+	if (!dev || dev->dev->bus_type != B43_BUS_BCMA)
+		return -ENODEV;
+	cc = &dev->dev->bdev->bus->drv_cc;
+	mutex_lock(&dev->wl->mutex);
+	for (i = 0; i < ARRAY_SIZE(regs); i++)
+		seq_printf(s, "%03x %-14s %08x\n", regs[i].off, regs[i].name,
+			   bcma_cc_read32(cc, regs[i].off));
+	for (i = 0; i < ARRAY_SIZE(ind); i++)
+		for (j = 0; j < 8; j++) {
+			bcma_cc_write32(cc, ind[i].addr, j);
+			bcma_cc_read32(cc, ind[i].addr);
+			seq_printf(s, "%s[%d] %08x\n", ind[i].name, j,
+				   bcma_cc_read32(cc, ind[i].data));
+		}
+	mutex_unlock(&dev->wl->mutex);
+	return 0;
+}
+static int b43_ac_dbg_cc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, b43_ac_dbg_cc_show, NULL);
+}
+
+static ssize_t b43_ac_dbg_cc_write(struct file *f, const char __user *ubuf,
+				   size_t len, loff_t *ppos)
+{
+	struct b43_wldev *dev = b43_ac_dbg_dev;
+	unsigned int off, val;
+	char buf[32];
+
+	if (!dev || dev->dev->bus_type != B43_BUS_BCMA)
+		return -ENODEV;
+	if (len >= sizeof(buf))
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len] = 0;
+	if (sscanf(buf, "%x %x", &off, &val) != 2 || off > 0xffc || (off & 3))
+		return -EINVAL;
+	mutex_lock(&dev->wl->mutex);
+	bcma_cc_write32(&dev->dev->bdev->bus->drv_cc, off, val);
+	mutex_unlock(&dev->wl->mutex);
+	return len;
+}
+
+static const struct file_operations b43_ac_dbg_cc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= b43_ac_dbg_cc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= b43_ac_dbg_cc_write,
+};
+
+static const struct file_operations b43_ac_dbg_fops = {
+	.owner	= THIS_MODULE,
+	.open	= simple_open,
+	.read	= b43_ac_dbg_read,
+	.write	= b43_ac_dbg_write,
+};
+
 /**************************************************
  * Basic PHY ops
  **************************************************/
@@ -26,6 +180,19 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 		return -ENOMEM;
 	dev->phy.ac = phy_ac;
 
+	if (!b43_ac_dbg_dir) {
+		b43_ac_dbg_dev = dev;
+		b43_ac_dbg_dir = debugfs_create_dir("b43ac", NULL);
+		debugfs_create_file("phy", 0600, b43_ac_dbg_dir, (void *)0L,
+				    &b43_ac_dbg_fops);
+		debugfs_create_file("radio", 0600, b43_ac_dbg_dir, (void *)1L,
+				    &b43_ac_dbg_fops);
+		debugfs_create_file("shm", 0600, b43_ac_dbg_dir, (void *)2L,
+				    &b43_ac_dbg_fops);
+		debugfs_create_file("cc", 0600, b43_ac_dbg_dir, NULL,
+				    &b43_ac_dbg_cc_fops);
+	}
+
 	return 0;
 }
 
@@ -34,6 +201,11 @@ static void b43_phy_ac_op_free(struct b43_wldev *dev)
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_ac *phy_ac = phy->ac;
 
+	if (b43_ac_dbg_dev == dev) {
+		debugfs_remove_recursive(b43_ac_dbg_dir);
+		b43_ac_dbg_dir = NULL;
+		b43_ac_dbg_dev = NULL;
+	}
 	kfree(phy_ac);
 	phy->ac = NULL;
 }
