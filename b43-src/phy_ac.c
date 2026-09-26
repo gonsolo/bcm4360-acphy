@@ -9,6 +9,7 @@
 #include "b43.h"
 #include "phy_ac.h"
 #include "radio_2069.h"
+#include "tables_phy_ac.h"
 
 /**************************************************
  * Basic PHY ops
@@ -489,8 +490,74 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
  * purely so .init is non-NULL (b43 requires it) and to let us observe how
  * far probe/attach gets on real hardware with just power-up wired in.
  */
+static void b43_phy_ac_write_table(struct b43_wldev *dev,
+				   const struct b43_phy_ac_tbl *t)
+{
+	unsigned int i;
+	u32 v;
+
+	b43_phy_write(dev, B43_PHY_AC_TABLE_ID, t->id);
+	b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, t->offset);
+	for (i = 0; i < t->count; i++) {
+		switch (t->width) {
+		case 8:
+			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
+				      ((const u8 *)t->data)[i]);
+			break;
+		case 16:
+			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
+				      ((const u16 *)t->data)[i]);
+			break;
+		case 32:
+			v = ((const u32 *)t->data)[i];
+			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2, v >> 16);
+			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1, v & 0xffff);
+			break;
+		}
+	}
+}
+
+/*
+ * PHY init for PHY rev 0/1 (vendor FUN_001a1202): RF-control override
+ * defaults, then the acphytbl_info_rev0 table set.
+ */
+static void b43_phy_ac_tables_init(struct b43_wldev *dev)
+{
+	static const u16 clear_regs[] = {
+		0x173e, 0x1725, 0x1722, 0x1723, 0x1724, 0x1725, 0x1726, 0x1727,
+		0x1750,
+	};
+	unsigned int i;
+	u16 save;
+
+	b43_phy_write(dev, 0x410, 0x77);
+	for (i = 0; i < ARRAY_SIZE(clear_regs); i++)
+		b43_phy_write(dev, clear_regs[i], 0);
+	b43_phy_write(dev, 0x1728, 0x80);
+	b43_phy_write(dev, 0x1720, 0x180);
+	b43_phy_write(dev, 0x1729, 0);
+	b43_phy_write(dev, 0x1721, 0x5000);
+	b43_phy_write(dev, 0x173a, b43_phy_read(dev, 0x73a) | 0x100);
+	b43_phy_write(dev, 0x1725, b43_phy_read(dev, 0x725) | 0x400);
+
+	save = b43_phy_read(dev, 0x19e);
+	b43_phy_set(dev, 0x19e, 0x2);
+	for (i = 0; i < b43_phy_ac_tbls_rev0_n; i++)
+		b43_phy_ac_write_table(dev, &b43_phy_ac_tbls_rev0[i]);
+	b43_phy_maskset(dev, 0x19e, ~0x2, save & 0x2);
+
+	b43_phy_write(dev, 0x1645, 0x25c);
+	b43info(dev->wl, "phy_ac: wrote %u PHY tables\n", b43_phy_ac_tbls_rev0_n);
+}
+
 static int b43_phy_ac_op_init(struct b43_wldev *dev)
 {
+	if (dev->phy.rev <= 1)
+		b43_phy_ac_tables_init(dev);
+	else
+		b43err(dev->wl, "phy_ac: no table set for PHY rev %u\n",
+		       dev->phy.rev);
+
 	b43info(dev->wl, "phy_ac: init (core_rev %u, radio24=%d, chip %04x, board %04x, radio_on %d)\n",
 		dev->dev->core_rev, b43_phy_ac_use_radio24(dev),
 		dev->dev->chip_id, dev->dev->board_type, dev->phy.ac->radio_on);

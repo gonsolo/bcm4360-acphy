@@ -16,7 +16,7 @@ b43-y += tables_nphy.o radio_2055.o radio_2056.o radio_2057.o phy_n.o
 b43-y += phy_common.o
 b43-y += phy_lp.o tables_lpphy.o
 b43-y += phy_ht.o tables_phy_ht.o radio_2059.o
-b43-y += phy_ac.o radio_2069.o
+b43-y += phy_ac.o radio_2069.o tables_phy_ac.o
 b43-y += sysfs.o xmit.o dma.o pio.o rfkill.o ppr.o
 b43-y += leds.o
 
