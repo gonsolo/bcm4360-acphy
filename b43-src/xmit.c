@@ -16,6 +16,7 @@
 
 #include "xmit.h"
 #include "phy_common.h"
+#include "phy_ac.h"
 #include "dma.h"
 #include "pio.h"
 
@@ -236,6 +237,10 @@ static uint b43_ac_txcore = 1;
 module_param_named(ac_txcore, b43_ac_txcore, uint, 0644);
 MODULE_PARM_DESC(ac_txcore, "AC-PHY TX core mask for PhyTxControlWord_0");
 
+static int b43_ac_txsb = -1;
+module_param_named(ac_txsb, b43_ac_txsb, int, 0644);
+MODULE_PARM_DESC(ac_txsb, "AC-PHY test: PhyTxControlWord_1 sub-band override (-1: from chanspec)");
+
 static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 				 struct sk_buff *skb,
 				 struct ieee80211_tx_info *info, u16 cookie)
@@ -252,7 +257,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	bool is_ofdm = b43_is_ofdm_rate(rate);
 	unsigned int len = skb->len + FCS_LEN;
 	u8 *ri = h + B43_TXH_AC_RATE(0);
-	u16 mac_lo = 0, phy0, idx = 0, chanspec;
+	u16 mac_lo = 0, phy0, phy1, idx = 0, chanspec;
 	const u8 *tbl = is_ofdm ? ofdm : cck;
 	unsigned int n = is_ofdm ? ARRAY_SIZE(ofdm) : ARRAY_SIZE(cck);
 
@@ -278,9 +283,17 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	if (ieee80211_is_beacon(wlhdr->frame_control))
 		mac_lo |= 0x0200;	/* ignore PMQ */
 
-	chanspec = dev->phy.channel | 0x1000;	/* 20 MHz */
-	if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
-		chanspec |= 0xc000;
+	/* The PHY's chanspec; a 20 MHz frame in a wider channel goes out on
+	 * its control sub-band (bits 8-10), PhyTxControlWord_1 bits 0-2. */
+	chanspec = dev->phy.ac->chanspec;
+	if (!chanspec) {
+		chanspec = dev->phy.channel | 0x1000;	/* 20 MHz */
+		if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
+			chanspec |= 0xc000;
+	}
+	phy1 = (chanspec >> 8) & 0x7;
+	if (b43_ac_txsb >= 0)
+		phy1 = b43_ac_txsb;
 
 	put_unaligned_le16(mac_lo, h + 0x02);
 	put_unaligned_le16(0x0002, h + 0x04);	/* fixed rate */
@@ -295,7 +308,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
 		phy0 |= 0x0010;
 	put_unaligned_le16(phy0, ri + 0x00);
-	put_unaligned_le16(0, ri + 0x02);
+	put_unaligned_le16(phy1, ri + 0x02);
 	put_unaligned_le16(idx, ri + 0x04);
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06), len, rate);
 	put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
@@ -756,10 +769,18 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		const u8 *h = _rxhdr;
 		u16 cs = get_unaligned_le16(h + 0x16);
 		s8 p0 = h[0x09], p1 = h[0x0a];
+		u8 chan = cs & 0xff;
+
+		/* The chanspec names the centre channel; mac80211 needs the
+		 * control channel (40/80 MHz: sub-band in bits 8-10). */
+		if ((cs & 0x3800) == 0x1800)
+			chan = chan - 2 + 4 * ((cs >> 8) & 1);
+		else if ((cs & 0x3800) == 0x2000)
+			chan = chan - 6 + 4 * ((cs >> 8) & 3);
 
 		macstat = get_unaligned_le16(h + 0x10);
 		mactime = get_unaligned_le16(h + 0x14);
-		chanstat = ((cs & 0xff) << B43_RX_CHAN_ID_SHIFT) | B43_PHYTYPE_N;
+		chanstat = (chan << B43_RX_CHAN_ID_SHIFT) | B43_PHYTYPE_N;
 		if ((cs & 0xc000) == 0xc000)
 			chanstat |= B43_RX_CHAN_5GHZ;
 		if (p0 == -128)

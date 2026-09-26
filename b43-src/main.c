@@ -5449,6 +5449,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
 	limited_5g = phy->radio_ver == 0x2057 &&
 		     phy->radio_rev == 9;
 
+	/* AC-PHY test: ac_5ghz=2 keeps an idle station on 5 GHz. */
+	if (dev->phy.type == B43_PHYTYPE_AC && b43_ac_5ghz == 2)
+		have_2ghz_phy = false;
 	if (have_2ghz_phy)
 		hw->wiphy->bands[NL80211_BAND_2GHZ] = limited_2g ?
 			&b43_band_2ghz_limited : &b43_band_2GHz;

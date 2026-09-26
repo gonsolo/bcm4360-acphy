@@ -36,10 +36,12 @@ struct b43_phy_ac {
 	bool chan_set;
 	bool last_5ghz;
 	bool radio_on;
+	/* Chanspec the ucode has in SHM (TX headers must match). */
+	u16 chanspec;
 };
 
 extern const struct b43_phy_operations b43_phyops_ac;
 
-extern bool b43_ac_5ghz;
+extern uint b43_ac_5ghz;
 
 #endif /* B43_PHY_AC_H_ */

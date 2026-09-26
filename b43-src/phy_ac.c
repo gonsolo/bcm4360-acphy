@@ -670,9 +670,9 @@ MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channe
 
 static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
 
-bool b43_ac_5ghz;
-module_param_named(ac_5ghz, b43_ac_5ghz, bool, 0444);
-MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (experimental)");
+uint b43_ac_5ghz;
+module_param_named(ac_5ghz, b43_ac_5ghz, uint, 0444);
+MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (experimental; 2: 5 GHz only)");
 
 static bool b43_ac_5g_80;
 module_param_named(ac_5g_80, b43_ac_5g_80, bool, 0644);
@@ -953,6 +953,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	}
 	phy_ac->chan_set = true;
 	phy_ac->last_5ghz = is_5ghz;
+	phy_ac->chanspec = new_channel | 0x1000 | (is_5ghz ? 0xc000 : 0);
 
 	b43_phy_ac_tune(dev, e, new_channel);
 	b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
@@ -975,6 +976,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		 * PHY in 80 MHz mode) and set the core's PHY bandwidth to 80 MHz,
 		 * toggling force-gated-clock around the change like wl. */
 		b43_phy_ac_apply_por5g(dev);
+		phy_ac->chanspec = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN);
 		ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | 0x2);
 		ioctl = (ioctl & ~B43_BCMA_IOCTL_PHY_BW) | B43_BCMA_IOCTL_PHY_BW_80MHZ;
