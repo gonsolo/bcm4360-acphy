@@ -143,6 +143,27 @@ RX; then the tone generation; then the actual sweep) against real hardware
 as it's built - which requires the user's presence throughout, not just at
 a final "does it work" test.
 
+## Follow-up (same day, user confirmed still away): wrote the lowest-risk slice
+
+Asked the user directly whether they were physically present before going
+further - they weren't. Continued with safe, non-hardware work only:
+decompiled the last two small sub-functions (`FUN_00199491`, `FUN_0019d224`
+- table-0xC single-entry save/restore, straightforward), completing the
+full algorithm map (11 functions total now).
+
+Wrote `b43_phy_ac_txcal_save_gaintbl()` / `_restore_gaintbl()` into
+`phy_ac.c` - the TX gain-table (table 7) and paired table-0xC save/restore
+around a calibration tone. This is deliberately the *only* piece written:
+no chip-ID branching, no live RF, a direct, symmetric save-then-restore
+that's easy to verify by inspection against the decompiled source. **Not
+wired into anything** - no caller exists yet, on purpose. Builds clean
+(only the expected "defined but not used" warnings). Everything else
+(the RF-loopback mode switch, tone generation, the actual sweep) is
+understood well enough now to write, but is being deliberately left for a
+session with the user present, per the reasoning above - writing more of
+it blind wouldn't reduce risk, it would just accumulate more untested code
+before the first real validation point.
+
 ## What a responsible next session should do
 
 1. Decompile the remaining sub-functions listed above, especially
