@@ -682,3 +682,80 @@ covering the per-core block above plus a faithful `wlc_phy_resetcca_acphy`/
 `wlapi_bmac_phyclk_fgc` - **with the user physically present**, same
 standard as the 5 GHz bandwidth work and the still-unattempted full
 measurement sweep have always been held to.
+
+## Follow-up: found a way to port the per-core setup block WITHOUT touching BCMA_IOCTL - tested, bit-exact, but the measurement is still uniform
+
+Realized the BCMA_IOCTL dependency found above is only in wl's *cleanup*
+path (`FUN_001982a2` -> `wlc_phy_resetcca_acphy` -> `wlapi_bmac_phyclk_fgc`),
+not in the setup block itself - every single register the setup block
+touches is an ordinary PHY register (0x71x-0x73x range, same address
+space as everything else tested this session), never BCMA_IOCTL. So the
+BCMA_IOCTL boundary can be respected by keeping the *port* of the setup
+block but replacing its cleanup with the same "save every touched
+register, write it back verbatim" pattern already used for the tone
+functions - deliberately not vendor-authentic, but strictly avoiding
+the flagged register.
+
+Implemented `b43_phy_ac_txcal_measure_setup_enter()`/`_exit()`: the full
+per-core block from `FUN_001ac9b6` lines ~179-599, all ~55 writes/core
+now fully resolved (no guessing) given `phy+0x164==1` and a 2-core
+board. `_exit()` writes back all 16 saved registers per core plus
+`0x19e`/`0x40f` - matching `FUN_001982a2` exactly - but stops there,
+skipping its trailing `wlc_phy_resetcca_acphy()` call entirely.
+
+**Staged the test, per this project's own established practice**: first
+`ac_txcal_setup_test` - enter then *immediately* exit, in isolation, no
+tone, no candidates - to check the new block's round-trip safety before
+combining it with anything else.
+
+**Result: bit-exact.** Logged three representative registers per core
+(`0x735`/`0x73a`/`0x720`): `before=0000/0180/0180`,
+`after-enter=1b08/01d3/01f2` (identical both cores, as expected - same
+operations), `after-exit=0000/0180/0180` - **matching `before` exactly**,
+across 5 repeated invocations. Hand-verified the `after-enter` values
+against the decompiled arithmetic by hand (e.g. `0x735`: start 0,
+`&~0x700|0x300` -> `0x300`, `&~0x3800|0x1800` -> `0x1b00`,
+`&~0x1e|8` -> `0x1b08` - matches exactly; same exact-match check done
+for `0x73a` and `0x720`) - real, independent confirmation the
+translation is correct, not just "didn't crash." No instability, 0%
+packet loss on the backup link.
+
+Then ran the full combination (`ac_txcal_candidate_test3`): enter
+loopback, the new setup block, settle pulse, gain override, start tone,
+candidate sweep, stop tone, restore gain, undo setup block, exit
+loopback - every piece of `FUN_001ac9b6`'s context this project knows
+how to port, all in one test, for the first time.
+
+**Result: no instability** (clean load/unload across 5 invocations, 0%
+backup-link loss, no warnings/oops) **but `radio 0x144` is still
+bit-2-clear for all 6 candidates, identically, every single time** -
+exactly the same flat result as every simpler version of this test.
+
+**This is now a much more complete null result than before, and worth
+taking seriously.** Every piece of setup this project has been able to
+decompile and safely port is now in place: loopback mode, the full
+per-core register reconfiguration, the settle pulse, the gain-table
+exercise, a genuinely sustained tone. The only remaining known gaps are:
+(1) `wlc_phy_classifier_acphy(pi,7,4)` - called right before the setup
+block in the real algorithm, never decompiled, PHY-register-based (not
+BCMA_IOCTL) so plausible to add safely if it turns out to matter; (2)
+the `FUN_0019ccd9` bookkeeping calls inside the real sweep loop, which
+only affect result *storage*, not the measurement trigger itself, so
+unlikely to matter; (3) wl's real cleanup being replaced with a
+save/restore, which is a *later*-in-the-sequence difference and
+shouldn't affect a measurement taken *during* the sequence.
+
+Given how much is now covered, a uniform, undifferentiated reading
+across 6 different 899 values is starting to look less like "missing
+setup" and more like either a genuine problem in the loopback
+measurement/comparator path itself, or a remaining gap in this port's
+understanding of what `radio 0x144` actually reports. Still **not**
+evidence about the ACK bug specifically - this only speaks to whether
+this port's calibration *measurement* mechanism functions, which is a
+separate question from whether calibration is the actual cause of the
+firmware-TX failure. The most natural next steps, in order of effort:
+decompile and add `wlc_phy_classifier_acphy`; double check register
+`0x144`'s bit semantics aren't being misread; and, if both check out,
+consider whether the loopback path itself has a hardware problem -
+which would itself be a meaningful, novel finding for the broader ACK
+investigation, not a dead end.

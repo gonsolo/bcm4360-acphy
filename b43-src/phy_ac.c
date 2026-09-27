@@ -725,6 +725,14 @@ static bool b43_ac_txcal_candidate_test2;
 module_param_named(ac_txcal_candidate_test2, b43_ac_txcal_candidate_test2, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_candidate_test2, "AC-PHY test: like ac_txcal_candidate_test, but adds the two pieces of setup wl's real algorithm does immediately before the candidate sweep and that the first version skipped: the settle pulse and the TX gain-table override (both already individually validated by ac_txcal_test). The override reads each core's current table-7 gain and writes those exact same values back - a deliberate no-op on the actual gain, safe, but exercising the real write sequence (including the 0x19e table-access-enable toggle) in case that, not the gain value itself, is what the previous test's uniform bit-2-clear result was missing. Order matches vendor FUN_001ac9b6 exactly: enter loopback, settle pulse, gain override, start tone, candidate sweep, stop tone, restore gain, exit loopback. See notes/16.");
 
+static bool b43_ac_txcal_candidate_test3;
+module_param_named(ac_txcal_candidate_test3, b43_ac_txcal_candidate_test3, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_candidate_test3, "AC-PHY test: adds the large per-core measurement setup block (b43_phy_ac_txcal_measure_setup_enter/_exit - now fully resolved for our hardware, no guessing) that ac_txcal_candidate_test/test2 both skipped. Deliberately uses a straight save/write-back cleanup instead of vendor's real one, to avoid a BCMA_IOCTL write that function makes (wlc_phy_resetcca_acphy -> wlapi_bmac_phyclk_fgc) - the same register category behind this project's one hard machine freeze (notes/07). Full order: save PHY reg 0x140, enter loopback, measurement setup, settle pulse, gain override, start tone, candidate sweep, stop tone, restore gain, undo measurement setup, exit loopback, restore 0x140. See notes/16.");
+
+static bool b43_ac_txcal_setup_test;
+module_param_named(ac_txcal_setup_test, b43_ac_txcal_setup_test, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_setup_test, "AC-PHY test: exercises ONLY b43_phy_ac_txcal_measure_setup_enter()/_exit() in isolation (~110 register writes across both cores, the largest single register-write surface added in this project so far), immediately back to back, logging a few representative registers before/after - a round-trip-safety check run before combining this block with the tone/candidate-sweep test in ac_txcal_candidate_test3, matching this project's established practice of testing each new risky piece standalone first. No tone, no candidate sweep, no loft-comp writes. See notes/16.");
+
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
  */
@@ -768,6 +776,30 @@ static void b43_phy_ac_txcal_gen_tone_stop(struct b43_wldev *dev,
 				const struct b43_phy_ac_txcal_tonesave *save);
 static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev);
 static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev);
+
+struct b43_phy_ac_txcal_setupsave {
+	u16 t73e[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t721[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t729[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t720[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t728[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t724[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t736[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t723[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t735[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t737[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t738[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t727[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t73c[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t725[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t739[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 t73a[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 r19e, r40f;
+};
+static void b43_phy_ac_txcal_measure_setup_enter(struct b43_wldev *dev,
+				struct b43_phy_ac_txcal_setupsave *save);
+static void b43_phy_ac_txcal_measure_setup_exit(struct b43_wldev *dev,
+			const struct b43_phy_ac_txcal_setupsave *save);
 
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
@@ -1319,6 +1351,88 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_txcal_restore_gaintbl(dev, &gainsave);
 		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
 		b43info(dev->wl, "phy_ac: txcal candidate test2: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
+	if (b43_ac_txcal_setup_test) {
+		/* Isolated round-trip check of the new measurement setup
+		 * block, before combining it with anything else - see this
+		 * flag's MODULE_PARM_DESC.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+		struct b43_phy_ac_txcal_setupsave setupsave;
+
+		b43info(dev->wl, "phy_ac: txcal setup test: entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43info(dev->wl, "phy_ac: txcal setup test: before core0 735=%04x 73a=%04x 720=%04x core1 735=%04x 73a=%04x 720=%04x\n",
+			b43_phy_read(dev, 0x735), b43_phy_read(dev, 0x73a),
+			b43_phy_read(dev, 0x720),
+			b43_phy_read(dev, 0x735 + 0x200),
+			b43_phy_read(dev, 0x73a + 0x200),
+			b43_phy_read(dev, 0x720 + 0x200));
+
+		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
+		b43info(dev->wl, "phy_ac: txcal setup test: after-enter core0 735=%04x 73a=%04x 720=%04x core1 735=%04x 73a=%04x 720=%04x\n",
+			b43_phy_read(dev, 0x735), b43_phy_read(dev, 0x73a),
+			b43_phy_read(dev, 0x720),
+			b43_phy_read(dev, 0x735 + 0x200),
+			b43_phy_read(dev, 0x73a + 0x200),
+			b43_phy_read(dev, 0x720 + 0x200));
+
+		b43_phy_ac_txcal_measure_setup_exit(dev, &setupsave);
+		b43info(dev->wl, "phy_ac: txcal setup test: after-exit core0 735=%04x 73a=%04x 720=%04x core1 735=%04x 73a=%04x 720=%04x (want match 'before')\n",
+			b43_phy_read(dev, 0x735), b43_phy_read(dev, 0x73a),
+			b43_phy_read(dev, 0x720),
+			b43_phy_read(dev, 0x735 + 0x200),
+			b43_phy_read(dev, 0x73a + 0x200),
+			b43_phy_read(dev, 0x720 + 0x200));
+
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43info(dev->wl, "phy_ac: txcal setup test: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
+	if (b43_ac_txcal_candidate_test3) {
+		/* Adds the per-core measurement setup block, the one piece of
+		 * FUN_001ac9b6's context still missing from candidate_test2.
+		 * See b43_phy_ac_txcal_measure_setup_enter's comment for the
+		 * BCMA_IOCTL-avoidance rationale for its exit counterpart.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+		struct b43_phy_ac_txcal_tonesave tonesave;
+		struct b43_phy_ac_txcal_gainsave gainsave;
+		struct b43_phy_ac_txcal_setupsave setupsave;
+		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
+		u8 core, cores = b43_phy_ac_num_cores(dev);
+		u16 saved140 = b43_phy_read(dev, 0x140);
+
+		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
+			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
+			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
+		}
+
+		b43info(dev->wl, "phy_ac: txcal candidate test3: entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
+		b43_phy_ac_txcal_settle_pulse(dev);
+		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		b43info(dev->wl, "phy_ac: txcal candidate test3: setup done, starting tone\n");
+
+		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_measure_candidates(dev);
+		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
+		b43info(dev->wl, "phy_ac: txcal candidate test3: tone stopped\n");
+
+		b43_phy_ac_txcal_restore_gaintbl(dev, &gainsave);
+		b43_phy_ac_txcal_measure_setup_exit(dev, &setupsave);
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43_phy_write(dev, 0x140, saved140);
+		b43info(dev->wl, "phy_ac: txcal candidate test3: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
 			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
@@ -2033,6 +2147,170 @@ static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
 		b43_phy_set(dev, 0x73a, 0x100);
 		b43_phy_mask(dev, 0x73a, ~0x100);
 	}
+}
+
+/*
+ * decompiled-cal/FUN_001ac9b6.c lines ~179-599: the per-core measurement
+ * setup block, run once before the tone/candidate-search loop. Fully
+ * resolved for our exact hardware (2 cores, phy+0x164==1, 2.4GHz band -
+ * all confirmed hardware facts, not guesses, see notes/16): the
+ * apparent 3-way "0x73e/0xb3e/0x93e"-style register-family selection
+ * used throughout the vendor source turns out to be exactly `base +
+ * core*0x200` addressing (verified against multiple register bases) -
+ * no lookup table needed for a 2-core board. Every phy+0x164 branch is
+ * resolved (1, matching none of {2,3,5,6}) and the band-dependent
+ * constant (uVar28=0xd5eb for 2.4GHz) is fixed. Skips the not-yet-
+ * decompiled wlc_phy_classifier_acphy(pi,7,4) call - PHY-register
+ * based, not BCMA_IOCTL, a deliberate simplification in the same spirit
+ * as skipping FUN_0019ccd9's bookkeeping elsewhere in this file.
+ *
+ * DELIBERATELY does not use vendor's real cleanup:
+ * b43_phy_ac_txcal_measure_setup_exit() is a straight write-back of
+ * every register this saves (same registers, same order as vendor's
+ * own FUN_001982a2), but skips its trailing wlc_phy_resetcca_acphy()
+ * call - that function unconditionally calls wlapi_bmac_phyclk_fgc()
+ * -> si_core_cflags(), a BCMA_IOCTL control-flags write on the live D11
+ * core. That is the same register category behind this project's one
+ * hard machine freeze (notes/07, 2026-09-26). Not touched here, solo,
+ * on purpose.
+ */
+static void b43_phy_ac_txcal_measure_setup_enter(struct b43_wldev *dev,
+				struct b43_phy_ac_txcal_setupsave *save)
+{
+	static const u16 band_const = 0xd5eb; /* 2.4 GHz (uVar28) */
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+
+	save->r19e = b43_phy_read(dev, 0x19e);
+	save->r40f = b43_phy_read(dev, 0x40f);
+	b43_phy_set(dev, 0x19e, 0x2);
+	b43_phy_mask(dev, 0x40f, ~0x200);
+
+	for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+		u16 c = core * 0x200;
+
+		save->t73e[core] = b43_phy_read(dev, 0x73e + c);
+		b43_phy_write(dev, 0x73e + c, 0);
+		b43_phy_mask(dev, 0x73e + c, ~0x10);
+		b43_phy_mask(dev, 0x73e + c, ~0x20);
+		b43_phy_mask(dev, 0x73e + c, ~0x40);
+		b43_phy_mask(dev, 0x73e + c, ~0x80);
+		b43_phy_set(dev, 0x73e + c, 0x1000);
+		b43_phy_set(dev, 0x73e + c, 0x400);
+
+		save->t725[core] = b43_phy_read(dev, 0x725 + c);
+		save->t739[core] = b43_phy_read(dev, 0x739 + c);
+		save->t73a[core] = b43_phy_read(dev, 0x73a + c);
+		save->t721[core] = b43_phy_read(dev, 0x721 + c);
+		save->t729[core] = b43_phy_read(dev, 0x729 + c);
+		save->t720[core] = b43_phy_read(dev, 0x720 + c);
+		save->t728[core] = b43_phy_read(dev, 0x728 + c);
+		save->t724[core] = b43_phy_read(dev, 0x724 + c);
+		save->t736[core] = b43_phy_read(dev, 0x736 + c);
+		save->t723[core] = b43_phy_read(dev, 0x723 + c);
+		save->t735[core] = b43_phy_read(dev, 0x735 + c);
+		save->t737[core] = b43_phy_read(dev, 0x737 + c);
+		save->t738[core] = b43_phy_read(dev, 0x738 + c);
+		save->t727[core] = b43_phy_read(dev, 0x727 + c);
+		save->t73c[core] = b43_phy_read(dev, 0x73c + c);
+
+		b43_phy_set(dev, 0x720 + c, 2);
+		b43_phy_mask(dev, 0x728 + c, ~2);
+		b43_phy_set(dev, 0x721 + c, 0x40);
+		b43_phy_mask(dev, 0x729 + c, ~0x40);
+		b43_phy_set(dev, 0x721 + c, 0x80);
+		b43_phy_mask(dev, 0x729 + c, ~0x80);
+		b43_phy_set(dev, 0x721 + c, 0x20);
+		b43_phy_mask(dev, 0x729 + c, ~0x20);
+		b43_phy_set(dev, 0x721 + c, 0x2000);
+		b43_phy_mask(dev, 0x729 + c, (u16)~0xe000);
+		b43_phy_set(dev, 0x721 + c, 0x800);
+		b43_phy_mask(dev, 0x729 + c, ~0x800);
+		b43_phy_set(dev, 0x721 + c, 0x400);
+		b43_phy_mask(dev, 0x729 + c, ~0x400);
+		b43_phy_set(dev, 0x721 + c, 0x4000);
+		b43_phy_mask(dev, 0x728 + c, ~0x3800);
+		b43_phy_set(dev, 0x721 + c, 0x1000);
+		b43_phy_mask(dev, 0x729 + c, ~0x1000);
+		b43_phy_set(dev, 0x720 + c, 0x20);
+		b43_phy_set(dev, 0x728 + c, 0x20);
+		b43_phy_set(dev, 0x720 + c, 0x40);
+		b43_phy_set(dev, 0x728 + c, 0x40);
+		b43_phy_set(dev, 0x720 + c, 0x10);
+		b43_phy_set(dev, 0x728 + c, 0x10);
+		b43_phy_set(dev, 0x721 + c, 0x100);
+		b43_phy_set(dev, 0x729 + c, 0x100);
+		b43_phy_set(dev, 0x727 + c, 4);
+		b43_phy_set(dev, 0x73c + c, 0x10);
+
+		b43_phy_write(dev, 0x724 + c, 0x3ff);
+		b43_phy_write(dev, 0x736 + c, 0x152); /* param_4==0 for our call */
+
+		b43_phy_maskset(dev, 0x73a + c, ~7, band_const & 7);
+		b43_phy_set(dev, 0x725 + c, 0x20);
+		b43_phy_maskset(dev, 0x739 + c, ~0x7e, (band_const >> 2) & 0x7e);
+		b43_phy_set(dev, 0x725 + c, 2);
+		b43_phy_maskset(dev, 0x73a + c, ~8, (band_const >> 6) & 8);
+		b43_phy_set(dev, 0x725 + c, 0x40);
+		b43_phy_maskset(dev, 0x73a + c, ~0x10, (band_const >> 6) & 0x10);
+		b43_phy_set(dev, 0x725 + c, 0x80);
+		b43_phy_maskset(dev, 0x73a + c, ~0x60, (band_const >> 6) & 0x60);
+		b43_phy_set(dev, 0x725 + c, 0x100);
+
+		b43_phy_set(dev, 0x723 + c, 8);
+		b43_phy_set(dev, 0x723 + c, 0x10);
+		b43_phy_set(dev, 0x723 + c, 0x800);
+
+		/* iVar12 = band-index(0) + 3 = 3; phy+0x164==1 -> else branch */
+		b43_phy_maskset(dev, 0x735 + c, ~0x700, 3 * 0x100);
+		b43_phy_maskset(dev, 0x735 + c, ~0x3800, 3 * 0x800);
+		b43_phy_maskset(dev, 0x738 + c, ~7, 3);
+
+		b43_phy_set(dev, 0x723 + c, 1);
+		b43_phy_mask(dev, 0x735 + c, ~1);
+		b43_phy_set(dev, 0x723 + c, 0x20);
+		b43_phy_mask(dev, 0x735 + c, ~0x4000);
+		b43_phy_set(dev, 0x723 + c, 2);
+		b43_phy_maskset(dev, 0x735 + c, ~0x1e, 8);
+
+		/* phy+0x164 != 3 (true for us) */
+		b43_phy_set(dev, 0x727 + c, 2);
+		b43_phy_maskset(dev, 0x73c + c, ~0xe, 4);
+		b43_phy_set(dev, 0x727 + c, 1);
+		b43_phy_set(dev, 0x73c + c, 1);
+	}
+}
+
+static void b43_phy_ac_txcal_measure_setup_exit(struct b43_wldev *dev,
+			const struct b43_phy_ac_txcal_setupsave *save)
+{
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+
+	for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+		u16 c = core * 0x200;
+
+		b43_phy_write(dev, 0x73e + c, save->t73e[core]);
+		b43_phy_write(dev, 0x721 + c, save->t721[core]);
+		b43_phy_write(dev, 0x729 + c, save->t729[core]);
+		b43_phy_write(dev, 0x720 + c, save->t720[core]);
+		b43_phy_write(dev, 0x728 + c, save->t728[core]);
+		b43_phy_write(dev, 0x724 + c, save->t724[core]);
+		b43_phy_write(dev, 0x736 + c, save->t736[core]);
+		b43_phy_write(dev, 0x723 + c, save->t723[core]);
+		b43_phy_write(dev, 0x735 + c, save->t735[core]);
+		b43_phy_write(dev, 0x737 + c, save->t737[core]);
+		b43_phy_write(dev, 0x738 + c, save->t738[core]);
+		b43_phy_write(dev, 0x727 + c, save->t727[core]);
+		b43_phy_write(dev, 0x73c + c, save->t73c[core]);
+		b43_phy_write(dev, 0x725 + c, save->t725[core]);
+		b43_phy_write(dev, 0x739 + c, save->t739[core]);
+		b43_phy_write(dev, 0x73a + c, save->t73a[core]);
+	}
+
+	b43_phy_write(dev, 0x19e, save->r19e);
+	b43_phy_write(dev, 0x40f, save->r40f);
+	/* Deliberately no wlc_phy_resetcca_acphy() call - see this
+	 * function pair's block comment above.
+	 */
 }
 
 #include "phy_ac_replay.h"
