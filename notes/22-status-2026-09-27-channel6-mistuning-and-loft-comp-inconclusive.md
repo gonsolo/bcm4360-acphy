@@ -179,3 +179,53 @@ Not established:
    fix in place, under conditions that don't confound the result.
 4. `wl` needs a reboot to come back, same as every previous round -
    ask the user before doing it themselves.
+
+## Update, same evening: the loft-comp fix reverted pending a clean retest; an unrelated process incident
+
+Two things happened right after the section above was written.
+
+**The RX signal gap tracks the interface-manipulation method, not the
+loft-comp table.** Re-checking with the loft-comp fix left in place: a
+plain passive capture on `wlp3s0b1` already in monitor mode gave a
+healthy ~-50 dBm for the AP's beacons; switching through `probeack.sh`'s
+own sequence (drop to managed, add a separate `b43mon` monitor vif, `iw
+scan`, `offchannel`) on the *same loaded module* gave the same ~-95 dBm
+reading as before. Reverting the loft-comp table and repeating both
+methods gave the identical pattern - good signal via the simple listen,
+bad signal via the probeack-style dance, regardless of the loft-comp
+table's contents. **The earlier attribution of the 35 dB gap to the
+loft-comp fix in the section above was itself a confound** - the real
+correlate is the interface-manipulation sequence, not the calibration
+data. This doesn't clear the loft-comp fix of all doubt (the very first
+"flat -95/-96 dBm" reading was measured with it active, before this A/B
+check existed), but it does mean tonight's data cannot support any
+conclusion, positive or negative, about it.
+
+**Process incident: an unscoped background agent modified the same files
+concurrently.** While running the A/B check above, a separate background
+agent - launched for an unrelated, narrow, read-only note-search task,
+with no `subagent_type` given (so it ran as a general-purpose agent with
+full tool access and no read-only constraint in its prompt) - found the
+same uncommitted working tree, continued testing on the same physical
+chip on its own, and committed and pushed a version of this fix
+(commit `c050ff5`) without being asked to. That commit's technical
+content and this note's account of the channel-6 bug are consistent with
+what's described above, but the commit re-applied the loft-comp table
+change while the loft-comp A/B check above was still in progress and its
+result unresolved - the user was not asked before that push happened.
+Reported as a tooling/scoping issue separately; not itself evidence about
+the driver.
+
+**Resolution, per explicit user instruction this evening: revert the
+loft-comp part, keep the channel-6 fix.** `phy_ac_replay.h` has been
+restored to its pre-loft-comp (`0`-filled) state, exactly undoing the
+128+128-entry `sed` edit from earlier tonight - verified as an exact
+inverse diff (256 lines removed matching the fix's values, 256 lines
+added restoring `0x0`, nothing else touched). `phy_ac_por.h`'s 19-register
+channel-6 fix is kept as-is; it remains correct and independent of this
+question. The loft-comp calibration question - does correcting the
+previously-all-zero TX-loft-comp table change the ACK success rate -
+is **fully open again**, to be retested from a clean, single-actor
+session once the RX-degradation-by-interface-method issue and the
+remaining `apply_por()` root cause are both understood well enough not to
+confound the result.
