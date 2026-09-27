@@ -1216,6 +1216,132 @@ static void b43_phy_ac_rxcore_setstate(struct b43_wldev *dev, u8 mask)
 	b43_mac_enable(dev);
 }
 
+/*
+ * ---------------------------------------------------------------------
+ * UNTESTED DRAFT - TX IQ/LO calibration (wlc_phy_cals_acphy and friends).
+ *
+ * Not wired into anything, not tested on hardware. Decompiled from wl's TX
+ * IQ-imbalance/LO-feedthrough calibration routine, which our port has
+ * never invoked at all (see notes/16-status-2026-09-27-tx-calibration-missing.md
+ * for the full algorithm map and the reasoning for treating this as the
+ * most likely cause of the firmware-autonomous-TX failure this project has
+ * chased since notes/07). That routine generates a live test tone and
+ * sweeps gain/frequency settings on real hardware in a loop - the same
+ * category of operation that caused this project's one hard machine
+ * freeze (notes/07). Do not call any of this, or build on it, without the
+ * user physically present: test each piece incrementally against real
+ * hardware as it's added, the way every other live-TX experiment in this
+ * project has been done.
+ *
+ * What follows so far is only the lowest-risk slice: reading and writing a
+ * single AC-PHY table entry (mirrors wl's wlc_phy_table_read_acphy /
+ * wlc_phy_table_write_acphy, and mainline b43's own N-PHY table access
+ * pattern in tables_nphy.c - write the address, then read/write the data
+ * port), and the per-core save/restore of the TX gain table (table 7 - the
+ * same table wlc_phy_txpwr_by_index_acphy uses for real traffic) and its
+ * paired table-0xC entries around a calibration tone
+ * (decompiled-cal/FUN_0019d3ac.c, FUN_0019d550.c, FUN_00199491.c,
+ * FUN_0019d224.c). This alone does nothing observable - it's just the
+ * save/restore bookkeeping half, with no caller yet. The remaining,
+ * harder pieces (switching the RF front-end into its on-chip calibration
+ * loopback mode, generating the tone, and the actual correction-sweep
+ * measurement) are documented in notes/16 but not implemented, since they
+ * involve real chip-ID/band-dependent branching and live RF that should
+ * be written and tested incrementally with the user present, not typed in
+ * one block from decompiled source and trusted blind.
+ * ---------------------------------------------------------------------
+ */
+
+static u16 b43_phy_ac_table_read16(struct b43_wldev *dev, u16 id, u16 offset)
+{
+	b43_phy_write(dev, B43_PHY_AC_TABLE_ID, id);
+	b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, offset);
+	return b43_phy_read(dev, B43_PHY_AC_TABLE_DATA1);
+}
+
+static void b43_phy_ac_table_write16(struct b43_wldev *dev, u16 id, u16 offset,
+				      u16 value)
+{
+	b43_phy_write(dev, B43_PHY_AC_TABLE_ID, id);
+	b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, offset);
+	b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1, value);
+}
+
+/* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
+ * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
+ */
+#define B43_PHY_AC_TXCAL_MAX_CORES 4
+
+struct b43_phy_ac_txcal_gainsave {
+	u16 tbl7[B43_PHY_AC_TXCAL_MAX_CORES][3];
+	u16 tbl0xc[B43_PHY_AC_TXCAL_MAX_CORES];
+};
+
+/* decompiled-cal/FUN_00199491.c: per-core table-0xC offset for the single
+ * saved entry (the "0x63" set; FUN_0019d224.c writes both the "0x63" and
+ * "0x73" sets on restore, but only the former is ever read back to save).
+ */
+static const u16 b43_phy_ac_txcal_tbl0xc_off[B43_PHY_AC_TXCAL_MAX_CORES] = {
+	0x63, 0x67, 0x6b, 0x6f,
+};
+static const u16 b43_phy_ac_txcal_tbl0xc_off2[B43_PHY_AC_TXCAL_MAX_CORES] = {
+	0x73, 0x77, 0x7b, 0x7f,
+};
+
+/* decompiled-cal/FUN_0019d3ac.c: save each core's current TX gain-table
+ * (table 7) entry and its paired table-0xC entry, then overwrite table 7
+ * with the calibration-tone gain settings from "new_gain".
+ */
+static void b43_phy_ac_txcal_save_gaintbl(struct b43_wldev *dev,
+					   struct b43_phy_ac_txcal_gainsave *save,
+					   const u16 new_gain[][3])
+{
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+	u16 saved19e = b43_phy_read(dev, 0x19e);
+
+	b43_phy_set(dev, 0x19e, 0x2);
+
+	for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+		save->tbl7[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
+		save->tbl7[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
+		save->tbl7[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
+		save->tbl0xc[core] = b43_phy_ac_table_read16(dev,
+					0xc, b43_phy_ac_txcal_tbl0xc_off[core]);
+
+		b43_phy_ac_table_write16(dev, 7, core + 0x100, new_gain[core][0]);
+		b43_phy_ac_table_write16(dev, 7, core + 0x103, new_gain[core][1]);
+		b43_phy_ac_table_write16(dev, 7, core + 0x106, new_gain[core][2]);
+	}
+
+	b43_phy_maskset(dev, 0x19e, ~0x2, saved19e & 0x2);
+}
+
+/* decompiled-cal/FUN_0019d550.c + FUN_0019d224.c: restore what
+ * b43_phy_ac_txcal_save_gaintbl saved.
+ */
+static void b43_phy_ac_txcal_restore_gaintbl(struct b43_wldev *dev,
+					const struct b43_phy_ac_txcal_gainsave *save)
+{
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+	u16 saved19e = b43_phy_read(dev, 0x19e);
+
+	b43_phy_set(dev, 0x19e, 0x2);
+
+	for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+		b43_phy_ac_table_write16(dev, 7, core + 0x100, save->tbl7[core][0]);
+		b43_phy_ac_table_write16(dev, 7, core + 0x103, save->tbl7[core][1]);
+		b43_phy_ac_table_write16(dev, 7, core + 0x106, save->tbl7[core][2]);
+		b43_phy_ac_table_write16(dev, 0xc,
+					  b43_phy_ac_txcal_tbl0xc_off[core],
+					  save->tbl0xc[core]);
+		b43_phy_ac_table_write16(dev, 0xc,
+					  b43_phy_ac_txcal_tbl0xc_off2[core],
+					  save->tbl0xc[core]);
+	}
+
+	b43_phy_maskset(dev, 0x19e, ~0x2, saved19e & 0x2);
+}
+
 #include "phy_ac_replay.h"
 
 /* 2.4 GHz AGC tables as written by the vendor driver on this board. */

@@ -2,7 +2,7 @@ import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.mem.Memory;
 
-public class dump_bytes extends GhidraScript {
+public class ghidra_dump_bytes extends GhidraScript {
     @Override
     public void run() throws Exception {
         String[] args = getScriptArgs();
