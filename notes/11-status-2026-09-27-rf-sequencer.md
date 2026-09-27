@@ -97,3 +97,39 @@ zero effect), it's reasonable to treat this as a genuine, well-
 characterized hardware/microcode-level limitation of the replay-based
 approach, not a quick register fix. If continuing, prefer a fresh idea
 over re-checking anything above.
+
+## Also checked tonight, both dead ends
+
+- **Host IRQ masking of `B43_IRQ_PHY_TXERR`**: wl's real trace shows it
+  reprogramming `GEN_IRQ_MASK` (MMIO 0x12C) far more often than
+  `GEN_IRQ_REASON` (2527 vs 1536 writes in one capture), which looked
+  promising - maybe wl masks this interrupt during firmware TX because
+  it's expected/benign there. Checked mainline b43: `B43_IRQ_PHY_TXERR`
+  is unmasked in the shared `B43_IRQ_MASKTEMPLATE` for every b43 PHY
+  family, and the handler just logs + counts (only restarts the
+  controller after 1000 accumulated errors, main.c:2117). Masking this
+  IRQ changes whether the *host* is told, not whether the PHY transmit
+  itself succeeds - the ucode's own `txphyerr` counter (what
+  `probeack.sh` actually reads) is independent of host IRQ masking. Not
+  a lead.
+- **Does wl itself see any `txphyerr` on this exact hardware?** This
+  would be a very informative data point (an anomaly unique to our port
+  vs. a baseline rate inherent to this chip/environment that wl also
+  hits but tolerates). Tried to answer it from the existing captured
+  traces (`traces/wl-tx-*.trace`) by looking for wl's own host-side reads
+  of the macstat SHM block - found none in the ~12s capture window, so
+  wl apparently doesn't poll these counters during ordinary operation
+  (probably only on an explicit `wl counters` call or a much slower
+  timer). **Can't be answered from existing data.** Getting a real
+  answer needs wl bound and associated again, which needs a reboot (wl
+  can't be rebound after b43 without one) - genuinely needs the user
+  present. Do NOT build a tool that pokes `SHM_CONTROL`/`SHM_DATA`
+  directly while wl owns the device to get this answer faster:
+  `tools/macdump.c` deliberately skips that exact register range
+  because it has read side effects and wl may be mid-access at any
+  time - a second, independent accessor racing it is the same class of
+  hazard as the two-driver-touching-hardware hard freeze from
+  2026-09-26. If this is worth pursuing later, do it via a kprobe on
+  wl's own stats-reading path (safe, observes only what wl itself
+  already does), not a new independent register poke, and either force
+  a `wl counters` call during the capture or capture for longer.
