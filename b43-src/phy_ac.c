@@ -724,6 +724,18 @@ static void b43_phy_ac_txcal_settle_pulse(struct b43_wldev *dev);
 static void b43_phy_ac_txcal_ramp_table(struct b43_wldev *dev, u16 percent);
 static u16 b43_phy_ac_table_read16(struct b43_wldev *dev, u16 id, u16 offset);
 
+struct b43_phy_ac_txcal_radiosave {
+	u16 r1a[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 r1b[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 r1c[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 r1e[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 r1f[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 r24[B43_PHY_AC_TXCAL_MAX_CORES];
+	u16 r170_or_184[B43_PHY_AC_TXCAL_MAX_CORES];
+};
+static void b43_phy_ac_txcal_read_radiosave(struct b43_wldev *dev,
+					struct b43_phy_ac_txcal_radiosave *save);
+
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
 /* ac_por bits beyond the first-load classes: 0x40 skip vcocal after the
@@ -1058,10 +1070,27 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		 * everything it touches gets restored.
 		 */
 		struct b43_phy_ac_txcal_gainsave save;
+		struct b43_phy_ac_txcal_radiosave radiosave;
 		static const u16 test_gain[4][3] = {
 			{ 0x1234, 0x1234, 0x1234 }, { 0x1234, 0x1234, 0x1234 },
 			{ 0x1234, 0x1234, 0x1234 }, { 0x1234, 0x1234, 0x1234 },
 		};
+
+		/* Read-only: verifies the resolved register addresses for the
+		 * (still unwritten) loopback-mode switch look plausible on
+		 * real hardware. See b43_phy_ac_txcal_read_radiosave's
+		 * comment for why only the read half is tested.
+		 */
+		b43_phy_ac_txcal_read_radiosave(dev, &radiosave);
+		b43info(dev->wl, "phy_ac: txcal test: radio core0 1a=%04x 1b=%04x 1c=%04x 1e=%04x 1f=%04x 24=%04x 170=%04x\n",
+			radiosave.r1a[0], radiosave.r1b[0], radiosave.r1c[0],
+			radiosave.r1e[0], radiosave.r1f[0], radiosave.r24[0],
+			radiosave.r170_or_184[0]);
+		if (b43_phy_ac_num_cores(dev) > 1)
+			b43info(dev->wl, "phy_ac: txcal test: radio core1 1a=%04x 1b=%04x 1c=%04x 1e=%04x 1f=%04x 24=%04x 170=%04x\n",
+				radiosave.r1a[1], radiosave.r1b[1], radiosave.r1c[1],
+				radiosave.r1e[1], radiosave.r1f[1], radiosave.r24[1],
+				radiosave.r170_or_184[1]);
 
 		b43info(dev->wl, "phy_ac: txcal test: before, tbl7[0]=%04x %04x %04x\n",
 			b43_phy_ac_table_read16(dev, 7, 0x100),
@@ -1485,6 +1514,46 @@ static void b43_phy_ac_txcal_ramp_table(struct b43_wldev *dev, u16 percent)
 	}
 
 	b43_phy_maskset(dev, 0x19e, ~0x2, saved19e & 0x2);
+}
+
+/*
+ * decompiled-cal/FUN_0019454f.c, READ HALF ONLY (lines 16-66) - the seven
+ * per-core radio registers wl saves before switching the RF front-end into
+ * its on-chip TX-calibration loopback mode. Chip-ID branches resolved to
+ * their fixed BCM4360 values (this file is hardcoded for our exact chip
+ * everywhere else). The actual loopback-mode WRITES (FUN_0019454f.c lines
+ * 67-152 / FUN_00195603.c) are deliberately not ported yet: they depend on
+ * BOTH the still-unresolved phy+0x16e field AND a second wl-internal
+ * condition (phy+0x17e & 0xc000) that selects which register values to
+ * write, and stacking two unconfirmed guesses on code that reconfigures
+ * live RF front-end bias/routing is a bigger risk than this project has
+ * taken with anything tested solo so far. This function only *reads* -
+ * read-only register access has been done extensively and safely all
+ * session (debugfs phy/radio/shm/ihr/scr) and carries none of that risk;
+ * it exists to verify the register-address resolution against real
+ * hardware (do these read back plausible values, not garbage) before
+ * anything writes to them.
+ */
+static void b43_phy_ac_txcal_read_radiosave(struct b43_wldev *dev,
+					struct b43_phy_ac_txcal_radiosave *save)
+{
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+
+	for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+		u16 c9 = (u16)core << 9;
+
+		save->r1a[core] = b43_radio_read(dev, 0x1a | c9);
+		save->r1b[core] = b43_radio_read(dev, 0x1b | c9);
+		save->r1c[core] = b43_radio_read(dev, 0x1c | c9);
+		save->r1e[core] = b43_radio_read(dev, 0x1e | c9);
+		save->r1f[core] = b43_radio_read(dev, 0x1f | c9);
+		save->r24[core] = b43_radio_read(dev, 0x24 | c9);
+		/* phy+0x16e unresolved: wl reads either (0x170|c9) or
+		 * (c9|0x184) here depending on it. Reading both is harmless
+		 * (read-only) and lets a live comparison inform which one
+		 * looks like the real saved value later. */
+		save->r170_or_184[core] = b43_radio_read(dev, 0x170 | c9);
+	}
 }
 
 #include "phy_ac_replay.h"

@@ -201,6 +201,40 @@ loopback-mode switch, so no conclusion about the calibration hypothesis
 should be drawn from this test succeeding. It's groundwork validation,
 not a result.
 
+## Follow-up: read-only radio register check for the loopback-mode switch
+
+"Continue" was interpreted as moving to the next piece - the RF-loopback-
+mode switch (`FUN_0019454f`/`FUN_00195603`). Transcribing it precisely
+revealed it has *two* compounding unknowns, not one: the already-flagged
+`phy+0x16e` field, plus a second wl-internal condition
+(`phy+0x17e & 0xc000`) that selects which register values to *write*.
+Stacking two unconfirmed guesses on code that reconfigures live RF
+front-end bias/routing registers is a meaningfully bigger risk than
+anything tested solo so far - so this was split: implemented and tested
+only the **read** half (the seven per-core radio register saves, chip-ID
+branches resolved to fixed BCM4360 values), logged the values, and
+deliberately did not implement or run any of the actual mode-switch
+writes.
+
+**Result: plausible, stable, real values** - identical between core 0 and
+core 1, unchanged across repeated channel-set calls (not noise), and
+`0x1f`'s value (`0`) is consistent with the driver currently being in
+normal, non-calibration mode, matching what the "else" branch of the
+write-side code would set it to. This gives real confidence the register-
+address resolution (`0x1a/0x1b/0x1c/0x1e/0x1f/0x24`, `core<<9` addressing)
+is correct, without taking on the risk of the actual mode-switch writes.
+No instability; connectivity never dropped.
+
+**Still not resolved, still needed before the write half can be ported
+safely**: which branch `phy+0x16e` takes for our board (affects whether
+the 8th saved/restored register is at `0x170|core9` or `core9|0x184`), and
+what `phy+0x17e & 0xc000` represents in terms of parameters this port
+already knows (band? bandwidth? something else) - needed to pick the
+right branch of the actual loopback-mode-entry writes. Both are wl-
+internal software state, not hardware registers, so they can't be read
+directly; they need either more decompiled source or careful inference
+from behavior once the write side is attempted.
+
 ## What a responsible next session should do
 
 1. Decompile the remaining sub-functions listed above, especially
