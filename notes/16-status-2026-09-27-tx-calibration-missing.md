@@ -411,3 +411,76 @@ signal at all correlated with the tone, before attempting the full
 correction-search sweep or the loft-comp table commit (both of which
 still need `phy+0x164` resolved, or another deliberate simplification
 worked out first).
+
+## Follow-up: `phy+0x164` fully resolved - it's a real hardware register, not opaque state
+
+Tried to plan the next step (a single-candidate measurement test using
+the real `0x380`/899 trigger sequence) and found it directly requires
+knowing `phy+0x164` after all: `FUN_001ac9b6`'s candidate-table dispatch
+(lines 630-654) branches on `phy+0x164 != 1` to pick between two
+completely different correction-candidate tables (`local_c8` vs
+`local_e8`) before a single register gets written - guessing wrong here
+wouldn't crash anything, but would mean testing with the wrong candidate
+values, which defeats the point.
+
+Went looking for where `phy+0x164` actually gets assigned, since nothing
+in `decompiled/wlc_phy_attach_acphy.c` writes it (only reads it) -
+decompiled the generic, chip-independent `wlc_phy_attach()` (the
+dispatcher that calls `wlc_phy_attach_acphy()` for our chip) and found
+it at `wlc_phy_attach.c:71-75`:
+
+```
+uVar4 = osl_readw(*(long *)(lVar10 + 0x148) + 0x3e0);
+*(uint *)(lVar10 + 0x160) = (uVar4 & 0xf00) >> 8;   /* phy type */
+*(uint *)(lVar10 + 0x164) = uVar4 & 0xf;            /* phy rev (low nibble) */
+*(uint *)(lVar10 + 0x174) = uVar4 >> 0xc;           /* analog type */
+```
+
+Offset `0x3e0` is `B43_MMIO_PHY_VER` - the exact same PHY-versioning
+register mainline b43 already reads at attach for every chip it
+supports (`b43_phy_versioning()` in `phy_common.c`, bits 12-15=analog
+type, bits 8-11=phy type, bits 0-7=phy rev). **`phy+0x164` is not
+opaque software state at all - it's `B43_MMIO_PHY_VER & 0xf`, a real,
+directly-readable hardware register.** There is one override just below
+it (`if (chipid in {0xa8e2,0xa8e3,0xa8e4,0xa8e6} && radio-rev check)
+phy+0x164 = 9`), but that's keyed on `acphychipid`, which is `0x4360`
+for every single test in this entire project - it can never fire for
+us, unconditionally.
+
+Read the register directly on real hardware (`mmio16` debugfs file,
+zero risk, a plain 16-bit MMIO read already used throughout this
+project): **`0x3e0` = `0xcb01`.** Decoded: analog type = `0xc`, phy type
+= `0xb`, **phy rev (`phy+0x164`) = `0x1`.** This exactly matches
+`notes/05-channel-tuning.md`'s independent, much-earlier finding ("PHY
+rev is 1") - a real, satisfying cross-check between two unrelated
+investigations landing on the same hardware-derived fact. `phy+0x164 ==
+1` is now a confirmed, hardware-verified value for this board, not a
+guess.
+
+**What this unblocks:** `phy+0x164==1` means, for our exact chip:
+- The candidate-table dispatch resolves definitively to `local_e8`
+  (`{0x423, 0x334, 0x73, 0x267, 0x45, 0x234}`) for the real
+  `param_2=1,param_3=1,param_4=0` call wl itself uses.
+- `wlc_phy_populate_tx_loft_comp_tbl_acphy`'s call in `FUN_001ac9b6` at
+  line 827 (`if (phy+0x164==1) ...`) is reachable for us - the loft-comp
+  commit isn't dead code on this board, unlike a chip where it wouldn't
+  be 1.
+- `phy+0x164==3` branches (elsewhere: `wlapi_bmac_phyclk_fgc` calls,
+  `wlc_phy_populate_recipcoeffs_acphy`'s alternate path, `FUN_001a1202`'s
+  rev-3 table set) are all confirmed *not* to apply to us.
+- `wlc_phy_resetcca_acphy`'s branch (`if (phy+0x164 in {2,5,6})`) also
+  does not apply - we'd take its simpler "else" path, so a *real* port
+  of wl's own cleanup (rather than this session's save-everything
+  workaround) is now possible without guessing, if a future session
+  wants to replace `b43_phy_ac_txcal_gen_tone`'s simplified cleanup with
+  wl's actual one.
+
+Not yet done: implementing the actual candidate-search loop using this
+now-resolved table (still a genuinely large, closed-loop, hardware-
+reactive piece - the loop writes a candidate to register 899, triggers
+via `0x380`, polls, reads back radio `0x144`, and *branches on that
+reading* to decide whether to keep searching or stop - a materially
+different risk profile than every open-loop register sequence tested
+so far, deserving its own careful, isolated first test rather than
+being bolted onto this same session's already-substantial hardware
+testing).
