@@ -733,6 +733,10 @@ static bool b43_ac_txcal_setup_test;
 module_param_named(ac_txcal_setup_test, b43_ac_txcal_setup_test, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_setup_test, "AC-PHY test: exercises ONLY b43_phy_ac_txcal_measure_setup_enter()/_exit() in isolation (~110 register writes across both cores, the largest single register-write surface added in this project so far), immediately back to back, logging a few representative registers before/after - a round-trip-safety check run before combining this block with the tone/candidate-sweep test in ac_txcal_candidate_test3, matching this project's established practice of testing each new risky piece standalone first. No tone, no candidate sweep, no loft-comp writes. See notes/16.");
 
+static bool b43_ac_txcal_resetcca_test;
+module_param_named(ac_txcal_resetcca_test, b43_ac_txcal_resetcca_test, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_resetcca_test, "AC-PHY test: exercises ONLY b43_phy_ac_txcal_resetcca() in isolation - wl's real cleanup for the measurement setup block (wlc_phy_resetcca_acphy/wlapi_bmac_phyclk_fgc), previously avoided because it writes BCMA_IOCTL_FGC (0x0002, 'Force Gate Clock' - a generic, standard bcma bus core-control bit, not an exotic hazard; see notes/18 for why this is a different risk category from the 2026-09-26 BCMA_IOCTL PHY-bandwidth incident). Logs BCMA_IOCTL and PHY reg 1 before/after in isolation, no loopback, no tone, no candidate sweep - staged the same way as every other new risky piece in this project. Only run with explicit, informed user authorization given directly for this specific step.");
+
 static bool b43_ac_txcal_candidate_test4;
 module_param_named(ac_txcal_candidate_test4, b43_ac_txcal_candidate_test4, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_candidate_test4, "AC-PHY test: like ac_txcal_candidate_test3, but adds the one remaining piece of FUN_001ac9b6's setup context that wasn't yet ported: wlc_phy_classifier_acphy(pi,7,4), a trivial 3-bit mask-and-set on PHY reg 0x140 (already saved/restored by test3, now actually exercised) that vendor code runs immediately before entering RF-loopback mode - likely disables normal RX signal classification during calibration. PHY-register only, not BCMA_IOCTL. If the candidate sweep still reads uniformly after this, every known piece of setup this project can decompile is in place. See notes/16.");
@@ -740,6 +744,10 @@ MODULE_PARM_DESC(ac_txcal_candidate_test4, "AC-PHY test: like ac_txcal_candidate
 static bool b43_ac_txcal_candidate_test5;
 module_param_named(ac_txcal_candidate_test5, b43_ac_txcal_candidate_test5, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_candidate_test5, "AC-PHY test: identical setup to ac_txcal_candidate_test4, but sweeps all 6 entries of the real local_e8 outer-sample table (b43_phy_ac_txcal_measure_candidates_sweep) instead of just entry 0 (36 total 899/0x380/radio144 readings instead of 6) - checks whether the flat result seen on every version of this test so far is specific to outer sample 0 or holds across wl's whole real candidate table. See notes/16.");
+
+static bool b43_ac_txcal_candidate_test6;
+module_param_named(ac_txcal_candidate_test6, b43_ac_txcal_candidate_test6, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_candidate_test6, "AC-PHY test: identical to ac_txcal_candidate_test5, but replaces the save/write-back cleanup with wl's real one (b43_phy_ac_txcal_resetcca - BCMA_IOCTL_FGC, individually verified safe in ac_txcal_resetcca_test first) - this closes the one remaining gap between this port's measurement path and vendor's real sequence. Full order: classifier switch, loopback, full per-core setup, settle pulse, gain override, sustained tone, full 36-combination candidate sweep, restore gain, real resetcca cleanup, exit loopback. See notes/16 and notes/18.");
 
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
@@ -809,6 +817,7 @@ static void b43_phy_ac_txcal_measure_setup_enter(struct b43_wldev *dev,
 				struct b43_phy_ac_txcal_setupsave *save);
 static void b43_phy_ac_txcal_measure_setup_exit(struct b43_wldev *dev,
 			const struct b43_phy_ac_txcal_setupsave *save);
+static void b43_phy_ac_txcal_resetcca(struct b43_wldev *dev);
 
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
@@ -1404,6 +1413,25 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
 
+	if (b43_ac_txcal_resetcca_test) {
+		/* Isolated test of the new BCMA_IOCTL_FGC-based cleanup,
+		 * before combining it with anything else - see this flag's
+		 * MODULE_PARM_DESC and b43_phy_ac_txcal_resetcca's comment.
+		 * No loopback, no tone, no candidate sweep.
+		 */
+		u32 ioctl_before = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		u16 phy1_before = b43_phy_read(dev, 1);
+
+		b43info(dev->wl, "phy_ac: txcal resetcca test: before ioctl=%08x phy1=%04x\n",
+			ioctl_before, phy1_before);
+
+		b43_phy_ac_txcal_resetcca(dev);
+
+		b43info(dev->wl, "phy_ac: txcal resetcca test: after ioctl=%08x phy1=%04x (want match 'before')\n",
+			bcma_aread32(dev->dev->bdev, BCMA_IOCTL),
+			b43_phy_read(dev, 1));
+	}
+
 	if (b43_ac_txcal_candidate_test3) {
 		/* Adds the per-core measurement setup block, the one piece of
 		 * FUN_001ac9b6's context still missing from candidate_test2.
@@ -1527,6 +1555,49 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
 		b43_phy_write(dev, 0x140, saved140);
 		b43info(dev->wl, "phy_ac: txcal candidate test5: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
+	if (b43_ac_txcal_candidate_test6) {
+		/* Identical to candidate_test5, but with wl's real
+		 * resetcca-based cleanup instead of the save/write-back
+		 * workaround - see this flag's MODULE_PARM_DESC.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+		struct b43_phy_ac_txcal_tonesave tonesave;
+		struct b43_phy_ac_txcal_gainsave gainsave;
+		struct b43_phy_ac_txcal_setupsave setupsave;
+		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
+		u8 core, cores = b43_phy_ac_num_cores(dev);
+		u16 saved140 = b43_phy_read(dev, 0x140);
+
+		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
+			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
+			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
+		}
+
+		b43_phy_maskset(dev, 0x140, ~7, 4);
+		b43info(dev->wl, "phy_ac: txcal candidate test6: classifier set, entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
+		b43_phy_ac_txcal_settle_pulse(dev);
+		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		b43info(dev->wl, "phy_ac: txcal candidate test6: setup done, starting tone\n");
+
+		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_measure_candidates_sweep(dev);
+		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
+		b43info(dev->wl, "phy_ac: txcal candidate test6: tone stopped, running real resetcca cleanup\n");
+
+		b43_phy_ac_txcal_restore_gaintbl(dev, &gainsave);
+		b43_phy_ac_txcal_measure_setup_exit(dev, &setupsave);
+		b43_phy_ac_txcal_resetcca(dev);
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43_phy_write(dev, 0x140, saved140);
+		b43info(dev->wl, "phy_ac: txcal candidate test6: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
 			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
@@ -2441,9 +2512,62 @@ static void b43_phy_ac_txcal_measure_setup_exit(struct b43_wldev *dev,
 
 	b43_phy_write(dev, 0x19e, save->r19e);
 	b43_phy_write(dev, 0x40f, save->r40f);
-	/* Deliberately no wlc_phy_resetcca_acphy() call - see this
-	 * function pair's block comment above.
+	/* wl's real cleanup here is wlc_phy_resetcca_acphy() - see
+	 * b43_phy_ac_txcal_resetcca() below, kept as a separate function
+	 * (not called from here) so it can be tested in isolation first,
+	 * per this project's established practice for every new risky
+	 * piece. Not called automatically by this function.
 	 */
+}
+
+/*
+ * decompiled-cal/wlc_phy_resetcca_acphy.c + decompiled-si/wlc_bmac_phyclk_fgc.c:
+ * wl's real cleanup after the measurement setup block, previously
+ * avoided (see this file's git history / notes/16) because it writes
+ * BCMA_IOCTL - the same *register* behind this project's one hard
+ * machine freeze (notes/07, 2026-09-26: BCMA_IOCTL PHY-bandwidth bits
+ * changed on an associated, actively-transmitting core).
+ *
+ * Investigated further at the user's explicit direction ("Fix the gap.
+ * Even if I'm not here.") rather than either blindly implementing it or
+ * refusing outright. Found this is a materially different operation,
+ * not just the same register:
+ * - wlapi_bmac_phyclk_fgc's si_core_cflags(sih,2,val) is BCMA_IOCTL_FGC
+ *   (0x0002, "Force Gate Clock") - a GENERIC bcma-bus core-control bit
+ *   defined in the mainline Linux kernel's own
+ *   include/linux/bcma/bcma_regs.h, used across the whole bcma
+ *   subsystem for many chips. Not a PHY-specific or exotic bit.
+ * - It's a narrow, paired set-then-clear around a ~1us PHY-register
+ *   toggle (force clock on, flip PHY reg 1 bit 0x4000, flip it back,
+ *   force clock off) - structurally nothing like a persistent
+ *   bandwidth-mode change on a running, transmitting core.
+ * - We are never associated and never mid-TX when this runs (monitor
+ *   mode only, called from the calibration test path).
+ *
+ * phy+0x164==1 for our board (confirmed, see notes/16) takes
+ * wlc_phy_resetcca_acphy's simpler branch (no extra PHY 0x19e mods) -
+ * implemented directly, no guessing. wlc_bmac_phyclk_fgc's own D11-
+ * core-type guard is skipped: we only ever call this from PHY-specific
+ * code operating on our own core, so it always applies here.
+ */
+static void b43_phy_ac_txcal_resetcca(struct b43_wldev *dev)
+{
+	u32 ioctl;
+	u16 saved1;
+
+	if (dev->dev->bus_type != B43_BUS_BCMA)
+		return;
+
+	ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+	bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | BCMA_IOCTL_FGC);
+
+	saved1 = b43_phy_read(dev, 1);
+	b43_phy_write(dev, 1, saved1 | 0x4000);
+	udelay(1);
+	b43_phy_write(dev, 1, saved1 & 0xbfff);
+
+	bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl);
+	udelay(2);
 }
 
 #include "phy_ac_replay.h"
