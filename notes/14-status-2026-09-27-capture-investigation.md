@@ -69,6 +69,36 @@ be run only with the user present (or from a setup with a third, unused
 network path), not attempted solo while the primary operator is
 unreachable.
 
+## Correction to notes/13's backward-trace: the "0x2D" path isn't alone there
+
+Re-checked exactly which addresses branch into `0xC25`/`0xC2A` (the shared
+tail this whole investigation has been tracing). There are exactly three
+external entries, confirmed by grepping every jump target in the
+disassembly (not just the ones spotted by eye): `0x0A5F` and `0x0A60`
+(`SCR13&0x23==2` and `==0x22`) both land at `0xC25`, which falls straight
+through (no branch skips it) into `0xC2A` - the same address `0x0A8A`'s
+`SCR13==0x2D` check jumps to directly. **So at least three distinct SCR13
+dispatch values converge on the same shared TX-completion/error-counting
+tail**, not just the one (`0x2D`) notes/13 focused on. If `0x02`/`0x22`
+really are Data-frame classifications (Type=2, plain vs. QoS - the only
+part of the type/subtype decode that produced *valid*, non-reserved
+results), that reframes the whole mechanism more sensibly: this tail isn't
+"the handler for one specific frame type," it's a **shared TX-outcome
+check reached from multiple frame-type-specific dispatch paths**, which
+tests the same hardware condition bits regardless of which frame type led
+there. That's a more architecturally sensible picture than "only RTS-like
+frames reach the error path," and it fits everything observed on hardware
+(the diagnostic record, `TXE_STATUS` latch) better as "a general TX-error
+indicator," not a frame-type-specific one.
+
+Also worth recording: applying the (already flagged as unreliable)
+type/subtype formula to Management frames - Probe Request (Type 0, Subtype
+4) and Probe Response (Type 0, Subtype 5) - gives values that **don't
+appear anywhere** in the `JE SCR13, <const>, ...` chain this session
+found. Either Management frames are dispatched through a different
+mechanism entirely (plausible - they often need different handling), or
+the formula doesn't hold for Type 0 either. Not resolved either way.
+
 ## Where this leaves things
 
 Two threads mostly closed out (retry-exhaustion: probably noise; ACK
