@@ -170,6 +170,42 @@ injection call; the raw `shm`/`ihr` debugfs reads are the reliable ground
 truth, worth using directly rather than trusting the script's own delta
 for small `N`.)
 
+## Follow-up 3 (same session): replayed ucode's own clear sequence from the host
+
+Since the extended-IHR address/data registers (`IHR_EXT_IHR_ADDR`=0x18,
+`IHR_EXT_IHR_DATA`=0x19) are ordinary, directly-addressable IHR registers,
+the host can drive the exact same protocol ucode's `0105`/`0109`
+subroutines use, through the new `b43ac/ihr` debugfs file - no new tooling
+needed, just the decoded mode/offset encoding from the follow-up above.
+
+Reproduced ucode's own error-acknowledgment sequence by hand after inducing
+one failure (`TXE_STATUS=0x0401`, extended read at mode3/offset7 = `0x2000`
+as before):
+
+1. Wrote `IHR[0x19]=0xFFFF` then `IHR[0x18]=0x4007` (mode 2, offset 7) -
+   the same "write 0xFFFF" ucode does at 0x0C78.
+2. Wrote the same 0xFFFF at mode 2, offset `7 XOR SHM[0x55]` (SHM[0x55] was
+   `0x087A` live, so offset `0x87D`) - ucode's second write at 0x0C7A.
+3. **`TXE_STATUS` (0x87) stayed at `0x0401` through both writes** - bit 10
+   did not clear.
+4. But reading back offset 7 afterward (mode3) now returns `0x0000`, down
+   from `0x2000` - the write-1-to-clear *did* take effect on that register.
+   (Didn't re-check offset `0x87D`'s prior value, so can't say whether that
+   one changed too, only that the offset-7 flag ucode captured did clear.)
+
+**Conclusion: these are two independent status indicators.** The
+mode3/offset7 extended register is a per-event flag ucode reads once and
+clears immediately as part of ordinary error handling (self-contained,
+confirmed working exactly as designed). `IHR_TXE_STATUS` bit 10 is a
+separate, stickier latch that survives ucode's own housekeeping - plausibly
+a "this session/association has seen at least one TX-engine error" summary
+flag rather than a per-transmission one. Did not attempt writing directly
+to `IHR_TXE_STATUS` itself to test if *it* has its own write-1-to-clear
+behavior - it's a "STATUS" register in an active TX-engine control block,
+not confirmed safe to write (unlike the extended port, which ucode itself
+already demonstrated is a safe target), so left alone rather than risk
+disrupting live TX-engine state for an experiment.
+
 ## Next steps
 
 1. ~~Take 2-3 more samples~~ - done, see above, fully consistent.
