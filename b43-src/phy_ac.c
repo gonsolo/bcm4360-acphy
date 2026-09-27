@@ -1324,6 +1324,15 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 		b43info(dev->wl, "phy_ac: txcal candidate test: starting tone\n");
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		/* FUN_0019d65d, called once per core the first time it's
+		 * touched in the real sweep - confirmed against a real wl
+		 * trace (notes/21): percent=65 exactly reproduces the
+		 * observed table-0xC ramp values. Not core-parameterized in
+		 * this port (table 0xC's ramp region isn't per-core
+		 * addressed), matching the single occurrence seen in the
+		 * trace for our single-core (core 0) test.
+		 */
+		b43_phy_ac_txcal_ramp_table(dev, 65);
 
 		b43_phy_ac_txcal_measure_candidates(dev);
 
@@ -1367,6 +1376,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43info(dev->wl, "phy_ac: txcal candidate test2: after settle+gain-override (no-op values), starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_ramp_table(dev, 65);
 		b43_phy_ac_txcal_measure_candidates(dev);
 		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
 		b43info(dev->wl, "phy_ac: txcal candidate test2: tone stopped\n");
@@ -1471,6 +1481,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43info(dev->wl, "phy_ac: txcal candidate test3: setup done, starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_ramp_table(dev, 65);
 		b43_phy_ac_txcal_measure_candidates(dev);
 		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
 		b43info(dev->wl, "phy_ac: txcal candidate test3: tone stopped\n");
@@ -1519,6 +1530,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43info(dev->wl, "phy_ac: txcal candidate test4: setup done, starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_ramp_table(dev, 65);
 		b43_phy_ac_txcal_measure_candidates(dev);
 		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
 		b43info(dev->wl, "phy_ac: txcal candidate test4: tone stopped\n");
@@ -1566,6 +1578,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43info(dev->wl, "phy_ac: txcal candidate test5: setup done, starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_ramp_table(dev, 65);
 		b43_phy_ac_txcal_measure_candidates_sweep(dev);
 		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
 		b43info(dev->wl, "phy_ac: txcal candidate test5: tone stopped\n");
@@ -1613,6 +1626,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43info(dev->wl, "phy_ac: txcal candidate test6: setup done, starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_ramp_table(dev, 65);
 		b43_phy_ac_txcal_measure_candidates_sweep(dev);
 		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
 		b43info(dev->wl, "phy_ac: txcal candidate test6: tone stopped, running real resetcca cleanup\n");
@@ -2354,16 +2368,20 @@ static void b43_phy_ac_txcal_measure_candidates_outer(struct b43_wldev *dev,
 		b43_phy_write(dev, 899, inner[i]);
 		b43_phy_write(dev, 0x380, trigger);
 
+		{
+		int iters = 0;
 		for (timeout = 0x4e29; timeout != 9; timeout -= 10) {
+			iters++;
 			if (!(b43_phy_read(dev, 0x380) & 0xc000))
 				break;
 			udelay(10);
 		}
 
 		v144 = b43_radio_read(dev, 0x144);
-		b43info(dev->wl, "phy_ac: txcal candidate test: outer=%04x 899=%02x -> 380=%04x radio144=%04x bit2=%d\n",
+		b43info(dev->wl, "phy_ac: txcal candidate test: outer=%04x 899=%02x -> 380=%04x radio144=%04x bit2=%d iters=%d\n",
 			outer, inner[i], b43_phy_read(dev, 0x380), v144,
-			(v144 & 4) != 0);
+			(v144 & 4) != 0, iters);
+		}
 
 		b43_phy_set(dev, 0x73a, 0x100);
 		b43_phy_mask(dev, 0x73a, ~0x100);
