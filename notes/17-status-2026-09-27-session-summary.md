@@ -124,42 +124,56 @@ sequence.
   TX-loft-cal context is fully understood. This tempers the finding
   above without overturning it.
 
-**Net assessment:** the TX-calibration hypothesis - this project's
-leading theory going into today - is *less* favored coming out of today
-than it was going in, precisely because implementing it as completely
-as currently possible failed to produce the kind of signal-dependent
-behavior a working measurement should show. The more parsimonious
-reading of all accumulated evidence (today's flat measurement + the
-independent OTA finding above) is a genuine hardware problem somewhere
-in the TX RF front-end - something calibration code, however complete,
-cannot fix. **This is a strong working hypothesis, not a proven
-conclusion.**
+**Net assessment (superseded below, kept for the historical record):**
+the TX-calibration hypothesis - this project's leading theory going into
+today - is *less* favored coming out of today than it was going in,
+precisely because implementing it as completely as currently possible
+failed to produce the kind of signal-dependent behavior a working
+measurement should show. The more parsimonious reading of all
+accumulated evidence (today's flat measurement + the independent OTA
+finding above) is a genuine hardware problem somewhere in the TX RF
+front-end - something calibration code, however complete, cannot fix.
+
+**Update (same day, user back at the machine): this is now weakened.**
+See notes/19 - a direct, sustained ping test over the internal chip
+under `wl` (60 packets, 1400-byte payload, 0% loss, surviving a live AP
+roam) proves the hardware *can* reliably do firmware-autonomous ACK
+generation on this exact chip. **The hardware is not broken.** The flat
+TX-calibration measurement more likely reflects a remaining bug or
+missing precondition in this port's *measurement itself* (or something
+else entirely wl does differently) than a genuine RF fault. The
+hardware-fault reading is no longer the better-supported explanation -
+"our port is still missing something" is, again.
 
 ## Concrete next steps, roughly in order
 
-1. ~~Port and test wl's real cleanup path~~ **Done, same day - see the
-   update above and notes/18. Confirmed it was cleanup, not a
-   precondition: the measurement result is unchanged with it in place.**
-   Still open: attempt the actual tone-generation + measurement sweep
-   at higher signal amplitude, to rule out "the test tone itself is too
-   weak to be measured" before concluding further. This is a parameter
-   change to already-tested, already-safe code (just a larger
-   `amplitude` constant in `b43_phy_ac_txcal_gen_tone_start`), lower
-   risk than anything in this list.
-2. **Needs the user present, higher risk still:** if the above doesn't
-   change anything, the honest conclusion is that root-causing this
-   further needs either real chip documentation (none exists publicly)
-   or actual RF test equipment (spectrum analyzer) this project doesn't
-   have - at that point, register/code archaeology has reached its
-   practical limit.
-3. **Unresolved, not started:** whether wl itself sees any `txphyerr`
-   on this exact hardware during normal association - would settle
-   whether the failure rate is a b43-port bug or a baseline this
-   specific chip/board tolerates and wl simply works around. Needs wl
-   bound again (reboot) and a kprobe on wl's stats path, not direct
-   SHM polling while wl owns the device (see notes/09's macdump
-   caveat).
-4. **Not urgent:** the user asked for this driver to eventually be
+1. ~~Whether wl itself sees any `txphyerr` on this exact hardware~~
+   **Done, same day - see notes/19. Answered more directly than
+   planned: a sustained ping test proved `wl` achieves reliable
+   firmware-autonomous ACK generation on this exact chip. The hardware
+   works; this is a port-side gap.** This is the most important update
+   from today - it demotes the hardware-fault hypothesis and reopens
+   "our port is still missing something."
+2. **Most promising next angle (see notes/19):** capture wl's full
+   register-access sequence during and immediately after association
+   (`wl_full_trace.bt`/`trace_wl.sh`, already proven safe to attach to
+   the running, bound driver without touching PCI binding) and diff it
+   against what this port's `ac_por` replay already covers, looking for
+   anything wl touches near association time that this port doesn't
+   replicate. Narrower and more tractable than either free-form counter
+   hunting (tried today, proved slow and inconclusive) or a full init
+   trace (already partially done in earlier sessions).
+3. Attempt the actual tone-generation + measurement sweep at higher
+   signal amplitude, to rule out "the test tone itself is too weak to
+   be measured" - a parameter change to already-tested, already-safe
+   code (just a larger `amplitude` constant in
+   `b43_phy_ac_txcal_gen_tone_start`), still worth doing given the
+   calibration hypothesis is live again.
+4. **Needs the user present, higher risk still:** if the above don't
+   turn up anything, root-causing this further needs either real chip
+   documentation (none exists publicly) or actual RF test equipment
+   (spectrum analyzer) this project doesn't have.
+5. **Not urgent:** the user asked for this driver to eventually be
    "upstreamable." The codebase is decompiled-derived, not clean-room -
    not mainline-submittable as-is regardless of whether the ACK bug is
    fixed. This tension was flagged to the user earlier and is still
