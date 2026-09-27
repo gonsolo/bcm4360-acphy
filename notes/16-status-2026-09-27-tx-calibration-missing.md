@@ -78,6 +78,71 @@ while the user was away and unavailable to help recover from anything
 going wrong, was judged not worth the risk. Documenting it thoroughly here
 instead of rushing a half-verified implementation onto hardware solo.
 
+## Full algorithm now understood (all sub-functions decompiled)
+
+Decompiled and read all remaining sub-functions (`decompiled-cal/`). The
+complete picture, in call order from `wlc_phy_cals_acphy`:
+
+1. **`FUN_0019454f`** - per-core: save ~7 radio registers (chip-ID-dependent
+   addresses: 0x1a/0x1b/0x1c/0x1e/0x1f/0x24 for our BCM4360, into
+   `phy+0x138` struct offsets 0x48-0x80), then switch the RF front-end into
+   an **on-chip TX-calibration loopback mode** via `mod_radio_reg` (routes
+   the PA/mixer output back through an internal sense path to the receiver
+   ADC - the standard way chips self-calibrate TX IQ/LO without external
+   test gear). Band-dependent (2.4 vs 5 GHz) and radio-generation-dependent
+   (`phy+0x16e`) bit patterns.
+2. **`FUN_00193d3a`** - brief (~1us) forced state on PHY 0x739/0x73a/0x725
+   per core, then restored - looks like a quiesce/settle pulse before
+   calibration starts.
+3. **`FUN_0019d3ac`** - save the current TX gain-table (table 7, offsets
+   0x100/0x103/0x106 - the same gain table `wlc_phy_txpwr_by_index_acphy`
+   uses for real traffic) per core, then overwrite it with calibration-tone
+   gain settings.
+4. **`FUN_0019d65d`** - once per core, loads a gain-ramp curve (extracted:
+   `3,4,6,9,13,18,25,35,50,71,100` and a per-core variant maxing out
+   differently per the 8 possible cores - roughly logarithmic ramp from 3%
+   to 100%) into PHY table 0xC, scaled by a percentage - the smooth
+   power-up curve for the calibration tone itself, avoiding a hard-edge
+   transient that would corrupt the measurement.
+5. **`FUN_001ac9b6`** - the actual measurement: generates a live test tone
+   (`wlc_phy_tx_tone_acphy`), then for a sweep of calibration-parameter
+   indices writes/reads via `FUN_0019ccd9` (dispatches to real PHY table 0xC
+   - extracted the index table: 12 (count,base,stride) triples mapping
+   index 0-11 to table-0xC row/offset/per-core-stride - or to in-memory
+   scratch buffers for indices >=0xC), reading back the loopback result via
+   `read_radio_reg` after each write, polling PHY 0x380 for completion with
+   a bounded timeout, to find the best I/Q phase/amplitude and LO-offset
+   correction per core.
+6. Feeds the measured results into **`wlc_phy_populate_tx_loft_comp_tbl_acphy`**
+   (found earlier) to commit the final correction into the real,
+   always-active loft-compensation table.
+7. **`FUN_0019d550`**, **`FUN_001982a2`**, **`FUN_00195603`** - restore, in
+   reverse order, everything saved in steps 3, 2 (PHY regs), and 1 (radio
+   regs + RF front-end back to normal TX mode).
+
+This is a complete, well-structured, self-contained save/calibrate/restore
+procedure - not fundamentally exotic or badly designed, but genuinely
+substantial (9 functions, ~500 decompiled lines total, several
+chip-ID/band-dependent branches, 3 extracted static data tables plus the
+already-known loft-comp correction tables). All raw data tables needed for
+a faithful port are now extracted (see `tools/ghidra_dump_bytes.java`, a
+new small reusable Ghidra script for pulling raw bytes at a given address -
+useful for any future need to extract unnamed static data during
+decompilation).
+
+**Deliberately not attempting a blind full port from here.** Getting ~500
+lines of multi-branch, register-mapping-heavy code right by hand, from
+decompilation alone, with no way to validate any of it against real
+hardware until it's finished, is exactly the situation most likely to
+produce a subtle, hard-to-spot bug (wrong offset, swapped save/restore
+order, mismatched per-core indexing) - and this code will be driving a live
+RF measurement loop on real hardware. The safe way to port this is
+incrementally, testing each piece (state save/restore first, verified
+inert; then the loopback mode switch, verified it doesn't disrupt normal
+RX; then the tone generation; then the actual sweep) against real hardware
+as it's built - which requires the user's presence throughout, not just at
+a final "does it work" test.
+
 ## What a responsible next session should do
 
 1. Decompile the remaining sub-functions listed above, especially
