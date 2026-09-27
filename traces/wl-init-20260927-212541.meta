@@ -1,0 +1,125 @@
++ SYNCER=3016
++ sleep 5
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sysctl -w kernel.panic_on_oops=1 kernel.panic=10 kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 kernel.softlockup_panic=1
+kernel.panic_on_oops = 1
+kernel.panic = 10
+kernel.hung_task_panic = 1
+kernel.hung_task_timeout_secs = 30
+kernel.softlockup_panic = 1
++ sync
++ BT=3036
++ BPFTRACE_PERF_RB_PAGES=16384
++ bpftrace /home/gonsolo/bcm4360-acphy/wl_full_trace.bt
+++ seq 1 30
++ for i in $(seq 1 30)
++ grep -q 'wl trace start' /home/gonsolo/bcm4360-acphy/traces/wl-init-20260927-212541.trace
++ sleep 1
++ sync
++ sleep 1
++ for i in $(seq 1 30)
++ grep -q 'wl trace start' /home/gonsolo/bcm4360-acphy/traces/wl-init-20260927-212541.trace
++ sleep 1
++ sync
++ sleep 1
++ for i in $(seq 1 30)
++ grep -q 'wl trace start' /home/gonsolo/bcm4360-acphy/traces/wl-init-20260927-212541.trace
++ sleep 1
++ sync
++ sleep 1
++ for i in $(seq 1 30)
++ grep -q 'wl trace start' /home/gonsolo/bcm4360-acphy/traces/wl-init-20260927-212541.trace
++ break
++ grep -q 'wl trace start' /home/gonsolo/bcm4360-acphy/traces/wl-init-20260927-212541.trace
++ echo 'wltrace: === IFDOWN ==='
++ ip link set wlp3s0 down
++ sleep 2
++ sync
++ sleep 1
++ sync
++ sleep 1
++ echo 'wltrace: === IFUP ==='
++ ip link set wlp3s0 up
++ sleep 20
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ sync
++ sleep 1
++ echo 'wltrace: === STOP ==='
++ kill -INT 3036
++ wait 3036
++ sync
++ sleep 1
++ sync
++ readlink -f /sys/bus/pci/devices/0000:03:00.0/driver
+/sys/bus/pci/drivers/wl
++ nmcli -t -f DEVICE,STATE device
+wlp3s0:connected
+lo:connected (externally)
+wlp0s20u1:disconnected
+p2p-dev-wlp0s20u1:disconnected
++ dmesg
++ sed -n '/wltrace: === IFDOWN ===/,$p'
+[  104.233627] wltrace: === IFDOWN ===
+[  104.238931] IPv6: ipv6_create_tempaddr: regeneration time exceeded - disabled temporary address support
+[  106.244186] wltrace: === IFUP ===
+[  112.087904] IPv6: ipv6_create_tempaddr: regeneration time exceeded - disabled temporary address support
+[  126.254426] wltrace: === STOP ===
++ kill 3016
++ readlink /sys/bus/pci/devices/0000:03:00.0/driver
++ grep -q '/wl$'
++ nmcli -t -f STATE general
++ grep -q '^connected'
++ echo '===== WiFi is back ====='
+===== WiFi is back =====
++ sysctl -w kernel.panic_on_oops=0 kernel.panic=0 kernel.hung_task_panic=0 kernel.hung_task_timeout_secs=120 kernel.softlockup_panic=0
+kernel.panic_on_oops = 0
+kernel.panic = 0
+kernel.hung_task_panic = 0
+kernel.hung_task_timeout_secs = 120
+kernel.softlockup_panic = 0
++ sync
