@@ -99,13 +99,24 @@ sample), **the measurement never shows any signal-dependent behavior at
 all.** It reports the same result regardless of the correction
 candidate tried.
 
+**Update (same day, user explicit direction: "Fix the gap. Even if I'm
+not here."):** the `wlc_phy_resetcca_acphy`/`wlapi_bmac_phyclk_fgc`
+cleanup gap below has since been closed - see notes/18. Investigation
+found `si_core_cflags(sih,2,val)` is `BCMA_IOCTL_FGC`, a generic,
+mainline-kernel-defined bcma bus bit (not exotic), used in a narrow,
+paired set-then-clear while never associated and never mid-TX -
+materially different from the incident's mechanism (a persistent
+bandwidth-mode change on a running, transmitting core). Implemented,
+staged (isolated test first, bit-exact round-trip, then the full flow),
+and tested clean: 0% packet loss, `BCMA_IOCTL` stable across sustained
+operation. The measurement result itself is unchanged (expected - the
+cleanup runs after the measurement) but the port's measurement path no
+longer has any documented deliberate deviation from vendor's real
+sequence.
+
 **Honest caveats, checked deliberately before trusting the above:**
-- The one remaining unported piece is wl's real cleanup path
-  (`wlc_phy_resetcca_acphy` → `wlapi_bmac_phyclk_fgc`), which writes to
-  **BCMA_IOCTL** on the live D11 core - the same register category
-  behind this project's one hard machine freeze (notes/07,
-  2026-09-26). This was deliberately *not* implemented or tested solo;
-  it needs the user physically present, full stop.
+- ~~The one remaining unported piece is wl's real cleanup path...~~
+  **Resolved same day, see the update just above and notes/18.**
 - The measurement register (`0x144` on the radio) was found to have a
   *different* role in another, unrelated calibration routine elsewhere
   in wl (different bits, different meaning) - real evidence it's a
@@ -126,12 +137,15 @@ conclusion.**
 
 ## Concrete next steps, roughly in order
 
-1. **Needs the user present:** port and test wl's real cleanup path
-   (`wlc_phy_resetcca_acphy`/`wlapi_bmac_phyclk_fgc`, the BCMA_IOCTL
-   write) in case it's actually a precondition rather than just
-   cleanup, and/or attempt the actual tone-generation + measurement
-   sweep at higher signal amplitude to rule out "the test tone itself
-   is too weak to be measured."
+1. ~~Port and test wl's real cleanup path~~ **Done, same day - see the
+   update above and notes/18. Confirmed it was cleanup, not a
+   precondition: the measurement result is unchanged with it in place.**
+   Still open: attempt the actual tone-generation + measurement sweep
+   at higher signal amplitude, to rule out "the test tone itself is too
+   weak to be measured" before concluding further. This is a parameter
+   change to already-tested, already-safe code (just a larger
+   `amplitude` constant in `b43_phy_ac_txcal_gen_tone_start`), lower
+   risk than anything in this list.
 2. **Needs the user present, higher risk still:** if the above doesn't
    change anything, the honest conclusion is that root-causing this
    further needs either real chip documentation (none exists publicly)
@@ -169,8 +183,14 @@ conclusion.**
   live hardware test.
 - Never rebind `wl` after `b43` has touched the chip in the same boot
   session.
-- **BCMA_IOCTL writes on the live D11 core are the one specific,
-  documented hard-freeze category in this project's history** (5 GHz
-  80 MHz bandwidth bit, 2026-09-26). Treat any new BCMA_IOCTL-touching
-  code as needing the user physically present, regardless of which
-  specific bit is involved.
+- **The 2026-09-26 hard freeze was `BCMA_IOCTL`'s PHY-bandwidth bits
+  changed on an associated, actively-transmitting core** - not
+  `BCMA_IOCTL` as a register in general (mainline b43 itself already
+  writes several other `BCMA_IOCTL` bits during ordinary attach/up/down,
+  and this port's `MACPHYCLKEN`/`FGC` writes have since been tested
+  clean - see notes/18). Before touching a *new* `BCMA_IOCTL` bit,
+  investigate the actual mechanism (which bit, persistent or
+  momentary, does it require being associated/transmitting) rather than
+  generalizing "BCMA_IOCTL = needs the user present" as a blanket rule -
+  but a bit whose effect is genuinely unclear, or that persists across
+  an active TX path, still warrants the user's presence by default.
