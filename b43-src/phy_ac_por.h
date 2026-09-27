@@ -116,10 +116,20 @@ static const u16 b43_ac_por_radio[][2] = {
 	{ 0x0146, 0x00ac },
 	{ 0x0645, 0x70ff },
 	{ 0x0723, 0x83e0 },
-	{ 0x08e5, 0x0000 },
-	{ 0x08d0, 0x0001 },
-	{ 0x08e8, 0x0040 },
-	{ 0x08dc, 0x2e21 },
+	/* 0x8e5/0x8d0/0x8e8/0x8dc are exactly the four registers
+	 * b43_radio_2069_vcocal() manipulates as its own calibration
+	 * trigger sequence (mask then re-set specific bits). By the time
+	 * this table runs, b43_phy_ac_tune() has already called vcocal()
+	 * once, correctly, for the real target channel. Writing these
+	 * wl-channel-1-boot-captured static values here afterwards
+	 * clobbers that just-completed calibration's own state - the same
+	 * class of bug as the 19 tuning registers already skipped above,
+	 * just for VCO-cal control bits instead of frequency-setting ones.
+	 * Skipped (0xffff) rather than deleted, values kept for the record. */
+	{ 0xffff, 0x0000 }, /* 0x08e5, channel-1-boot value */
+	{ 0xffff, 0x0001 }, /* 0x08d0, channel-1-boot value */
+	{ 0xffff, 0x0040 }, /* 0x08e8, channel-1-boot value */
+	{ 0xffff, 0x2e21 }, /* 0x08dc, channel-1-boot value */
 	{ 0x0033, 0x41a1 },
 	{ 0x0233, 0x41b1 },
 	{ 0x0045, 0x70ff },
