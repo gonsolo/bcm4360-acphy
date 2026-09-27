@@ -721,6 +721,10 @@ static bool b43_ac_txcal_candidate_test;
 module_param_named(ac_txcal_candidate_test, b43_ac_txcal_candidate_test, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_candidate_test, "AC-PHY test: the first closed-loop, hardware-reactive piece in this project - while a sustained test tone plays in RF-loopback mode, writes each of wl's real 6 candidate values to PHY reg 899, triggers a comparison via reg 0x380 (using the now phy+0x164-resolved candidate 0x423, core 0 - vendor FUN_001ac9b6's inner sweep, single outer sample only, not wl's full generation-counter-driven loop), and reads back radio reg 0x144's bit 2. Deliberately does NOT stop at the first candidate that clears bit 2 like wl does - sweeps and logs all 6 for full diagnostic visibility, since the point here is observing the measurement mechanism itself, not finding/applying a real correction (nothing gets written to the loft-comp table). See notes/16.");
 
+static bool b43_ac_txcal_candidate_test2;
+module_param_named(ac_txcal_candidate_test2, b43_ac_txcal_candidate_test2, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_candidate_test2, "AC-PHY test: like ac_txcal_candidate_test, but adds the two pieces of setup wl's real algorithm does immediately before the candidate sweep and that the first version skipped: the settle pulse and the TX gain-table override (both already individually validated by ac_txcal_test). The override reads each core's current table-7 gain and writes those exact same values back - a deliberate no-op on the actual gain, safe, but exercising the real write sequence (including the 0x19e table-access-enable toggle) in case that, not the gain value itself, is what the previous test's uniform bit-2-clear result was missing. Order matches vendor FUN_001ac9b6 exactly: enter loopback, settle pulse, gain override, start tone, candidate sweep, stop tone, restore gain, exit loopback. See notes/16.");
+
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
  */
@@ -1278,6 +1282,43 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
 		b43info(dev->wl, "phy_ac: txcal candidate test: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
+	if (b43_ac_txcal_candidate_test2) {
+		/* Same measurement as ac_txcal_candidate_test, but in wl's
+		 * real order and with the settle pulse + gain-table override
+		 * (as a same-value no-op) added beforehand - see this flag's
+		 * MODULE_PARM_DESC for why.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+		struct b43_phy_ac_txcal_tonesave tonesave;
+		struct b43_phy_ac_txcal_gainsave gainsave;
+		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
+		u8 core, cores = b43_phy_ac_num_cores(dev);
+
+		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
+			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
+			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
+		}
+
+		b43info(dev->wl, "phy_ac: txcal candidate test2: entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43_phy_ac_txcal_settle_pulse(dev);
+		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		b43info(dev->wl, "phy_ac: txcal candidate test2: after settle+gain-override (no-op values), starting tone\n");
+
+		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_measure_candidates(dev);
+		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
+		b43info(dev->wl, "phy_ac: txcal candidate test2: tone stopped\n");
+
+		b43_phy_ac_txcal_restore_gaintbl(dev, &gainsave);
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43info(dev->wl, "phy_ac: txcal candidate test2: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
 			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}

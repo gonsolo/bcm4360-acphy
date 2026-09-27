@@ -608,3 +608,77 @@ squarely in "does our port of the measurement mechanism work at all"
 territory - no conclusion about the calibration hypothesis itself
 should be drawn from either this result or the next one, only about
 whether the port is complete enough to produce a genuine measurement.
+
+## Follow-up: tested the gain-override+settle-pulse addition - still uniform; the big per-core block is now fully resolved but leads to a known hard-freeze-category register
+
+Wired the already-validated settle pulse and a gain-table override
+(read-current-values-and-write-them-back, a deliberate no-op on the
+actual gain, but exercising the real write sequence including the
+`0x19e` table-access-enable toggle) into a second version of the
+candidate test, in wl's real order (enter loopback, settle pulse, gain
+override, start tone, candidate sweep, stop tone, restore gain, exit
+loopback).
+
+**Result: identical to before.** `radio 0x144` still read bit-2-clear
+for all 6 candidates, every invocation. No instability, 0% packet loss
+on the backup link, clean unload. This rules out the settle pulse and
+gain-table-override omissions as the explanation.
+
+Went back to `FUN_001ac9b6`'s large per-core setup block (lines
+~199-278 and ~282-599, run once per core before the tone/candidate
+loop, skipped in both candidate tests so far) to see if it's now
+tractable given two things resolved since it was first found: `phy+
+0x164==1` (confirmed hardware fact, see above) resolves every single
+remaining conditional branch in this block with no guessing at all, and
+the apparent "3-way register-family selection" pattern used throughout
+(`0x73e`/`0xb3e`/`0x93e` etc.) turns out to be nothing but `base +
+core*0x200` addressing in disguise - confirmed by checking it against
+two different register bases and finding it matches exactly, for a
+board with only 2 cores (ours). **The whole block is now fully
+specified for our exact hardware - a real, complete resolution, not a
+partial one.** It comes to roughly 16 registers saved and ~55 register
+writes per core (110 total for 2 cores) - a much bigger register-count
+than anything implemented so far this session, but every single value
+is now a known constant or a simple, literal expression (e.g. `uVar28 &
+7`, `(uVar28>>2)&0x7e` with `uVar28=0xd5eb` fixed for 2.4GHz) - nothing
+left to guess.
+
+Went looking for wl's own restore counterpart (`FUN_001982a2`, already
+decompiled, only 43 lines - just writes back the 16 saved registers
+per core plus `0x19e`/`0x40f`) to make sure a real port of this block
+could be safely undone afterward, the same way every other risky piece
+this session has been. It ends by calling `wlc_phy_resetcca_acphy`
+(the function whose `phy+0x164`-branch was already resolved two rounds
+ago), which - regardless of which of its two branches fires - calls
+`wlapi_bmac_phyclk_fgc()` unconditionally. Decompiled that (thin
+wrapper, `decompiled-si/wlc_bmac_phyclk_fgc.c`): it calls
+`si_core_cflags(sih, 2, value)` - a **BCMA core-control-flags write**,
+i.e. a **BCMA_IOCTL register manipulation on the live D11 core**.
+
+**This is the same register category behind this project's one hard
+machine freeze** (`notes/07`, 2026-09-26: toggling `BCMA_IOCTL` PHY-
+bandwidth bits on a running/associated core, combined with live TX,
+froze the machine solid with no kernel log). It's a different bit
+(mask `2`, a clock-force-gate bit, not the 80MHz bandwidth bit that
+actually caused the freeze), and it happens while *not* associated
+this time, which reduces the risk somewhat - but it is unambiguously
+the same register and the same general hazard class (low-level D11
+core control-flag manipulation on a live core), which this project's
+own established safety rules already single out as needing the user
+physically present, not something to reason past as "probably fine, a
+different bit."
+
+**Decision: not implementing or testing this piece solo.** Everything
+about the actual candidate-search *measurement* (the piece this whole
+thread has been chasing) is now fully understood and could be ported
+without further guessing - genuine, complete progress - but doing so
+safely requires a restore path that runs through `BCMA_IOCTL`, and this
+project already has one specific, hard-won lesson about treating that
+register as crash-prone. This is exactly the kind of boundary this
+project's safety rules exist for: a concrete match to a documented past
+incident, not a vague sense of unease. The right next step is porting
+and testing this - `b43_phy_ac_txcal_measure_setup_enter/_exit`,
+covering the per-core block above plus a faithful `wlc_phy_resetcca_acphy`/
+`wlapi_bmac_phyclk_fgc` - **with the user physically present**, same
+standard as the 5 GHz bandwidth work and the still-unattempted full
+measurement sweep have always been held to.
