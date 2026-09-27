@@ -24,7 +24,7 @@
 
 static struct dentry *b43_ac_dbg_dir;
 static struct b43_wldev *b43_ac_dbg_dev;
-static u16 b43_ac_dbg_addr[4];
+static u16 b43_ac_dbg_addr[5];
 
 static ssize_t b43_ac_dbg_read(struct file *f, char __user *ubuf, size_t len,
 			       loff_t *ppos)
@@ -44,7 +44,9 @@ static ssize_t b43_ac_dbg_read(struct file *f, char __user *ubuf, size_t len,
 		mutex_unlock(&dev->wl->mutex);
 		return -ENODEV;
 	}
-	if (which == 3)
+	if (which == 4)
+		val = b43_shm_read16(dev, B43_SHM_HW, addr);
+	else if (which == 3)
 		val = b43_read16(dev, addr);
 	else if (which == 2)
 		val = b43_shm_read16(dev, B43_SHM_SHARED, addr);
@@ -89,7 +91,9 @@ static ssize_t b43_ac_dbg_write(struct file *f, const char __user *ubuf,
 			mutex_unlock(&dev->wl->mutex);
 			return -ENODEV;
 		}
-		if (which == 3)
+		if (which == 4)
+			b43_shm_write16(dev, B43_SHM_HW, addr, val);
+		else if (which == 3)
 			b43_write16(dev, addr, val);
 		else if (which == 2)
 			b43_shm_write16(dev, B43_SHM_SHARED, addr, val);
@@ -308,6 +312,8 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 		debugfs_create_file("macdump", 0400, b43_ac_dbg_dir, NULL,
 				    &b43_ac_dbg_macdump_fops);
 		debugfs_create_file("mmio16", 0600, b43_ac_dbg_dir, (void *)3L,
+				    &b43_ac_dbg_fops);
+		debugfs_create_file("ihr", 0600, b43_ac_dbg_dir, (void *)4L,
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("cc", 0600, b43_ac_dbg_dir, NULL,
 				    &b43_ac_dbg_cc_fops);

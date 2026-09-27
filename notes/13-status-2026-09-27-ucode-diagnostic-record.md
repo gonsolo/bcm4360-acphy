@@ -104,13 +104,36 @@ port is doing what it should); the 0x05 on top of it is unexplained.
   ucode disassembly - other code that uses the same extended-IHR mechanism)
   to identify.
 
+## Follow-up (same session): confirmed with live hardware reads
+
+Reran the capture twice more (resetting the SHM 0xBFA flag via debugfs
+between rounds, no reboot/reload needed) - **bit-for-bit identical** both
+times: `extread=0x2000 phyctl=0x0045 htsig0=0x01C0 scr12=0x0031`, everything
+else zero. Extremely consistent.
+
+Added a small, permanent debugfs file (`b43ac/ihr`, `which=4` in
+`b43_ac_dbg_{read,write}`, routing `B43_SHM_HW`) since the existing `shm`
+file was hardcoded to `B43_SHM_SHARED` and couldn't reach directly-addressed
+IHR registers like `IHR_TXE_STATUS`/`IHR_TXE_CTL`. This ruled out one
+alternative explanation and found a new lead:
+
+- **Read the same registers at idle** (fresh module load, before any TX):
+  `TXE_PHYCTL(0x86)=0xFF00`, `TxPlcpHtSig0(0x323)=0xC000` - clearly
+  *different* from the diagnostic snapshot's `0x0045`/`0x01C0`. This rules
+  out "these are just stale/power-on-default values the error handler reads
+  regardless of what actually happened" - real state changed between idle
+  and the point of failure, so the HT-format PLCP fields are genuine
+  evidence about the failing transmission, not an artifact.
+- **Read `IHR_TXE_STATUS` (0x87) live, after a batch of real failures**:
+  `0x0401`, vs. `0x0001` at idle - an extra bit (bit 10, 0x400) is set that
+  wasn't there before any failures occurred. Not yet confirmed as *the*
+  error flag (could be coincidental / cleared-then-reset elsewhere), but a
+  concrete, first-time-ever-observed candidate for a direct "TX engine
+  error" status bit, distinct from the SHM-buffered diagnostic record.
+
 ## Next steps
 
-1. Take 2-3 more samples (reset flag via debugfs, don't need a reboot) to
-   see whether HT-SIG0=0x1C0 (or a similar HT-format signature) shows up
-   consistently, which would make "why is an HT-format frame involved in
-   this specific hardware fault" a concrete, checkable question against our
-   own PHY/rate-table setup.
+1. ~~Take 2-3 more samples~~ - done, see above, fully consistent.
 2. Check whether the AP-probe-request-never-acked symptom (210 = 30x7 retries,
    zero macstat activity in that window) is the SAME root cause or a
    separate issue - if our own outgoing frames are also failing to reach
@@ -120,3 +143,7 @@ port is doing what it should); the 0x05 on top of it is unexplained.
    disassembly for other `CALLS 0105`/`CALLS 0109` sites) to build up a
    table of known SCR21 address values and what they read/write, which
    would help identify what 0x2000's bit 13 actually means.
+4. Watch `IHR_TXE_STATUS` (0x87, now readable via the new `b43ac/ihr`
+   debugfs file) across single, isolated failures (not a whole
+   `probeack.sh` batch) to see whether bit 10 (0x400) tracks error
+   occurrences one-for-one, or is a stickier/unrelated flag.
