@@ -1385,6 +1385,53 @@ static void b43_phy_ac_txcal_settle_pulse(struct b43_wldev *dev)
 	udelay(1);
 }
 
+/*
+ * decompiled-cal/FUN_0019d65d.c: load a gain-ramp curve into PHY table 0xC,
+ * scaled by "percent" (0-100) - the smooth power-up curve for the
+ * calibration tone itself, run once per core before its first measurement
+ * pass. Static data extracted from wl.ko's own two internal ramp-curve
+ * tables via tools/ghidra_dump_bytes.java (see notes/16); each pair is
+ * (percent-of-full-scale, index-byte). No chip-ID or radio-generation
+ * branching - like the settle pulse above, safe to write from
+ * decompilation alone.
+ */
+struct b43_phy_ac_txcal_ramp_step {
+	u8 percent;
+	u8 index;
+};
+
+static const struct b43_phy_ac_txcal_ramp_step b43_phy_ac_txcal_ramp_a[18] = {
+	{ 3, 0 }, { 4, 0 }, { 6, 0 }, { 9, 0 }, { 13, 0 }, { 18, 0 },
+	{ 25, 0 }, { 25, 1 }, { 25, 2 }, { 25, 3 }, { 25, 4 }, { 25, 5 },
+	{ 25, 6 }, { 25, 7 }, { 35, 7 }, { 50, 7 }, { 71, 7 }, { 100, 7 },
+};
+
+static const struct b43_phy_ac_txcal_ramp_step b43_phy_ac_txcal_ramp_b[18] = {
+	{ 3, 0 }, { 4, 0 }, { 6, 0 }, { 9, 0 }, { 13, 0 }, { 18, 0 },
+	{ 25, 0 }, { 35, 0 }, { 50, 0 }, { 71, 0 }, { 100, 0 }, { 100, 1 },
+	{ 100, 2 }, { 100, 3 }, { 100, 4 }, { 100, 5 }, { 100, 6 }, { 100, 7 },
+};
+
+static void b43_phy_ac_txcal_ramp_table(struct b43_wldev *dev, u16 percent)
+{
+	u16 saved19e = b43_phy_read(dev, 0x19e);
+	unsigned int i;
+
+	b43_phy_set(dev, 0x19e, 0x2);
+
+	for (i = 0; i < 18; i++) {
+		u16 val_a = ((u16)b43_phy_ac_txcal_ramp_a[i].percent * percent / 100) << 8
+			    | b43_phy_ac_txcal_ramp_a[i].index;
+		u16 val_b = ((u16)b43_phy_ac_txcal_ramp_b[i].percent * percent / 100) << 8
+			    | b43_phy_ac_txcal_ramp_b[i].index;
+
+		b43_phy_ac_table_write16(dev, 0xc, i, val_a);
+		b43_phy_ac_table_write16(dev, 0xc, i + 0x20, val_b);
+	}
+
+	b43_phy_maskset(dev, 0x19e, ~0x2, saved19e & 0x2);
+}
+
 #include "phy_ac_replay.h"
 
 /* 2.4 GHz AGC tables as written by the vendor driver on this board. */
