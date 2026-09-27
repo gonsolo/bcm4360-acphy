@@ -709,6 +709,10 @@ static bool b43_ac_txcal_loopback_test;
 module_param_named(ac_txcal_loopback_test, b43_ac_txcal_loopback_test, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_loopback_test, "AC-PHY test: additionally enter and immediately exit the untested RF-loopback calibration mode, logging register values before/during/after (documented best-guess for 2 unresolved wl-internal conditions, no tone/live TX, see notes/16 - separate flag from ac_txcal_test since this one writes to live RF front-end registers)");
 
+static bool b43_ac_txcal_tone_test;
+module_param_named(ac_txcal_tone_test, b43_ac_txcal_tone_test, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_tone_test, "AC-PHY test: additionally generate one real, brief TX test tone while in RF-loopback mode (vendor wlc_phy_tx_tone_acphy for our exact 2.4GHz call pattern), logging status before/after. Deliberately does NOT replicate wl's own cleanup (wlc_phy_stopplayback_acphy/wlc_phy_resetcca_acphy - both gated on an unresolved wl-internal field) and instead saves/restores all 7 PHY registers this touches verbatim, byte for byte, regardless of what wl's own semantics would do - see notes/16. Highest-risk flag in this project so far: this is a real, brief RF transmission, only ever run with the user physically present.");
+
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
  */
@@ -743,6 +747,7 @@ static void b43_phy_ac_txcal_enter_loopback(struct b43_wldev *dev,
 					struct b43_phy_ac_txcal_radiosave *save);
 static void b43_phy_ac_txcal_exit_loopback(struct b43_wldev *dev,
 				const struct b43_phy_ac_txcal_radiosave *save);
+static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev);
 
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
@@ -1146,6 +1151,45 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
 		b43info(dev->wl, "phy_ac: txcal loopback test: after-exit core0 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
+	if (b43_ac_txcal_tone_test) {
+		/* Highest-risk flag in this project so far: a real, brief TX
+		 * test tone, generated only while inside the RF-loopback mode
+		 * already validated above. See b43_phy_ac_txcal_gen_tone's
+		 * comment for what is and isn't faithfully replicated.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+
+		b43info(dev->wl, "phy_ac: txcal tone test: entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43info(dev->wl, "phy_ac: txcal tone test: before 460=%04x 403=%04x 400=%04x loopbackrd(core0)=%04x core1=%04x\n",
+			b43_phy_read(dev, 0x460), b43_phy_read(dev, 0x403),
+			b43_phy_read(dev, 0x400),
+			b43_radio_read(dev, 0x144),
+			b43_radio_read(dev, 0x144 | 0x200));
+
+		b43info(dev->wl, "phy_ac: txcal tone test: generating tone\n");
+		b43_phy_ac_txcal_gen_tone(dev);
+
+		/* Read-only, purely observational: 0x144|core<<9 is the exact
+		 * loopback-measurement register decompiled-cal/FUN_001ac9b6.c
+		 * polls after each write during the real calibration sweep
+		 * (acphychipid==0x4360 branch). We aren't running that sweep,
+		 * just seeing whether anything here visibly reacted to the
+		 * tone at all - not a measurement, just a first look.
+		 */
+		b43info(dev->wl, "phy_ac: txcal tone test: after 460=%04x 403=%04x 400=%04x loopbackrd(core0)=%04x core1=%04x (want 460/403/400 match 'before')\n",
+			b43_phy_read(dev, 0x460), b43_phy_read(dev, 0x403),
+			b43_phy_read(dev, 0x400),
+			b43_radio_read(dev, 0x144),
+			b43_radio_read(dev, 0x144 | 0x200));
+
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43info(dev->wl, "phy_ac: txcal tone test: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
 			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
@@ -1631,6 +1675,156 @@ static void b43_phy_ac_txcal_exit_loopback(struct b43_wldev *dev,
 		b43_radio_write(dev, 0x24 | c9, save->r24[core]);
 		b43_radio_write(dev, 0x170 | c9, save->r170_or_184[core]);
 	}
+}
+
+/*
+ * decompiled-cal/wlc_phy_cordic.c: an 18-iteration fixed-point CORDIC
+ * rotation, verified bit-exact by hand: full circle is 0x1680000 units
+ * (so 65536 units = 1 degree exactly), the 0x9b75 constant is the
+ * standard CORDIC gain, and the >90-degree quadrant-extension check
+ * (0x5b = 91 degrees) plus its final +-1 scale are textbook. Pure
+ * integer math, touches no hardware - zero risk regardless of what
+ * calls it. angle is in 1/65536-degree units; out[0]/out[1] come back
+ * proportional to sin/cos scaled by the 0x9b75 CORDIC gain.
+ */
+static void b43_phy_ac_txcal_cordic(s32 angle, s32 out[2])
+{
+	static const s32 arctan_tbl[18] = {
+		2949120, 1741991, 919879, 466945, 234891, 117304, 58666, 29335,
+		14668, 7334, 3667, 1833, 917, 458, 229, 115, 57, 29,
+	};
+	s32 sign = (angle < 0) ? -1 : 1;
+	s32 target = (sign * 0xb40000 + angle) % 0x1680000 - sign * 0xb40000;
+	s32 rounded, final_scale;
+	s32 x = 0, y = 0x9b75;
+	s32 acc = 0;
+	int i;
+
+	rounded = (target < 0) ? -((((-target) >> 15) + 1) >> 1)
+				: (((target) >> 15) + 1) >> 1;
+
+	if (rounded < 0x5b) {
+		if (target >= 0 ||
+		    -0x5b < -((((-target) >> 15) + 1) >> 1)) {
+			final_scale = 1;
+			goto rotate;
+		}
+		target += 0xb40000;
+	} else {
+		target -= 0xb40000;
+	}
+	final_scale = -1;
+
+rotate:
+	for (i = 0; i < 18; i++) {
+		s32 old_x = x, old_y = y, step;
+
+		if (acc < target) {
+			step = arctan_tbl[i];
+			x = (old_y >> i) + old_x;
+			y = old_y - (old_x >> i);
+		} else {
+			step = -arctan_tbl[i];
+			x = old_x - (old_y >> i);
+			y = (old_x >> i) + old_y;
+		}
+		acc += step;
+	}
+
+	out[0] = final_scale * x;
+	out[1] = final_scale * y;
+}
+
+static s32 b43_phy_ac_txcal_round15(s32 v)
+{
+	return (v < 0) ? -((((-v) >> 15) + 1) >> 1) : (((v) >> 15) + 1) >> 1;
+}
+
+/*
+ * decompiled/wlc_phy_tx_tone_acphy.c, specialised for the exact call
+ * wl itself makes for our band from decompiled-cal/FUN_001ac9b6.c line
+ * 682 (2.4 GHz: freq=1000, amplitude=0xfa, param_4=1, param_5=0,
+ * param_6=0) - not a general port of all 6 parameters, just this one
+ * call pattern, matching this project's "port exactly what's needed"
+ * convention. Builds a 40-sample tone waveform via CORDIC, writes it
+ * into PHY table 0xe (32-bit wide), then drives the real playback
+ * trigger sequence (registers 0x460-0x463/0x382/0x400/0x471), polling
+ * 0x403 bit0 with the same ~1ms bound wl itself uses.
+ *
+ * DELIBERATELY simplified vs. wl: the real algorithm's cleanup here is
+ * wlc_phy_stopplayback_acphy() -> wlc_phy_resetcca_acphy(), and the
+ * latter branches on the still-unresolved phy+0x164 field (see
+ * notes/16). Rather than guess that field on a live-TX code path, this
+ * saves all 7 PHY registers it touches (0x460/0x461/0x462/0x463/0x471/
+ * 0x382/0x400) before doing anything and writes them back verbatim
+ * afterward - a strictly safer, if less "authentic", cleanup that does
+ * not depend on that unknown at all. This means the chip may not end
+ * up in exactly wl's normal post-tone operating state, only back in
+ * whatever state it was in immediately before this function ran.
+ */
+static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
+{
+	static const int nsamples = 40;	/* 2.4 GHz: iVar16=0x14, *2 */
+	static const int freq = 1000;		/* wl's 2.4 GHz tone param */
+	static const int amplitude = 0xfa;
+	u32 wave[40];
+	s32 phase_step;
+	s32 phase = 0;
+	int i;
+	u16 saved_460, saved_461, saved_462, saved_463, saved_471, saved_382;
+	u16 saved_400;
+	unsigned int timeout;
+	struct b43_phy_ac_tbl tbl = {
+		.data = wave, .count = nsamples, .id = 0xe, .offset = 0,
+		.width = 32,
+	};
+
+	/* (freq * 0x24) / nsamples << 0x10) / 100, exactly as decompiled. */
+	phase_step = ((freq * 0x24) / nsamples << 0x10) / 100;
+
+	for (i = 0; i < nsamples; i++) {
+		s32 xy[2];
+
+		b43_phy_ac_txcal_cordic(phase, xy);
+		xy[0] = b43_phy_ac_txcal_round15(amplitude * xy[0]);
+		xy[1] = b43_phy_ac_txcal_round15(amplitude * xy[1]);
+		wave[i] = ((u32)(xy[1] & 0x3ff) << 10) | ((u32)xy[0] & 0x3ff);
+		phase += phase_step;
+	}
+
+	saved_460 = b43_phy_read(dev, 0x460);
+	saved_461 = b43_phy_read(dev, 0x461);
+	saved_462 = b43_phy_read(dev, 0x462);
+	saved_463 = b43_phy_read(dev, 0x463);
+	saved_471 = b43_phy_read(dev, 0x471);
+	saved_382 = b43_phy_read(dev, 0x382);
+	saved_400 = b43_phy_read(dev, 0x400);
+
+	b43_phy_ac_write_table(dev, &tbl);
+
+	b43_phy_mask(dev, 0x471, ~1);
+	b43_phy_write(dev, 0x463, nsamples - 1);
+	b43_phy_write(dev, 0x461, 0xffff);
+	b43_phy_write(dev, 0x462, 0x3c);
+	b43_phy_set(dev, 0x400, 1);
+	b43_phy_mask(dev, 0x460, ~4);
+	b43_phy_mask(dev, 0x460, ~1);
+	b43_phy_mask(dev, 0x382, 0x3fff);
+	b43_phy_set(dev, 0x382, 0x8000);
+
+	for (timeout = 0x3f1; timeout != 9; timeout -= 10) {
+		if (!(b43_phy_read(dev, 0x403) & 1))
+			break;
+		udelay(10);
+	}
+
+	b43_phy_write(dev, 0x400, saved_400);
+	b43_phy_write(dev, 0x460, saved_460);
+	b43_phy_write(dev, 0x461, saved_461);
+	b43_phy_write(dev, 0x462, saved_462);
+	b43_phy_write(dev, 0x463, saved_463);
+	b43_phy_write(dev, 0x471, saved_471);
+	b43_phy_write(dev, 0x382, saved_382);
 }
 
 #include "phy_ac_replay.h"

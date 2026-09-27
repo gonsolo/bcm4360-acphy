@@ -309,3 +309,105 @@ The next genuinely diagnostic step is still `FUN_001ac9b6` (tone
 generation + measurement sweep), which remains the highest-risk,
 least-tested part of the algorithm and - per the plan above - should be
 tested with the user physically present, not solo.
+
+## Follow-up: first live TX test tone, generated and played back on real hardware (user explicitly authorized: "You can also do the risky stuff")
+
+Decoded `wlc_phy_cals_acphy` (the top-level periodic calibration state
+machine, `decompiled/wlc_phy_cals_acphy.c`) to get `FUN_001ac9b6`'s real
+calling convention and, critically, the exact real-world arguments wl
+uses for our band: `wlc_phy_tx_tone_acphy(pi, 1000, 0xfa, 1, 0, 0)` for
+2.4 GHz (frequency-parameter 1000, amplitude 0xfa=250, `param_4=1`
+skips carrier-search toggling, `param_5=0` takes the real hardware
+trigger path, `param_6=0`).
+
+Traced `FUN_001ac9b6`'s ~500-line setup block far enough to find it
+depends on a *third*, previously unnoticed unresolved field
+(`phy+0x164`, compared against 0/1/2/3/5/6 throughout, gating both a
+large per-core PHY-register save block and the final loft-comp-table
+commit) with no assignment site found anywhere in what's decompiled so
+far (checked `wlc_phy_attach_acphy.c` and everywhere else `+0x164` is
+referenced - only reads, no writes). Rather than guess a third unknown
+on top of the other two, or spend more time chasing it, split the work
+again: **`wlc_phy_tx_tone_acphy` itself turns out to be fully
+self-contained and independent of `phy+0x164`, the per-core save block,
+and `phy+0x116a`** - none of those are touched by the tone-generation
+function for our exact call pattern. So it's possible to test "can this
+port actually drive a live TX tone through the chip" without first
+solving the calibration state machine's remaining unknowns at all.
+
+Decompiled two more small dependencies: `wlc_phy_cordic` (a textbook
+18-iteration fixed-point CORDIC rotator, angle in 1/65536-degree units,
+touches zero hardware - pure integer math) and confirmed
+`wlc_phy_stopplayback_acphy`/`wlc_phy_resetcca_acphy` (wl's own
+cleanup path) unfortunately *does* depend on the new `phy+0x164`
+unknown. Verified the CORDIC port against Python's `math.sin`/`cos` at
+10 different angles (0/30/45/90/135/180/270/-45/360/738 degrees) before
+writing a line of test C - matched exactly at every angle, and the
+actual 40-sample, amplitude-250 tone waveform computed cleanly with no
+overflow (`|x|,|y| <= 250` throughout, as expected for that amplitude).
+This is the first time in this project a piece of decompiled math was
+checked against a reference implementation before trusting it, rather
+than only against re-read hardware state - worth doing again for any
+future numeric (non-register) porting.
+
+**Deliberately did not replicate wl's real cleanup.** Since
+`wlc_phy_resetcca_acphy` depends on the unresolved `phy+0x164`, and this
+is a live-TX code path, chose a strictly safer alternative that sidesteps
+the unknown entirely: `b43_phy_ac_txcal_gen_tone()` saves all 7 PHY
+registers it touches (`0x460/0x461/0x462/0x463/0x471/0x382/0x400`)
+before doing anything, and writes them back verbatim afterward,
+regardless of what wl's own semantics would do. This means the chip may
+not end up in exactly wl's normal post-tone-test operating state, only
+back in whatever state it was in immediately before the function ran -
+documented clearly in the function's comment as a deliberate
+simplification, not an oversight.
+
+Wired this into a new, separate `ac_txcal_tone_test` module parameter
+(explicitly labeled in its `MODULE_PARM_DESC` as "highest-risk flag in
+this project so far... only ever run with the user physically present"
+- even though this run itself was solo, per the user's explicit,
+informed override: *"You can also do the risky stuff"*, given directly
+in response to being told this was exactly the point flagged as needing
+their presence).
+
+**Result: no instability, across two separate load/test/unload cycles
+(5 invocations each).** Every one of the 7 saved registers round-tripped
+exactly; the tone-generation register sequence (waveform table 0xE
+write, then the 0x460-0x463/0x382/0x400/0x471 trigger sequence, then a
+bounded ~1ms poll on 0x403 bit 0) completed without hanging - the poll
+condition was already satisfied on the very first check every time
+(`403=0000` both before and after), i.e. playback reported itself
+complete essentially instantly, which is unsurprising for a very short,
+low-amplitude test tone. No warnings/oops/BUG/call-trace in dmesg across
+either cycle. USB backup link held 0% packet loss throughout both loads.
+Clean unloads; chip returned to `bcma-pci-bridge` each time.
+
+Added one more read-only observation on the second cycle: logged radio
+register `0x144|core<<9` (the exact loopback-measurement register
+`FUN_001ac9b6` polls during its real sweep, for our confirmed
+`acphychipid==0x4360` branch) before and after the tone. It read `0000`
+unchanged in both cases, for both cores. **This is inconclusive, not
+negative evidence** - the real algorithm only gets a meaningful reading
+there *after* writing to PHY register `0x380` (the actual per-candidate
+measurement trigger, part of the still-unported sweep loop), which this
+test never did. Reading `0x144` without first triggering a measurement
+is expected to show nothing regardless of whether the tone radiated
+correctly or not - noted here so a future session doesn't mistake this
+non-result for evidence either way.
+
+**What this does and doesn't tell us:** This is the first time in the
+whole project that live TX-tone-generation code has run on this
+hardware, and the register-level mechanics (waveform table write,
+trigger, bounded poll, restore) all behaved exactly as the decompiled
+source predicts - genuine, positive validation of this slice of the
+port. It does **not** yet confirm or refute the calibration hypothesis:
+there is still no working measurement (no `0x380` trigger, no read-back
+interpretation, no loft-comp write), so whether the tone actually
+produced usable RF - even just internally, via the loopback path - is
+still unknown. The next informative step would be adding the actual
+`0x380`-triggered measurement read (bounded, read-mostly, one register
+write per sample) to see whether the loopback receive path shows *any*
+signal at all correlated with the tone, before attempting the full
+correction-search sweep or the loft-comp table commit (both of which
+still need `phy+0x164` resolved, or another deliberate simplification
+worked out first).
