@@ -131,6 +131,45 @@ alternative explanation and found a new lead:
   concrete, first-time-ever-observed candidate for a direct "TX engine
   error" status bit, distinct from the SHM-buffered diagnostic record.
 
+## Follow-up 2 (same session): decoded the extended-IHR address, confirmed TXE_STATUS bit 10
+
+Decoded the `ORX`/`JNZX` bit-packing precisely against d11emu's own execution
+semantics (`Mnemonic::ORX`/`JNZX` in `src/emu.rs`: `m,s = opcode.p1,p2`,
+`mask=((1<<(m+1))-1).rotate_left(s)`, etc.) rather than guessing:
+
+- The address fed into subroutine `0105`'s read is computed at 0x0C64-0x0C66
+  and, for our observed failure, resolves to **SCR21 = 7** (the `IHR[0x86]`
+  bits[1:0]-nonzero branch is taken - our diagnostic sample's saved
+  `TXE_PHYCTL=0x0045` has bit 0 set, consistent with this).
+- Subroutine `0105` itself always packs its read as **mode 3** (hardcoded
+  immediate in its own `ORX`, not caller-supplied) with the caller's offset
+  in the low 13 bits: `IHR[0x18] = 0x6000 | offset`. So our read is
+  "extended space mode 3, offset 7" -> value 0x2000.
+- This same `CALLS 0105`/`0109` pair is used **extremely widely** through
+  the whole ucode (33 call sites for `0105`, 60+ for `0109`) - it's a
+  general-purpose indirect register port, not something specific to error
+  handling. The very first call (address 0x0012, in the boot/reset path)
+  uses a *variable*, SHM-stored offset (`SHM[0xC0]`) rather than a fixed
+  one, suggesting per-chip-revision configurability elsewhere in this
+  address space; our error handler's offset (7) is a fixed immediate,
+  probably a stable, chip-generation-independent slot. Still don't have a
+  name for "mode 3, offset 7" specifically - would need to cross-reference
+  many more of these call sites (or real chip documentation) to identify it
+  by function.
+
+**Confirmed `IHR_TXE_STATUS` (0x87) bit 10 with a clean, isolated test**:
+loaded `b43` fresh (`TXE_STATUS=0x0001`, `txphyerr=0`), ran `probeack.sh 1`
+(a single probe injection, retried up to 7 times at the MAC layer),
+immediately re-read both: `txphyerr` went 0->1 and `TXE_STATUS` went
+0x0001->0x0401 in the same window. This is a real, direct, 1:1-observed
+hardware error latch - not something that requires waiting for a whole
+batch of failures to show up. (Note in passing: `probeack.sh`'s own
+before/after delta printed "+0" for both counters despite the raw SHM
+values changing - its capture window is a bit too tight around the
+injection call; the raw `shm`/`ihr` debugfs reads are the reliable ground
+truth, worth using directly rather than trusting the script's own delta
+for small `N`.)
+
 ## Next steps
 
 1. ~~Take 2-3 more samples~~ - done, see above, fully consistent.
