@@ -1,0 +1,98 @@
+diff --git a/src/cli.rs b/src/cli.rs
+index d69ab5e..0c28129 100644
+--- a/src/cli.rs
++++ b/src/cli.rs
+@@ -47,7 +47,7 @@ use crate::{emu::*, initvals, experiment};
+ use dialoguer::{theme::ColorfulTheme, Input, Completion, History};
+ 
+ ///Available CLI commands
+-const COMMANDS : [&str; 16] = [
++const COMMANDS : [&str; 17] = [
+ 	"break",
+ 	"continue",
+ 	"start",
+@@ -63,6 +63,7 @@ const COMMANDS : [&str; 16] = [
+ 	"ucode",
+ 	"coverage",
+ 	"run_experiment",
++	"disasm",
+ 	"help"
+ ];
+ 
+@@ -110,6 +111,9 @@ pub fn cli_main_loop(state : &mut State) {
+         					},
+         					"run_experiment" => {
+         						experiment::extract_consecutive_states(state, 0xF, 0xA1A, args[1]);
++        					}
++        					"disasm" => {
++        						state.print_all_instructions();
+         					}
+ 							"help" => {
+ 								print_help();
+diff --git a/src/emu.rs b/src/emu.rs
+index d46b930..6223abb 100644
+--- a/src/emu.rs
++++ b/src/emu.rs
+@@ -478,7 +478,22 @@ impl State {
+ 	pub fn print_instruction(&self) {
+ 		let value = self.current_instruction();
+ 		println!("PC: {:4X} Opcode: {:3X} ({:?}) Op0: {:X} ({:?} {:X}) Op1: {:X} ({:?} {:X}) Op2: {:X} ({:?})", self.pc, value.opcode.complete, value.opcode.mnemonic, value.op0.raw, value.op0.r#type, value.op0.read_value(self) ,value.op1.raw, value.op1.r#type, value.op1.read_value(self), value.op2.raw, value.op2.r#type);
+-		
++
++	}
++
++	///Statically disassembles every loaded instruction, independent of
++	///execution/control flow or register state (unlike `next`/`run`, which
++	///only ever show instructions actually reached from a given start PC).
++	pub fn print_all_instructions(&self) {
++		for (i, instr) in self.ucode_memory.iter().enumerate() {
++			println!(
++				"{:04X}: {:03X} ({:?}) op0={:X}({:?} val={:X} base={:X}) op1={:X}({:?} val={:X} base={:X}) op2={:X}({:?} val={:X} base={:X})",
++				i, instr.opcode.complete, instr.opcode.mnemonic,
++				instr.op0.raw, instr.op0.r#type, instr.op0.value, instr.op0.base_reg,
++				instr.op1.raw, instr.op1.r#type, instr.op1.value, instr.op1.base_reg,
++				instr.op2.raw, instr.op2.r#type, instr.op2.value, instr.op2.base_reg,
++			);
++		}
+ 	}
+ 
+ 	///Reads a given microcode binary file.
+diff --git a/src/lib.rs b/src/lib.rs
+index 6d19525..958c44a 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -54,4 +54,15 @@ pub fn run(filename : &str){
+ 	let mut state = State::from_ucode(filename);
+ 
+ 	cli::cli_main_loop(&mut state);
++}
++
++///Runs a single command non-interactively and exits (no TTY needed).
++///Currently only "disasm" is supported.
++pub fn run_once(filename : &str, command : &str){
++	let state = State::from_ucode(filename);
++
++	match command {
++		"disasm" => state.print_all_instructions(),
++		_ => println!("Unknown non-interactive command: {}", command),
++	}
+ }
+\ No newline at end of file
+diff --git a/src/main.rs b/src/main.rs
+index af57f6b..9baca76 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -46,5 +46,11 @@ fn main() {
+     let args: Vec<String> = env::args().collect();
+ 
+     //initialize the emulator with a ucode binary file location specified by the first program argument
+-    d11emu::run(&args[1]);
++    //an optional second argument runs one command non-interactively and exits, instead of
++    //starting the interactive CLI (which needs a real TTY and doesn't work over a plain pipe).
++    if args.len() > 2 {
++        d11emu::run_once(&args[1], &args[2]);
++    } else {
++        d11emu::run(&args[1]);
++    }
+ }
+\ No newline at end of file
