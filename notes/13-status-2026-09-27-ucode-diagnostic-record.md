@@ -254,6 +254,47 @@ needs resolving before treating anything in "Follow-up 1-3" above as
 definitely describing *ACK* failures specifically, rather than some other
 frame type's failures that happen to touch the same shared counter.
 
+## Follow-up 5 (same session): tried to verify SCR13 live - a methodology lesson, and the open question mostly resolved
+
+Added one more debugfs file, `b43ac/scr` (`B43_SHM_SCRATCH` routing,
+`which=5`), to read the D11 core's SCR scratch registers directly from the
+host (`B43_SHM_SCRATCH` is a real routing option, already defined in
+`b43.h`; SCR registers are the same 128-entry scratch file the ISA's `SCR`
+operand type addresses).
+
+**Result: not usable the way I'd hoped.** Induced one isolated failure the
+same way as before (fresh load, `SCR13`/`12`/`14` all read `0` at baseline),
+then immediately read them back: `SCR13=0`, `SCR12=1`, `SCR14=0x35`. Not the
+`0x2D` I expected in `SCR13`. **These are general-purpose scratch
+registers reused constantly by unrelated ucode activity** (background MAC
+housekeeping, other frames' processing) between "the moment of our
+failure" and "the moment our slow host-side debugfs read actually
+executes" - by the time we read it, the register has been overwritten many
+times over by things that have nothing to do with our specific failure.
+Live-peeking a scratch/IHR register after the fact is fundamentally
+unreliable for reconstructing transient per-event state; only an explicit
+ucode-side *latch* (like the diagnostic-record SHM buffer from Follow-up 1,
+which is deliberately guarded so it's written once and never overwritten)
+gives trustworthy per-event data this way.
+
+**This actually resolves most of the open question from Follow-up 4,
+though not the exact frame-type name.** The diagnostic-record save code
+(the `SHM[0xBFA]`-guarded block) lives *inside* the exact block reached via
+the `SCR13`-dispatch path this session traced (from `0x0A8A`'s jump). Since
+we've now confirmed, repeatedly, on real hardware, that this diagnostic
+record *does* get populated during our actual `probeack.sh` failures - and
+there's no other place in the disassembly that writes `SHM[0xBFA]` - our
+real failures **do** provably go through this exact traced code path,
+regardless of what the dispatch value should be called. What's still
+genuinely unresolved is only the *label* (which specific 802.11 frame type
+`0x2D`, or whatever the live value actually is, corresponds to) - not
+whether the investigation in Follow-ups 1-3 was about the right code path.
+(`SCR14=0x35` showing up live, in a test scenario dominated by real ACK
+exchanges, is circumstantially consistent with `0x35` meaning ACK as
+originally guessed for the *other*, non-overlapping dispatch branch - but
+per the above, this is not rigorous confirmation, just a consistent
+coincidence.)
+
 ## Next steps
 
 1. ~~Take 2-3 more samples~~ - done, see above, fully consistent.
