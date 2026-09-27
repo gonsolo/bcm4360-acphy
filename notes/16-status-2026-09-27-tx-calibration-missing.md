@@ -484,3 +484,52 @@ different risk profile than every open-loop register sequence tested
 so far, deserving its own careful, isolated first test rather than
 being bolted onto this same session's already-substantial hardware
 testing).
+
+## Follow-up: found and fixed a real design gap in the tone test - sustained tone, still no detectable signal
+
+Started planning the single-candidate measurement test using the
+now-resolved `local_e8` table, and re-reading the exact register
+sequence surfaced a real bug in the *previous* tone test's design:
+`b43_phy_ac_txcal_gen_tone()` restores all 7 playback-control registers
+(`0x460-0x463/0x471/0x382/0x400`) immediately after triggering. wl's own
+algorithm leaves the tone *running* and only tears it down, much later,
+via `wlc_phy_stopplayback_acphy()`, after its entire measurement sweep
+completes. So the earlier "sustained tone" test likely wasn't sustained
+at all - it probably self-terminated the tone within microseconds of
+starting it, which would already explain why the loopback-register
+observation showed nothing, independent of the missing `0x380` trigger.
+
+Fixed this properly rather than patching around it: split
+`b43_phy_ac_txcal_gen_tone()` into `_start()` (everything up to and
+including the trigger, does *not* restore the 4 playback registers) and
+`_stop()` (restores them), keeping the original combined function as a
+thin wrapper so `ac_txcal_tone_test`'s already-validated behavior is
+completely unchanged. Added `b43_phy_ac_txcal_tone_sustain_test`: enter
+loopback, start the tone, sample `0x460`/`0x403`/loopback register
+`0x144` (both cores) ten times at 200us intervals (2ms total, bounded),
+explicitly stop, exit loopback. Still purely observational - no writes
+to 899/0x380 at all.
+
+**Result: clean again** - no instability across the run (dmesg showed
+multiple repeated invocations from repeated channel-set calls), 0%
+packet loss on the backup link, clean unload. But **`radio 0x144` still
+read `0000` at every single sample, both cores, throughout the entire
+2ms sustained window**, and `0x460`/`0x403` also stayed at `0000`
+throughout (not obviously indicative of "actively looping," though it's
+unclear whether `0x403` is even supposed to reflect ongoing playback
+versus just the initial trigger's busy window - genuinely uncertain
+which).
+
+**Conclusion for this specific sub-question:** passive reads of the
+loopback-measurement register are a dead end regardless of whether the
+tone is a one-shot blip or genuinely sustained - `0x144` almost
+certainly only reflects something meaningful in response to the actual
+`0x380`-triggered comparison (which arms/latches a specific correction
+candidate against the live signal), not as a general "is there RF
+present" detector. This rules out the shortcut of avoiding the
+candidate-search loop's complexity; getting a real answer requires
+implementing the actual `899`/`0x380` write-trigger-read sequence, not
+just a smarter way to watch passively. That piece (real closed-loop,
+hardware-reactive, branches on its own readings) remains not yet
+implemented, exactly as noted above - now confirmed to be necessary
+rather than an assumption.

@@ -713,6 +713,10 @@ static bool b43_ac_txcal_tone_test;
 module_param_named(ac_txcal_tone_test, b43_ac_txcal_tone_test, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_tone_test, "AC-PHY test: additionally generate one real, brief TX test tone while in RF-loopback mode (vendor wlc_phy_tx_tone_acphy for our exact 2.4GHz call pattern), logging status before/after. Deliberately does NOT replicate wl's own cleanup (wlc_phy_stopplayback_acphy/wlc_phy_resetcca_acphy - both gated on an unresolved wl-internal field) and instead saves/restores all 7 PHY registers this touches verbatim, byte for byte, regardless of what wl's own semantics would do - see notes/16. Highest-risk flag in this project so far: this is a real, brief RF transmission, only ever run with the user physically present.");
 
+static bool b43_ac_txcal_tone_sustain_test;
+module_param_named(ac_txcal_tone_sustain_test, b43_ac_txcal_tone_sustain_test, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_tone_sustain_test, "AC-PHY test: like ac_txcal_tone_test, but does NOT restore the 4 playback-control registers (0x460/0x461/0x462/0x463) right after triggering - wl's own algorithm leaves the tone running and only tears it down after its whole measurement sweep, so ac_txcal_tone_test's immediate restore likely stopped the tone almost instantly. This version leaves it running for a short, bounded, fixed duration while repeatedly sampling the loopback-measurement register (radio 0x144), then explicitly stops it - still no candidate-search writes to 899/0x380, purely observational. See notes/16.");
+
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
  */
@@ -747,6 +751,13 @@ static void b43_phy_ac_txcal_enter_loopback(struct b43_wldev *dev,
 					struct b43_phy_ac_txcal_radiosave *save);
 static void b43_phy_ac_txcal_exit_loopback(struct b43_wldev *dev,
 				const struct b43_phy_ac_txcal_radiosave *save);
+struct b43_phy_ac_txcal_tonesave {
+	u16 r460, r461, r462, r463, r471, r382, r400;
+};
+static void b43_phy_ac_txcal_gen_tone_start(struct b43_wldev *dev,
+					struct b43_phy_ac_txcal_tonesave *save);
+static void b43_phy_ac_txcal_gen_tone_stop(struct b43_wldev *dev,
+				const struct b43_phy_ac_txcal_tonesave *save);
 static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev);
 
 static uint b43_ac_por;
@@ -1190,6 +1201,51 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
 		b43info(dev->wl, "phy_ac: txcal tone test: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
+	if (b43_ac_txcal_tone_sustain_test) {
+		/* See b43_phy_ac_txcal_gen_tone_start's comment: unlike
+		 * ac_txcal_tone_test, this leaves the tone actually playing
+		 * for a short, bounded window (10 samples * 200us = 2ms)
+		 * while repeatedly reading the loopback-measurement register,
+		 * before explicitly stopping it. Still purely observational -
+		 * no writes to 899/0x380 (the actual candidate-search
+		 * registers), so this cannot yet find/apply a real
+		 * correction, only observe whether anything detectable
+		 * changes while a live tone is actually sustained.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+		struct b43_phy_ac_txcal_tonesave tonesave;
+		int i;
+
+		b43info(dev->wl, "phy_ac: txcal tone sustain test: entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43info(dev->wl, "phy_ac: txcal tone sustain test: idle loopbackrd(core0)=%04x core1=%04x\n",
+			b43_radio_read(dev, 0x144),
+			b43_radio_read(dev, 0x144 | 0x200));
+
+		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+
+		for (i = 0; i < 10; i++) {
+			udelay(200);
+			b43info(dev->wl, "phy_ac: txcal tone sustain test: playing[%d] 460=%04x 403=%04x loopbackrd(core0)=%04x core1=%04x\n",
+				i, b43_phy_read(dev, 0x460),
+				b43_phy_read(dev, 0x403),
+				b43_radio_read(dev, 0x144),
+				b43_radio_read(dev, 0x144 | 0x200));
+		}
+
+		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
+		b43info(dev->wl, "phy_ac: txcal tone sustain test: after-stop 460=%04x loopbackrd(core0)=%04x core1=%04x\n",
+			b43_phy_read(dev, 0x460),
+			b43_radio_read(dev, 0x144),
+			b43_radio_read(dev, 0x144 | 0x200));
+
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43info(dev->wl, "phy_ac: txcal tone sustain test: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match 'idle' state)\n",
 			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
@@ -1761,8 +1817,19 @@ static s32 b43_phy_ac_txcal_round15(s32 v)
  * not depend on that unknown at all. This means the chip may not end
  * up in exactly wl's normal post-tone operating state, only back in
  * whatever state it was in immediately before this function ran.
+ *
+ * Split into _start()/_stop(): wl's own algorithm leaves the tone
+ * *running* after this trigger sequence and only tears it down, much
+ * later, after its whole measurement sweep (wlc_phy_stopplayback_acphy).
+ * The original combined b43_phy_ac_txcal_gen_tone() (kept below,
+ * unchanged, for ac_txcal_tone_test) restores all 7 registers
+ * immediately, which likely stops the tone again almost instantly -
+ * fine for testing that the register sequence itself is safe, but not
+ * representative of a sustained, measurable tone. _start()/_stop() let
+ * a caller do something in between while the tone is actually playing.
  */
-static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
+static void b43_phy_ac_txcal_gen_tone_start(struct b43_wldev *dev,
+					struct b43_phy_ac_txcal_tonesave *save)
 {
 	static const int nsamples = 40;	/* 2.4 GHz: iVar16=0x14, *2 */
 	static const int freq = 1000;		/* wl's 2.4 GHz tone param */
@@ -1771,8 +1838,6 @@ static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
 	s32 phase_step;
 	s32 phase = 0;
 	int i;
-	u16 saved_460, saved_461, saved_462, saved_463, saved_471, saved_382;
-	u16 saved_400;
 	unsigned int timeout;
 	struct b43_phy_ac_tbl tbl = {
 		.data = wave, .count = nsamples, .id = 0xe, .offset = 0,
@@ -1792,13 +1857,13 @@ static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
 		phase += phase_step;
 	}
 
-	saved_460 = b43_phy_read(dev, 0x460);
-	saved_461 = b43_phy_read(dev, 0x461);
-	saved_462 = b43_phy_read(dev, 0x462);
-	saved_463 = b43_phy_read(dev, 0x463);
-	saved_471 = b43_phy_read(dev, 0x471);
-	saved_382 = b43_phy_read(dev, 0x382);
-	saved_400 = b43_phy_read(dev, 0x400);
+	save->r460 = b43_phy_read(dev, 0x460);
+	save->r461 = b43_phy_read(dev, 0x461);
+	save->r462 = b43_phy_read(dev, 0x462);
+	save->r463 = b43_phy_read(dev, 0x463);
+	save->r471 = b43_phy_read(dev, 0x471);
+	save->r382 = b43_phy_read(dev, 0x382);
+	save->r400 = b43_phy_read(dev, 0x400);
 
 	b43_phy_ac_write_table(dev, &tbl);
 
@@ -1818,13 +1883,26 @@ static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
 		udelay(10);
 	}
 
-	b43_phy_write(dev, 0x400, saved_400);
-	b43_phy_write(dev, 0x460, saved_460);
-	b43_phy_write(dev, 0x461, saved_461);
-	b43_phy_write(dev, 0x462, saved_462);
-	b43_phy_write(dev, 0x463, saved_463);
-	b43_phy_write(dev, 0x471, saved_471);
-	b43_phy_write(dev, 0x382, saved_382);
+	b43_phy_write(dev, 0x400, save->r400);
+}
+
+static void b43_phy_ac_txcal_gen_tone_stop(struct b43_wldev *dev,
+				const struct b43_phy_ac_txcal_tonesave *save)
+{
+	b43_phy_write(dev, 0x460, save->r460);
+	b43_phy_write(dev, 0x461, save->r461);
+	b43_phy_write(dev, 0x462, save->r462);
+	b43_phy_write(dev, 0x463, save->r463);
+	b43_phy_write(dev, 0x471, save->r471);
+	b43_phy_write(dev, 0x382, save->r382);
+}
+
+static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
+{
+	struct b43_phy_ac_txcal_tonesave save;
+
+	b43_phy_ac_txcal_gen_tone_start(dev, &save);
+	b43_phy_ac_txcal_gen_tone_stop(dev, &save);
 }
 
 #include "phy_ac_replay.h"
