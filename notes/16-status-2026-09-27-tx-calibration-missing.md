@@ -759,3 +759,83 @@ decompile and add `wlc_phy_classifier_acphy`; double check register
 consider whether the loopback path itself has a hardware problem -
 which would itself be a meaningful, novel finding for the broader ACK
 investigation, not a dead end.
+
+## Follow-up: added the classifier switch and a real (not bookkeeping) table-0xC write I'd wrongly skipped - still completely flat
+
+Decompiled `wlc_phy_classifier_acphy` (`decompiled-cal/wlc_phy_classifier_acphy.c`):
+trivially small - a 3-bit mask-and-set on PHY reg `0x140` (`(cur &
+~7) | (7 & 4)`), called by wl as `wlc_phy_classifier_acphy(pi,7,4)`
+right before entering loopback mode. Added it to a new
+`ac_txcal_candidate_test4` (identical to `test3` plus this one call, in
+the right place). **Result: no change** - `radio 0x144` still
+bit-2-clear for every candidate.
+
+While setting this up, re-examined the two `FUN_0019ccd9` calls this
+project had been calling "bookkeeping" and skipping
+(`if ((bVar23-3)<2) FUN_0019ccd9(pi,1,&zero,1,core); if (bVar23==4)
+FUN_0019ccd9(pi,1,&zero,2,core);`, both true for our `bVar23==4` case) -
+and found that was wrong. Extracted `FUN_0019ccd9`'s dispatch table
+(`DAT_00558d60`, 20 entries x 3 bytes, dumped via
+`tools/ghidra_dump_bytes.java`): index 1 decodes to table 0xC offset
+`core*8+0x43`, index 2 to `core*8+0x44`, both with `wlc_phy_table_write_acphy`
+writing the caller's zero-initialized buffer. **These are real table
+writes, not bookkeeping** - they clear two table-0xC entries
+immediately before the candidate sweep begins, for exactly our test
+case. A stale, never-cleared value there is a very plausible reason a
+comparator could be reading garbage and always reporting "pass"
+regardless of the actual 899 candidate - matching the symptom seen in
+every version of this test so far.
+
+Added `b43_phy_ac_table_write16(dev, 0xc, 0x43, 0)` and `..., 0x44, 0)`
+right before the candidate sweep in `b43_phy_ac_txcal_measure_candidates()`
+(applies to every test that calls it, `test` through `test4`). Rebuilt,
+reloaded with `ac_txcal_candidate_test4` (now the most complete
+version: loopback, full per-core setup, classifier switch, settle
+pulse, gain override, the two table-0xC clears, sustained tone,
+candidate sweep).
+
+**Result: still completely flat.** `radio 0x144` read bit-2-clear for
+all 6 candidates, identically, across every invocation, exactly as
+every prior version of this test. No instability, 0% packet loss on
+the backup link, clean unload.
+
+**Where this leaves things.** Every single piece of `FUN_001ac9b6`'s
+setup and per-sample context that this project has been able to find,
+decompile, and safely port (without touching BCMA_IOCTL) is now
+present: RF-loopback mode, the full per-core PHY register
+reconfiguration (hand-verified bit-exact), the classifier-mode switch,
+the settle pulse, the gain-table exercise, both table-0xC clears
+immediately before the sweep, and a genuinely sustained live tone. The
+measurement still does not differentiate across 6 different correction
+candidates, at all, ever.
+
+At this point a uniform, non-differentiating comparator reading looks
+less like "one more piece of setup is missing" (the working hypothesis
+for every earlier round) and more like one of two things: either (a)
+this port still misunderstands what register 0x144 / bit 2 actually
+represents (possible, but every other register-address resolution this
+session cross-checked against independent evidence - `notes/05`'s
+independent phy-rev finding, the hand-verified per-core setup values -
+has held up exactly), or (b) **the loopback/comparator path itself has
+a real hardware problem**, consistent with - and arguably a stronger,
+more specific version of - this whole investigation's oldest finding
+(`notes/15`: zero ACKs ever detected over the air despite firmware
+believing it sent ~120). If the TX front-end genuinely isn't producing
+usable RF, a calibration comparator would plausibly read exactly this
+way: no real signal to differentiate candidates against, so every
+candidate looks equally "fine."
+
+**This is still not proof of anything** - it is a completion of the
+"does this port's calibration measurement mechanism work at all"
+question (answer, currently: apparently not, even with everything
+known ported faithfully), which is a different question from "is
+calibration the actual root cause of the ACK failure." But it is a real
+update: this session's TX-calibration hypothesis is now less favored
+than it was at the start of today, precisely because implementing it
+as completely as currently possible didn't produce the kind of
+signal-dependent behavior a working calibration measurement should
+show. Worth treating the next session's default assumption as "probably
+not calibration specifically" rather than "almost certainly calibration"
+- without discarding it entirely, since the classifier/table-0xC gaps
+just closed are exactly the kind of thing that could still be hiding
+one more missing piece.

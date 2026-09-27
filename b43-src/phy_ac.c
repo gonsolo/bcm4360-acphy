@@ -733,6 +733,10 @@ static bool b43_ac_txcal_setup_test;
 module_param_named(ac_txcal_setup_test, b43_ac_txcal_setup_test, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_setup_test, "AC-PHY test: exercises ONLY b43_phy_ac_txcal_measure_setup_enter()/_exit() in isolation (~110 register writes across both cores, the largest single register-write surface added in this project so far), immediately back to back, logging a few representative registers before/after - a round-trip-safety check run before combining this block with the tone/candidate-sweep test in ac_txcal_candidate_test3, matching this project's established practice of testing each new risky piece standalone first. No tone, no candidate sweep, no loft-comp writes. See notes/16.");
 
+static bool b43_ac_txcal_candidate_test4;
+module_param_named(ac_txcal_candidate_test4, b43_ac_txcal_candidate_test4, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_candidate_test4, "AC-PHY test: like ac_txcal_candidate_test3, but adds the one remaining piece of FUN_001ac9b6's setup context that wasn't yet ported: wlc_phy_classifier_acphy(pi,7,4), a trivial 3-bit mask-and-set on PHY reg 0x140 (already saved/restored by test3, now actually exercised) that vendor code runs immediately before entering RF-loopback mode - likely disables normal RX signal classification during calibration. PHY-register only, not BCMA_IOCTL. If the candidate sweep still reads uniformly after this, every known piece of setup this project can decompile is in place. See notes/16.");
+
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
  */
@@ -1437,6 +1441,49 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
 
+	if (b43_ac_txcal_candidate_test4) {
+		/* Same as candidate_test3, plus wlc_phy_classifier_acphy(pi,7,4)
+		 * (decompiled-cal/wlc_phy_classifier_acphy.c: PHY reg 0x140,
+		 * mask=7 set=4) right before entering loopback, matching
+		 * vendor's real call order exactly.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+		struct b43_phy_ac_txcal_tonesave tonesave;
+		struct b43_phy_ac_txcal_gainsave gainsave;
+		struct b43_phy_ac_txcal_setupsave setupsave;
+		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
+		u8 core, cores = b43_phy_ac_num_cores(dev);
+		u16 saved140 = b43_phy_read(dev, 0x140);
+
+		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
+			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
+			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
+		}
+
+		b43_phy_maskset(dev, 0x140, ~7, 4);
+		b43info(dev->wl, "phy_ac: txcal candidate test4: classifier set, entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
+		b43_phy_ac_txcal_settle_pulse(dev);
+		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		b43info(dev->wl, "phy_ac: txcal candidate test4: setup done, starting tone\n");
+
+		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_measure_candidates(dev);
+		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
+		b43info(dev->wl, "phy_ac: txcal candidate test4: tone stopped\n");
+
+		b43_phy_ac_txcal_restore_gaintbl(dev, &gainsave);
+		b43_phy_ac_txcal_measure_setup_exit(dev, &setupsave);
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43_phy_write(dev, 0x140, saved140);
+		b43info(dev->wl, "phy_ac: txcal candidate test4: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
 	return 0;
 }
 
@@ -2115,8 +2162,20 @@ static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
  * exit). Sweeps and logs all 6 unconditionally: the point of this test
  * is to see how the measurement register responds at all, not to find
  * or apply a real correction - nothing here writes to the loft-comp
- * table. Also skips the FUN_0019ccd9 bookkeeping calls wl makes in this
- * loop (they only matter for collecting/committing a result).
+ * table. Skips most of the FUN_0019ccd9 bookkeeping calls wl makes in
+ * this loop (they only matter for collecting/committing a result) -
+ * EXCEPT two that turn out to be real, not bookkeeping: for our exact
+ * case (bVar23 = (trigger>>8)&0xf = 4), wl's per-sample setup runs
+ * `FUN_0019ccd9(pi,1,&zero,1,core)` and `FUN_0019ccd9(pi,1,&zero,2,
+ * core)` right before the candidate sweep - decoded via
+ * decompiled-cal/FUN_0019ccd9.c's dispatch table (extracted from
+ * DAT_00558d60, see notes/16): index 1 -> table 0xc offset
+ * `core*8+0x43`, index 2 -> `core*8+0x44`, both writing 0. Initially
+ * mis-classified as pure bookkeeping and skipped - they're real table
+ * writes that could plausibly be exactly the missing precondition for
+ * a differentiated reading (a stale, never-cleared value there could
+ * make the comparator return "pass" unconditionally, matching the
+ * uniform result seen so far).
  */
 static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
 {
@@ -2124,6 +2183,8 @@ static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
 	static const u16 trigger = 0x423 | 0x8000; /* local_e8[0] | 0x8000 */
 	int i;
 
+	b43_phy_ac_table_write16(dev, 0xc, 0x43, 0);
+	b43_phy_ac_table_write16(dev, 0xc, 0x44, 0);
 	b43_phy_write(dev, 0x381, 0x7976);
 
 	for (i = 0; i < 6; i++) {
