@@ -839,3 +839,56 @@ not calibration specifically" rather than "almost certainly calibration"
 - without discarding it entirely, since the classifier/table-0xC gaps
 just closed are exactly the kind of thing that could still be hiding
 one more missing piece.
+
+## Follow-up: swept ALL 6 real outer-sample candidates, not just one - completely flat across the whole real table
+
+Raised an important objection to the previous round's conclusion before
+trusting it: a uniform "pass" (bit 2 clear) could just mean outer
+sample 0's specific candidate (`0x423`) happens to always be within
+tolerance on genuinely healthy hardware, with the real
+pass/fail transition only visible at other entries in wl's actual
+6-entry table (`local_e8 = {0x423,0x334,0x73,0x267,0x45,0x234}`) - not
+necessarily evidence of anything wrong. Testing only entry 0 couldn't
+distinguish "this port has a problem" from "this specific candidate is
+simply always fine."
+
+Refactored `b43_phy_ac_txcal_measure_candidates()` into
+`_outer(dev, outer)` (parameterised) plus a new
+`_sweep()` that runs all 6 real `local_e8` entries, each against all 6
+inner 899 candidates - 36 total readings, using wl's actual real
+candidate table in full, not a cherry-picked slice. New
+`ac_txcal_candidate_test5` (identical to `test4`'s full setup, just
+calling the sweep instead of the single-outer version).
+
+**Result: completely flat across all 36 combinations.** Every single
+outer/inner pairing read `radio144=0000, bit2=0`, with `0x380` echoing
+back exactly the outer value written each time (confirming the writes
+themselves land correctly) and zero packet loss / zero instability
+throughout. This directly answers the objection above: it is not that
+outer sample 0 happens to be an easy pass - **none of wl's real
+candidate values, across the full realistic range this project's
+resolved `phy+0x164==1` table actually contains, ever produce anything
+but "pass."**
+
+This meaningfully strengthens last round's tentative conclusion. With
+the *entire* real candidate space tested, not just one point in it, a
+completely non-differentiating reading is now much harder to explain as
+"testing the wrong range" and much more consistent with either (a) a
+persistent misunderstanding of register `0x144`'s actual semantics for
+this chip, or (b) a genuine problem in the loopback/comparator
+measurement path on this hardware. Combined with `notes/15`'s
+independent finding (zero ACKs ever detected over the air), explanation
+(b) is now the more parsimonious reading of the accumulated evidence
+this project has gathered across two genuinely different investigative
+angles (an OTA capture and a from-scratch calibration-measurement port)
+landing on a similar conclusion: something in the TX front-end's actual
+RF path, not just its calibration, looks broken.
+
+**Still not proof.** This project has not yet independently confirmed
+`0x144`/bit 2's exact meaning against real chip documentation (none
+exists publicly for this hardware) or a second, independently-derived
+measurement path. But two increasingly specific, independent lines of
+evidence now point the same direction, and continuing to treat "we just
+haven't ported enough of the calibration algorithm yet" as the leading
+explanation is no longer well supported by what's actually been tested
+today.

@@ -737,6 +737,10 @@ static bool b43_ac_txcal_candidate_test4;
 module_param_named(ac_txcal_candidate_test4, b43_ac_txcal_candidate_test4, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_candidate_test4, "AC-PHY test: like ac_txcal_candidate_test3, but adds the one remaining piece of FUN_001ac9b6's setup context that wasn't yet ported: wlc_phy_classifier_acphy(pi,7,4), a trivial 3-bit mask-and-set on PHY reg 0x140 (already saved/restored by test3, now actually exercised) that vendor code runs immediately before entering RF-loopback mode - likely disables normal RX signal classification during calibration. PHY-register only, not BCMA_IOCTL. If the candidate sweep still reads uniformly after this, every known piece of setup this project can decompile is in place. See notes/16.");
 
+static bool b43_ac_txcal_candidate_test5;
+module_param_named(ac_txcal_candidate_test5, b43_ac_txcal_candidate_test5, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_candidate_test5, "AC-PHY test: identical setup to ac_txcal_candidate_test4, but sweeps all 6 entries of the real local_e8 outer-sample table (b43_phy_ac_txcal_measure_candidates_sweep) instead of just entry 0 (36 total 899/0x380/radio144 readings instead of 6) - checks whether the flat result seen on every version of this test so far is specific to outer sample 0 or holds across wl's whole real candidate table. See notes/16.");
+
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
  */
@@ -780,6 +784,7 @@ static void b43_phy_ac_txcal_gen_tone_stop(struct b43_wldev *dev,
 				const struct b43_phy_ac_txcal_tonesave *save);
 static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev);
 static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev);
+static void b43_phy_ac_txcal_measure_candidates_sweep(struct b43_wldev *dev);
 
 struct b43_phy_ac_txcal_setupsave {
 	u16 t73e[B43_PHY_AC_TXCAL_MAX_CORES];
@@ -1484,6 +1489,48 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
 
+	if (b43_ac_txcal_candidate_test5) {
+		/* Identical to candidate_test4, but sweeps all 6 outer-sample
+		 * candidates instead of just entry 0 - see this flag's
+		 * MODULE_PARM_DESC.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+		struct b43_phy_ac_txcal_tonesave tonesave;
+		struct b43_phy_ac_txcal_gainsave gainsave;
+		struct b43_phy_ac_txcal_setupsave setupsave;
+		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
+		u8 core, cores = b43_phy_ac_num_cores(dev);
+		u16 saved140 = b43_phy_read(dev, 0x140);
+
+		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
+			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
+			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
+		}
+
+		b43_phy_maskset(dev, 0x140, ~7, 4);
+		b43info(dev->wl, "phy_ac: txcal candidate test5: classifier set, entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
+		b43_phy_ac_txcal_settle_pulse(dev);
+		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		b43info(dev->wl, "phy_ac: txcal candidate test5: setup done, starting tone\n");
+
+		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+		b43_phy_ac_txcal_measure_candidates_sweep(dev);
+		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
+		b43info(dev->wl, "phy_ac: txcal candidate test5: tone stopped\n");
+
+		b43_phy_ac_txcal_restore_gaintbl(dev, &gainsave);
+		b43_phy_ac_txcal_measure_setup_exit(dev, &setupsave);
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43_phy_write(dev, 0x140, saved140);
+		b43info(dev->wl, "phy_ac: txcal candidate test5: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
 	return 0;
 }
 
@@ -2177,10 +2224,11 @@ static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
  * make the comparator return "pass" unconditionally, matching the
  * uniform result seen so far).
  */
-static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
+static void b43_phy_ac_txcal_measure_candidates_outer(struct b43_wldev *dev,
+						       u16 outer)
 {
 	static const u8 inner[6] = { 0x3d, 0x1e, 0x0f, 0x07, 0x03, 0x01 };
-	static const u16 trigger = 0x423 | 0x8000; /* local_e8[0] | 0x8000 */
+	u16 trigger = outer | 0x8000;
 	int i;
 
 	b43_phy_ac_table_write16(dev, 0xc, 0x43, 0);
@@ -2201,13 +2249,37 @@ static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
 		}
 
 		v144 = b43_radio_read(dev, 0x144);
-		b43info(dev->wl, "phy_ac: txcal candidate test: 899=%02x -> 380=%04x radio144=%04x bit2=%d\n",
-			inner[i], b43_phy_read(dev, 0x380), v144,
+		b43info(dev->wl, "phy_ac: txcal candidate test: outer=%04x 899=%02x -> 380=%04x radio144=%04x bit2=%d\n",
+			outer, inner[i], b43_phy_read(dev, 0x380), v144,
 			(v144 & 4) != 0);
 
 		b43_phy_set(dev, 0x73a, 0x100);
 		b43_phy_mask(dev, 0x73a, ~0x100);
 	}
+}
+
+static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
+{
+	b43_phy_ac_txcal_measure_candidates_outer(dev, 0x423);
+}
+
+/*
+ * Sweeps ALL 6 entries of local_e8 (the phy+0x164==1, param_4==0
+ * candidate table this project resolved two rounds ago), not just
+ * entry 0, to check whether the flat bit-2-clear result seen so far is
+ * specific to outer sample 0's parameters or holds across the whole
+ * real table. If even one entry shows bit 2 ever set, the measurement
+ * mechanism is working and outer sample 0 was simply always a "pass";
+ * if all 6 are flat too, that is much stronger evidence something is
+ * genuinely wrong rather than this test just probing the wrong range.
+ */
+static void b43_phy_ac_txcal_measure_candidates_sweep(struct b43_wldev *dev)
+{
+	static const u16 local_e8[6] = { 0x423, 0x334, 0x73, 0x267, 0x45, 0x234 };
+	int i;
+
+	for (i = 0; i < 6; i++)
+		b43_phy_ac_txcal_measure_candidates_outer(dev, local_e8[i]);
 }
 
 /*
