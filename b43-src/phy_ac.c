@@ -761,7 +761,7 @@ struct b43_phy_ac_txcal_gainsave {
 
 static void b43_phy_ac_txcal_save_gaintbl(struct b43_wldev *dev,
 					   struct b43_phy_ac_txcal_gainsave *save,
-					   const u16 new_gain[][3]);
+					   const u16 new_gain[][4]);
 static void b43_phy_ac_txcal_restore_gaintbl(struct b43_wldev *dev,
 					const struct b43_phy_ac_txcal_gainsave *save);
 static void b43_phy_ac_txcal_settle_pulse(struct b43_wldev *dev);
@@ -1154,9 +1154,9 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		 */
 		struct b43_phy_ac_txcal_gainsave save;
 		struct b43_phy_ac_txcal_radiosave radiosave;
-		static const u16 test_gain[4][3] = {
-			{ 0x1234, 0x1234, 0x1234 }, { 0x1234, 0x1234, 0x1234 },
-			{ 0x1234, 0x1234, 0x1234 }, { 0x1234, 0x1234, 0x1234 },
+		static const u16 test_gain[4][4] = {
+			{ 0x1234, 0x1234, 0x1234, 0x1234 }, { 0x1234, 0x1234, 0x1234, 0x1234 },
+			{ 0x1234, 0x1234, 0x1234, 0x1234 }, { 0x1234, 0x1234, 0x1234, 0x1234 },
 		};
 
 		/* Read-only: verifies the resolved register addresses for the
@@ -1345,20 +1345,25 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		struct b43_phy_ac_txcal_radiosave radiosave;
 		struct b43_phy_ac_txcal_tonesave tonesave;
 		struct b43_phy_ac_txcal_gainsave gainsave;
-		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
-		u8 core, cores = b43_phy_ac_num_cores(dev);
-
-		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
-			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
-			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
-			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
-		}
+		/* Real calibration-tone gain values, confirmed against a real
+		 * wl trace for our exact 2-core board (see notes/20) -
+		 * replaces the earlier "read current value back" no-op.
+		 */
+		static const u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][4] = {
+			{ 0xff00, 0x47ff, 0xa7, 0x41 },
+			{ 0xff00, 0x27ff, 0xa7, 0x40 },
+		};
 
 		b43info(dev->wl, "phy_ac: txcal candidate test2: entering loopback\n");
 		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
 
 		b43_phy_ac_txcal_settle_pulse(dev);
 		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		/* FUN_001ac9b6 line 609, confirmed in a real wl trace (notes/20):
+		 * a single PHY reg 0x382 write, between the gain-table
+		 * override and the per-core table-0xC clears / tone start.
+		 */
+		b43_phy_write(dev, 0x382, 0x8a09);
 		b43info(dev->wl, "phy_ac: txcal candidate test2: after settle+gain-override (no-op values), starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
@@ -1442,15 +1447,15 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		struct b43_phy_ac_txcal_tonesave tonesave;
 		struct b43_phy_ac_txcal_gainsave gainsave;
 		struct b43_phy_ac_txcal_setupsave setupsave;
-		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
-		u8 core, cores = b43_phy_ac_num_cores(dev);
+		/* Real calibration-tone gain values, confirmed against a real
+		 * wl trace for our exact 2-core board (see notes/20) -
+		 * replaces the earlier "read current value back" no-op.
+		 */
+		static const u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][4] = {
+			{ 0xff00, 0x47ff, 0xa7, 0x41 },
+			{ 0xff00, 0x27ff, 0xa7, 0x40 },
+		};
 		u16 saved140 = b43_phy_read(dev, 0x140);
-
-		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
-			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
-			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
-			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
-		}
 
 		b43info(dev->wl, "phy_ac: txcal candidate test3: entering loopback\n");
 		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
@@ -1458,6 +1463,11 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
 		b43_phy_ac_txcal_settle_pulse(dev);
 		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		/* FUN_001ac9b6 line 609, confirmed in a real wl trace (notes/20):
+		 * a single PHY reg 0x382 write, between the gain-table
+		 * override and the per-core table-0xC clears / tone start.
+		 */
+		b43_phy_write(dev, 0x382, 0x8a09);
 		b43info(dev->wl, "phy_ac: txcal candidate test3: setup done, starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
@@ -1484,15 +1494,15 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		struct b43_phy_ac_txcal_tonesave tonesave;
 		struct b43_phy_ac_txcal_gainsave gainsave;
 		struct b43_phy_ac_txcal_setupsave setupsave;
-		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
-		u8 core, cores = b43_phy_ac_num_cores(dev);
+		/* Real calibration-tone gain values, confirmed against a real
+		 * wl trace for our exact 2-core board (see notes/20) -
+		 * replaces the earlier "read current value back" no-op.
+		 */
+		static const u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][4] = {
+			{ 0xff00, 0x47ff, 0xa7, 0x41 },
+			{ 0xff00, 0x27ff, 0xa7, 0x40 },
+		};
 		u16 saved140 = b43_phy_read(dev, 0x140);
-
-		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
-			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
-			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
-			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
-		}
 
 		b43_phy_maskset(dev, 0x140, ~7, 4);
 		b43info(dev->wl, "phy_ac: txcal candidate test4: classifier set, entering loopback\n");
@@ -1501,6 +1511,11 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
 		b43_phy_ac_txcal_settle_pulse(dev);
 		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		/* FUN_001ac9b6 line 609, confirmed in a real wl trace (notes/20):
+		 * a single PHY reg 0x382 write, between the gain-table
+		 * override and the per-core table-0xC clears / tone start.
+		 */
+		b43_phy_write(dev, 0x382, 0x8a09);
 		b43info(dev->wl, "phy_ac: txcal candidate test4: setup done, starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
@@ -1526,15 +1541,15 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		struct b43_phy_ac_txcal_tonesave tonesave;
 		struct b43_phy_ac_txcal_gainsave gainsave;
 		struct b43_phy_ac_txcal_setupsave setupsave;
-		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
-		u8 core, cores = b43_phy_ac_num_cores(dev);
+		/* Real calibration-tone gain values, confirmed against a real
+		 * wl trace for our exact 2-core board (see notes/20) -
+		 * replaces the earlier "read current value back" no-op.
+		 */
+		static const u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][4] = {
+			{ 0xff00, 0x47ff, 0xa7, 0x41 },
+			{ 0xff00, 0x27ff, 0xa7, 0x40 },
+		};
 		u16 saved140 = b43_phy_read(dev, 0x140);
-
-		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
-			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
-			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
-			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
-		}
 
 		b43_phy_maskset(dev, 0x140, ~7, 4);
 		b43info(dev->wl, "phy_ac: txcal candidate test5: classifier set, entering loopback\n");
@@ -1543,6 +1558,11 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
 		b43_phy_ac_txcal_settle_pulse(dev);
 		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		/* FUN_001ac9b6 line 609, confirmed in a real wl trace (notes/20):
+		 * a single PHY reg 0x382 write, between the gain-table
+		 * override and the per-core table-0xC clears / tone start.
+		 */
+		b43_phy_write(dev, 0x382, 0x8a09);
 		b43info(dev->wl, "phy_ac: txcal candidate test5: setup done, starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
@@ -1568,15 +1588,15 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		struct b43_phy_ac_txcal_tonesave tonesave;
 		struct b43_phy_ac_txcal_gainsave gainsave;
 		struct b43_phy_ac_txcal_setupsave setupsave;
-		u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][3];
-		u8 core, cores = b43_phy_ac_num_cores(dev);
+		/* Real calibration-tone gain values, confirmed against a real
+		 * wl trace for our exact 2-core board (see notes/20) -
+		 * replaces the earlier "read current value back" no-op.
+		 */
+		static const u16 new_gain[B43_PHY_AC_TXCAL_MAX_CORES][4] = {
+			{ 0xff00, 0x47ff, 0xa7, 0x41 },
+			{ 0xff00, 0x27ff, 0xa7, 0x40 },
+		};
 		u16 saved140 = b43_phy_read(dev, 0x140);
-
-		for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
-			new_gain[core][0] = b43_phy_ac_table_read16(dev, 7, core + 0x100);
-			new_gain[core][1] = b43_phy_ac_table_read16(dev, 7, core + 0x103);
-			new_gain[core][2] = b43_phy_ac_table_read16(dev, 7, core + 0x106);
-		}
 
 		b43_phy_maskset(dev, 0x140, ~7, 4);
 		b43info(dev->wl, "phy_ac: txcal candidate test6: classifier set, entering loopback\n");
@@ -1585,6 +1605,11 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_txcal_measure_setup_enter(dev, &setupsave);
 		b43_phy_ac_txcal_settle_pulse(dev);
 		b43_phy_ac_txcal_save_gaintbl(dev, &gainsave, new_gain);
+		/* FUN_001ac9b6 line 609, confirmed in a real wl trace (notes/20):
+		 * a single PHY reg 0x382 write, between the gain-table
+		 * override and the per-core table-0xC clears / tone start.
+		 */
+		b43_phy_write(dev, 0x382, 0x8a09);
 		b43info(dev->wl, "phy_ac: txcal candidate test6: setup done, starting tone\n");
 
 		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
@@ -1858,11 +1883,21 @@ static const u16 b43_phy_ac_txcal_tbl0xc_off2[B43_PHY_AC_TXCAL_MAX_CORES] = {
 
 /* decompiled-cal/FUN_0019d3ac.c: save each core's current TX gain-table
  * (table 7) entry and its paired table-0xC entry, then overwrite table 7
- * with the calibration-tone gain settings from "new_gain".
+ * AND table 0xC with the calibration-tone gain settings from "new_gain".
+ *
+ * CORRECTED against a real wl trace (traces/wl-init-20260927-184726.trace,
+ * see notes/20): this function originally only overrode table 7 and left
+ * table 0xC completely untouched (only ever saving the old value for
+ * later restore) - a real gap, not a simplification. wl's actual
+ * FUN_0019d3ac also calls FUN_0019d224 to write a 4th value into BOTH of
+ * table 0xC's paired offsets (b43_phy_ac_txcal_tbl0xc_off[core] and
+ * _off2[core] - confirmed identical in the trace, matching
+ * FUN_0019d224.c writing the same source value to both). new_gain now
+ * carries that 4th value per core.
  */
 static void b43_phy_ac_txcal_save_gaintbl(struct b43_wldev *dev,
 					   struct b43_phy_ac_txcal_gainsave *save,
-					   const u16 new_gain[][3])
+					   const u16 new_gain[][4])
 {
 	u8 core, cores = b43_phy_ac_num_cores(dev);
 	u16 saved19e = b43_phy_read(dev, 0x19e);
@@ -1879,6 +1914,12 @@ static void b43_phy_ac_txcal_save_gaintbl(struct b43_wldev *dev,
 		b43_phy_ac_table_write16(dev, 7, core + 0x100, new_gain[core][0]);
 		b43_phy_ac_table_write16(dev, 7, core + 0x103, new_gain[core][1]);
 		b43_phy_ac_table_write16(dev, 7, core + 0x106, new_gain[core][2]);
+		b43_phy_ac_table_write16(dev, 0xc,
+					  b43_phy_ac_txcal_tbl0xc_off[core],
+					  new_gain[core][3]);
+		b43_phy_ac_table_write16(dev, 0xc,
+					  b43_phy_ac_txcal_tbl0xc_off2[core],
+					  new_gain[core][3]);
 	}
 
 	b43_phy_maskset(dev, 0x19e, ~0x2, saved19e & 0x2);
@@ -2329,14 +2370,26 @@ static void b43_phy_ac_txcal_measure_candidates_outer(struct b43_wldev *dev,
 	}
 }
 
+/*
+ * CORRECTED against a real wl trace (traces/wl-init-20260927-184726.trace,
+ * captured live during a real association - see notes/20): wl's actual
+ * first outer-sample write to reg 0x380 was 0x8434 (outer=0x434), not
+ * 0x423. That's `local_d8` (param_2=='\0' branch, phy+0x164==1), not
+ * `local_e8` (param_2!='\0') as this project originally guessed - i.e.
+ * wl's real call here has `local_51` (param_2) == 0, not 1. Every other
+ * observed value (0x381=0x7976, the 0x43/0x44 table-0xC clears, the
+ * candidate byte 0x3d, the 0x461/0x462/0x463 tone-trigger values)
+ * matched this project's port exactly, byte for byte - only this one
+ * table selection was wrong.
+ */
 static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
 {
-	b43_phy_ac_txcal_measure_candidates_outer(dev, 0x423);
+	b43_phy_ac_txcal_measure_candidates_outer(dev, 0x434);
 }
 
 /*
- * Sweeps ALL 6 entries of local_e8 (the phy+0x164==1, param_4==0
- * candidate table this project resolved two rounds ago), not just
+ * Sweeps ALL 6 entries of local_d8 (see the corrected derivation in
+ * b43_phy_ac_txcal_measure_candidates's comment just above), not just
  * entry 0, to check whether the flat bit-2-clear result seen so far is
  * specific to outer sample 0's parameters or holds across the whole
  * real table. If even one entry shows bit 2 ever set, the measurement
@@ -2346,11 +2399,11 @@ static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
  */
 static void b43_phy_ac_txcal_measure_candidates_sweep(struct b43_wldev *dev)
 {
-	static const u16 local_e8[6] = { 0x423, 0x334, 0x73, 0x267, 0x45, 0x234 };
+	static const u16 local_d8[6] = { 0x434, 0x334, 0x84, 0x267, 0x56, 0x234 };
 	int i;
 
 	for (i = 0; i < 6; i++)
-		b43_phy_ac_txcal_measure_candidates_outer(dev, local_e8[i]);
+		b43_phy_ac_txcal_measure_candidates_outer(dev, local_d8[i]);
 }
 
 /*
