@@ -206,6 +206,54 @@ not confirmed safe to write (unlike the extended port, which ucode itself
 already demonstrated is a safe target), so left alone rather than risk
 disrupting live TX-engine state for an experiment.
 
+## Follow-up 4 (same session): backward-traced the callers - a real correction
+
+Followed the user's request to backward-trace what calls into the error
+block (0xC2A onward). Found two external entry points at 0x0A5F/0x0A60/
+0x0A8A, which land in a **long `JE SCR13, <const>, <target>` dispatch
+chain** (0x0A76-0x0A90ish) - a switch-style dispatch on a value in
+scratch register SCR13. Traced SCR13's only write site (0x0976-0x097A):
+it's derived from `IHR_MHP_CFC` (0x259, d11emu's name: "MAC Header Parser -
+**Contained Frame Control**") via a `SRX` extract (bits [7:2], i.e.
+whatever 6 bits sit above the low 2) then an `ORX` that shifts it back up
+and forces the low 2 bits to a fixed `01`. **This is a dispatch keyed on a
+hardware-parsed frame-control-like field of some frame** - i.e. this whole
+region handles frames by *type*, not a generic "any PHY TX error" handler.
+
+Decoding *which* frame type each SCR13 constant represents (assuming
+standard 802.11 FC-byte bit positions: bits 2-3=Type, bits 4-7=Subtype)
+worked cleanly for confirming that different constants clearly separate:
+**`SCR13=0x35` takes a *different*, non-overlapping code path (entry at
+`0xB7F`) than `SCR13=0x2D`** (our previously-traced path into `0xC2A` ->
+`0xC49`/`0xC58`'s `txphyerr++`). I is *not* confident about the specific
+frame name for `0x2D`, though - working the exact type/subtype bits back
+out of the final SCR13 value gave an inconsistent result (a reserved/
+invalid Type=3), so something about the exact bit-repacking isn't fully
+pinned down; don't trust a specific "this is frame X" label from this
+session's decode without redoing that arithmetic carefully.
+
+**What is solid, and matters**: `0xB7F`'s block (traced through ~0xBE5) is
+clearly TX-*preparation* code - it writes what look like PLCP/rate
+parameters into IHR registers (0x70-0x74, a different block than
+`IHR_TXE_*`) and polls one of them for completion, the classic
+"kick off a transmission" pattern - and **it never touches `txphyerr` (SHM
+0x7F) anywhere in the portion traced**. Whatever frame type `0x35` is, its
+handling is structurally different from - and doesn't feed into - the path
+this whole investigation (notes/12 onward) has been examining.
+
+**Open question this creates**: is `0xC2A`/`txphyerr++` actually reached,
+in our real test failures, via this SCR13 frame-type dispatch at all (in
+which case the diagnostic record and `TXE_STATUS` correlation found earlier
+this session describe a *specific frame type's* failure, not "ACK
+generation" generically) - or is it reached via a *separate* path, e.g. the
+genuine `B43_IRQ_PHY_TXERR` hardware interrupt's own handler, which happens
+to converge on the same address for unrelated bookkeeping reasons? Haven't
+traced the actual PHY-TX-error interrupt vector itself (only reasoned
+backward from one code path that happens to lead to the same address). This
+needs resolving before treating anything in "Follow-up 1-3" above as
+definitely describing *ACK* failures specifically, rather than some other
+frame type's failures that happen to touch the same shared counter.
+
 ## Next steps
 
 1. ~~Take 2-3 more samples~~ - done, see above, fully consistent.
