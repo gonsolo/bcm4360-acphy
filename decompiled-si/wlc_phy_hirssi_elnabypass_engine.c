@@ -31,24 +31,24 @@ void wlc_phy_hirssi_elnabypass_engine(long param_1)
     return;
   }
   if (sVar5 < 0) {
-    cVar3 = FUN_00193240(param_1);
+    cVar3 = func_0x00193240(param_1);
     if (cVar3 != '\0') {
       sVar5 = (short)*(undefined4 *)(lVar1 + 0x908);
       bVar2 = true;
-      goto LAB_0019c5e6;
+      goto code_r0x0019c5e6;
     }
   }
   else {
     sVar5 = sVar5 + -1;
     if (sVar5 == -1) {
-      cVar3 = FUN_00193240(param_1);
+      cVar3 = func_0x00193240(param_1);
       bVar2 = true;
-      if (cVar3 == '\0') goto LAB_0019c5e6;
+      if (cVar3 == '\0') goto code_r0x0019c5e6;
       sVar5 = (short)*(undefined4 *)(lVar1 + 0x908);
     }
   }
   bVar2 = false;
-LAB_0019c5e6:
+code_r0x0019c5e6:
   if ((*(ushort *)(param_1 + 0x17e) & 0xc000) == 0) {
     *(short *)(lVar1 + 0x914) = sVar5;
   }
