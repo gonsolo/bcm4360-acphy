@@ -717,6 +717,10 @@ static bool b43_ac_txcal_tone_sustain_test;
 module_param_named(ac_txcal_tone_sustain_test, b43_ac_txcal_tone_sustain_test, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_tone_sustain_test, "AC-PHY test: like ac_txcal_tone_test, but does NOT restore the 4 playback-control registers (0x460/0x461/0x462/0x463) right after triggering - wl's own algorithm leaves the tone running and only tears it down after its whole measurement sweep, so ac_txcal_tone_test's immediate restore likely stopped the tone almost instantly. This version leaves it running for a short, bounded, fixed duration while repeatedly sampling the loopback-measurement register (radio 0x144), then explicitly stops it - still no candidate-search writes to 899/0x380, purely observational. See notes/16.");
 
+static bool b43_ac_txcal_candidate_test;
+module_param_named(ac_txcal_candidate_test, b43_ac_txcal_candidate_test, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_candidate_test, "AC-PHY test: the first closed-loop, hardware-reactive piece in this project - while a sustained test tone plays in RF-loopback mode, writes each of wl's real 6 candidate values to PHY reg 899, triggers a comparison via reg 0x380 (using the now phy+0x164-resolved candidate 0x423, core 0 - vendor FUN_001ac9b6's inner sweep, single outer sample only, not wl's full generation-counter-driven loop), and reads back radio reg 0x144's bit 2. Deliberately does NOT stop at the first candidate that clears bit 2 like wl does - sweeps and logs all 6 for full diagnostic visibility, since the point here is observing the measurement mechanism itself, not finding/applying a real correction (nothing gets written to the loft-comp table). See notes/16.");
+
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
  */
@@ -759,6 +763,7 @@ static void b43_phy_ac_txcal_gen_tone_start(struct b43_wldev *dev,
 static void b43_phy_ac_txcal_gen_tone_stop(struct b43_wldev *dev,
 				const struct b43_phy_ac_txcal_tonesave *save);
 static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev);
+static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev);
 
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
@@ -1246,6 +1251,33 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
 		b43info(dev->wl, "phy_ac: txcal tone sustain test: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match 'idle' state)\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+	}
+
+	if (b43_ac_txcal_candidate_test) {
+		/* First closed-loop, hardware-reactive test in this project -
+		 * see b43_phy_ac_txcal_measure_candidates's comment for the
+		 * full derivation. Combines everything validated so far:
+		 * loopback mode, a sustained tone, then the real
+		 * measurement-trigger sequence while the tone plays.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+		struct b43_phy_ac_txcal_tonesave tonesave;
+
+		b43info(dev->wl, "phy_ac: txcal candidate test: entering loopback\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+
+		b43info(dev->wl, "phy_ac: txcal candidate test: starting tone\n");
+		b43_phy_ac_txcal_gen_tone_start(dev, &tonesave);
+
+		b43_phy_ac_txcal_measure_candidates(dev);
+
+		b43_phy_ac_txcal_gen_tone_stop(dev, &tonesave);
+		b43info(dev->wl, "phy_ac: txcal candidate test: tone stopped\n");
+
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43info(dev->wl, "phy_ac: txcal candidate test: after-exit-loopback 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match loopback test's 'before')\n",
 			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
@@ -1903,6 +1935,63 @@ static void b43_phy_ac_txcal_gen_tone(struct b43_wldev *dev)
 
 	b43_phy_ac_txcal_gen_tone_start(dev, &save);
 	b43_phy_ac_txcal_gen_tone_stop(dev, &save);
+}
+
+/*
+ * decompiled-cal/FUN_001ac9b6.c's inner per-candidate measurement loop
+ * (lines ~701-746), specialised to a single outer sample rather than
+ * wl's full loop (whose bounds depend on a persistent, never-ported
+ * "generation counter" in the calibration state struct - see notes/16).
+ *
+ * Derivation for our exact board (2.4 GHz, phy+0x16e==0, phy+0x164==1,
+ * confirmed hardware values, not guesses - see notes/16):
+ *   - local_168 = 0 (band 0x17e&0x3800 is neither 0x2000 nor 0x1800)
+ *     -> register 0x381 = CONCAT11(local_58[0]=0x79, local_48[0]=0x76)
+ *        = 0x7976 (our else-branch constants from lines 156-169).
+ *   - phy+0x164==1 with param_4==0 (our call pattern, matching wl's
+ *     real phases 2-12) resolves local_150 to local_e8 =
+ *     {0x423,0x334,0x73,0x267,0x45,0x234} - using only the first entry
+ *     (0x423) here, i.e. outer sample 0, core 0 (uVar28=0).
+ *   - The inner 899-candidate sweep, phy+0x16e==0 branch: the 6 bytes
+ *     {local_a8,local_a7,...,local_a3} = {0x3d,0x1e,0xf,7,3,1}.
+ *
+ * Deliberately does NOT stop at the first candidate where radio 0x144
+ * bit 2 clears (what wl itself does - that's its "found a correction"
+ * exit). Sweeps and logs all 6 unconditionally: the point of this test
+ * is to see how the measurement register responds at all, not to find
+ * or apply a real correction - nothing here writes to the loft-comp
+ * table. Also skips the FUN_0019ccd9 bookkeeping calls wl makes in this
+ * loop (they only matter for collecting/committing a result).
+ */
+static void b43_phy_ac_txcal_measure_candidates(struct b43_wldev *dev)
+{
+	static const u8 inner[6] = { 0x3d, 0x1e, 0x0f, 0x07, 0x03, 0x01 };
+	static const u16 trigger = 0x423 | 0x8000; /* local_e8[0] | 0x8000 */
+	int i;
+
+	b43_phy_write(dev, 0x381, 0x7976);
+
+	for (i = 0; i < 6; i++) {
+		unsigned int timeout;
+		u16 v144;
+
+		b43_phy_write(dev, 899, inner[i]);
+		b43_phy_write(dev, 0x380, trigger);
+
+		for (timeout = 0x4e29; timeout != 9; timeout -= 10) {
+			if (!(b43_phy_read(dev, 0x380) & 0xc000))
+				break;
+			udelay(10);
+		}
+
+		v144 = b43_radio_read(dev, 0x144);
+		b43info(dev->wl, "phy_ac: txcal candidate test: 899=%02x -> 380=%04x radio144=%04x bit2=%d\n",
+			inner[i], b43_phy_read(dev, 0x380), v144,
+			(v144 & 4) != 0);
+
+		b43_phy_set(dev, 0x73a, 0x100);
+		b43_phy_mask(dev, 0x73a, ~0x100);
+	}
 }
 
 #include "phy_ac_replay.h"

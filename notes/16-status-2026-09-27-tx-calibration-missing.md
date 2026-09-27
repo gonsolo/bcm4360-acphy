@@ -533,3 +533,78 @@ just a smarter way to watch passively. That piece (real closed-loop,
 hardware-reactive, branches on its own readings) remains not yet
 implemented, exactly as noted above - now confirmed to be necessary
 rather than an assumption.
+
+## Follow-up: the real closed-loop candidate-search test - clean, but degenerate result
+
+Implemented `b43_phy_ac_txcal_measure_candidates()`: the actual inner
+per-candidate measurement loop from `FUN_001ac9b6` (lines ~701-746),
+scoped to a single outer sample rather than wl's full loop (whose bounds
+depend on a persistent "generation counter" this project has never
+ported - see below). Derived, for our exact hardware-confirmed state
+(`phy+0x16e==0`, `phy+0x164==1`, band 0):
+
+- `local_168=0` -> PHY register `0x381 = CONCAT11(0x79,0x76) = 0x7976`.
+- `phy+0x164==1`, `param_4==0` -> candidate table `local_e8 =
+  {0x423,0x334,0x73,0x267,0x45,0x234}` - used only entry 0 (`0x423`,
+  core 0) here, i.e. a single outer sample, not the full table.
+- Inner 899-sweep (`phy+0x16e==0` branch): `{0x3d,0x1e,0xf,7,3,1}`.
+
+For each of the 6 inner values: write PHY reg `899`, write PHY reg
+`0x380 = 0x423|0x8000 = 0x8423` (trigger), poll `0x380` bit 0xc000 clear
+(same ~20ms/candidate bound as wl), read radio `0x144`, log everything.
+Deliberately does **not** stop at the first candidate where bit 2 clears
+like wl does - sweeps and logs all 6 regardless, for full diagnostic
+visibility, and skips wl's `FUN_0019ccd9` bookkeeping calls (they only
+matter for collecting/committing a result, and nothing here commits
+anything). Combined with the now-working sustained tone: enter
+loopback, start tone, run the candidate sweep, stop tone, exit loopback.
+
+New `ac_txcal_candidate_test` module parameter - the first closed-loop,
+hardware-reactive test in this project (writes based on fixed inputs,
+but the *real* algorithm branches on what it reads back; this test
+doesn't branch, but exercises the same read-after-write sequence for
+the first time).
+
+**Result: no instability** - clean load/unload, 0% packet loss on the
+backup link throughout, no warnings/oops in dmesg, each candidate's
+write-trigger-poll-read completed in under a millisecond (poll condition
+already satisfied immediately every time, consistent with every prior
+poll in this session). But: **`radio 0x144` read `0000` (bit 2 clear)
+for every single one of the 6 candidates, identically, across every
+invocation.** Not "clear for the right one and set for the others" -
+uniformly clear regardless of the 899 value written.
+
+**This is a real, if inconclusive, result - and worth being precise
+about what it does and doesn't mean.** A register that reads bit 2
+clear no matter what gets written to 899 is not behaving like a genuine
+comparator reacting to 6 different input values - it looks like either
+(a) a stuck/default read with nothing live behind it, or (b) a
+measurement path that isn't actually wired into a "compare against
+live signal" state in our simplified setup. The most likely explanation
+is (b): this test deliberately skipped several pieces of context wl's
+real algorithm sets up before this exact loop - the large per-core PHY
+register save/reconfigure block (`FUN_001ac9b6` lines ~199-278, ~15
+registers per core, still unported), the TX gain-table override for the
+calibration tone (`b43_phy_ac_txcal_save_gaintbl`, already written but
+not called from this test), and the settle pulse
+(`b43_phy_ac_txcal_settle_pulse`, likewise not called here). Any of
+these could plausibly be a precondition for register `0x144` to reflect
+a real, live comparison rather than a fixed idle value. **This result
+should not be read as "the measurement register is broken" or as any
+kind of evidence about the ACK bug - it most likely just means this
+specific simplified test omitted a precondition**, the same way the
+very first passive read (before any tone existed) was inconclusive for
+a different, now-resolved reason.
+
+**What a responsible next step looks like:** wire in the
+already-written, already-individually-tested gain-table override and
+settle pulse immediately before this candidate sweep (both are
+individually validated pieces from earlier this session - see the
+`ac_txcal_test` results above), and re-run the same candidate sweep to
+see whether `radio 0x144` starts producing differentiated results
+across the 6 candidates. If it still doesn't, the remaining, larger
+per-core setup block becomes the next candidate to port. This is still
+squarely in "does our port of the measurement mechanism work at all"
+territory - no conclusion about the calibration hypothesis itself
+should be drawn from either this result or the next one, only about
+whether the port is complete enough to produce a genuine measurement.
