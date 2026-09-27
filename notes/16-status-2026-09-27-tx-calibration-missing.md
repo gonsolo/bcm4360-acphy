@@ -164,6 +164,43 @@ session with the user present, per the reasoning above - writing more of
 it blind wouldn't reduce risk, it would just accumulate more untested code
 before the first real validation point.
 
+## Follow-up: first live hardware test of the draft code (user explicitly authorized testing solo)
+
+The user explicitly said to try hardware feedback even while away, having
+already been told the risk reasoning above. Kept the scope narrow: wired a
+new `ac_txcal_test` module parameter that exercises *only* the three
+already-drafted, non-RF pieces (gain-table save/restore, settle pulse,
+ramp-table writer) with before/after values logged via `b43info`/dmesg -
+deliberately still not touching the RF-loopback-mode switch, tone
+generation, or the measurement sweep, all of which remain unwritten and
+are the genuinely higher-risk parts.
+
+**Result: no instability whatsoever** (no crash, no hang, no dropped
+connectivity, panic-on-hang sysctls set beforehand as an extra safety net
+per this project's established practice). Real, useful feedback:
+
+- **Save/restore round-trips exactly**: `before = after-restore = 0000
+  0000 0000` on every one of 5 channel-set invocations logged.
+- **Ramp-table writer produces exactly the hand-computed value** (`0x0100`
+  for a 50%-scaled `{3,0}` ramp step - matches `(3*50/100)<<8|0` exactly).
+- **One genuine hardware discovery**: writing a test value of `0x1234` to
+  the third table-7 field (`core+0x106`) reads back as `0x0034` - only the
+  low 8 bits took effect, even though both wl's own decompiled code and
+  this port pass the generic 16-bit width parameter for it. This isn't a
+  bug in the save/restore logic (the restore step still returned to the
+  exact original value regardless), but it's a real, concrete fact about
+  that specific field's actual width that wasn't visible from
+  decompilation alone - worth remembering if that field's value ever
+  needs to be reasoned about precisely (e.g. when eventually computing
+  real calibration-tone gain values for it).
+
+This is genuine confirmation that this slice of the port is correct and
+safe on real hardware. It does not yet tell us anything about the ACK bug
+itself - none of what's tested here touches RF, tone generation, or the
+loopback-mode switch, so no conclusion about the calibration hypothesis
+should be drawn from this test succeeding. It's groundwork validation,
+not a result.
+
 ## What a responsible next session should do
 
 1. Decompile the remaining sub-functions listed above, especially

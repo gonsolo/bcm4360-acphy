@@ -701,6 +701,29 @@ MODULE_PARM_DESC(ac_rfseq, "AC-PHY test: force the RF sequencer through its RX-c
 static void b43_phy_ac_rxcore_setstate(struct b43_wldev *dev, u8 mask);
 static void b43_phy_ac_force_rfseq(struct b43_wldev *dev, u8 which);
 
+static bool b43_ac_txcal_test;
+module_param_named(ac_txcal_test, b43_ac_txcal_test, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_test, "AC-PHY test: exercise the untested TX-cal gain-table save/restore, settle pulse, and ramp-table draft code and log before/after register values (no live TX/tone, see notes/16)");
+
+/* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
+ * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
+ */
+#define B43_PHY_AC_TXCAL_MAX_CORES 4
+
+struct b43_phy_ac_txcal_gainsave {
+	u16 tbl7[B43_PHY_AC_TXCAL_MAX_CORES][3];
+	u16 tbl0xc[B43_PHY_AC_TXCAL_MAX_CORES];
+};
+
+static void b43_phy_ac_txcal_save_gaintbl(struct b43_wldev *dev,
+					   struct b43_phy_ac_txcal_gainsave *save,
+					   const u16 new_gain[][3]);
+static void b43_phy_ac_txcal_restore_gaintbl(struct b43_wldev *dev,
+					const struct b43_phy_ac_txcal_gainsave *save);
+static void b43_phy_ac_txcal_settle_pulse(struct b43_wldev *dev);
+static void b43_phy_ac_txcal_ramp_table(struct b43_wldev *dev, u16 percent);
+static u16 b43_phy_ac_table_read16(struct b43_wldev *dev, u16 id, u16 offset);
+
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
 /* ac_por bits beyond the first-load classes: 0x40 skip vcocal after the
@@ -1024,6 +1047,48 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_rxcore_setstate(dev, (1 << cores) - 1);
 	}
 
+	if (b43_ac_txcal_test) {
+		/* Exercises only the already-drafted, non-RF pieces of the TX
+		 * calibration code (notes/16): table save/restore, the settle
+		 * pulse, and the ramp-table writer. Deliberately does NOT
+		 * touch the RF-loopback-mode switch or generate any tone -
+		 * those aren't ported yet. Logs before/after values so a live
+		 * dmesg read is enough to see whether the code round-trips
+		 * correctly; does not change device behavior once done since
+		 * everything it touches gets restored.
+		 */
+		struct b43_phy_ac_txcal_gainsave save;
+		static const u16 test_gain[4][3] = {
+			{ 0x1234, 0x1234, 0x1234 }, { 0x1234, 0x1234, 0x1234 },
+			{ 0x1234, 0x1234, 0x1234 }, { 0x1234, 0x1234, 0x1234 },
+		};
+
+		b43info(dev->wl, "phy_ac: txcal test: before, tbl7[0]=%04x %04x %04x\n",
+			b43_phy_ac_table_read16(dev, 7, 0x100),
+			b43_phy_ac_table_read16(dev, 7, 0x103),
+			b43_phy_ac_table_read16(dev, 7, 0x106));
+
+		b43_phy_ac_txcal_save_gaintbl(dev, &save, test_gain);
+		b43info(dev->wl, "phy_ac: txcal test: after override, tbl7[0]=%04x %04x %04x (want 1234 1234 1234)\n",
+			b43_phy_ac_table_read16(dev, 7, 0x100),
+			b43_phy_ac_table_read16(dev, 7, 0x103),
+			b43_phy_ac_table_read16(dev, 7, 0x106));
+
+		b43_phy_ac_txcal_settle_pulse(dev);
+		b43info(dev->wl, "phy_ac: txcal test: settle pulse done\n");
+
+		b43_phy_ac_txcal_ramp_table(dev, 50);
+		b43info(dev->wl, "phy_ac: txcal test: ramp table at 50%%, tbl0xc[0]=%04x tbl0xc[0x20]=%04x\n",
+			b43_phy_ac_table_read16(dev, 0xc, 0),
+			b43_phy_ac_table_read16(dev, 0xc, 0x20));
+
+		b43_phy_ac_txcal_restore_gaintbl(dev, &save);
+		b43info(dev->wl, "phy_ac: txcal test: after restore, tbl7[0]=%04x %04x %04x (want match 'before')\n",
+			b43_phy_ac_table_read16(dev, 7, 0x100),
+			b43_phy_ac_table_read16(dev, 7, 0x103),
+			b43_phy_ac_table_read16(dev, 7, 0x106));
+	}
+
 	return 0;
 }
 
@@ -1266,16 +1331,6 @@ static void b43_phy_ac_table_write16(struct b43_wldev *dev, u16 id, u16 offset,
 	b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, offset);
 	b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1, value);
 }
-
-/* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
- * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
- */
-#define B43_PHY_AC_TXCAL_MAX_CORES 4
-
-struct b43_phy_ac_txcal_gainsave {
-	u16 tbl7[B43_PHY_AC_TXCAL_MAX_CORES][3];
-	u16 tbl0xc[B43_PHY_AC_TXCAL_MAX_CORES];
-};
 
 /* decompiled-cal/FUN_00199491.c: per-core table-0xC offset for the single
  * saved entry (the "0x63" set; FUN_0019d224.c writes both the "0x63" and
