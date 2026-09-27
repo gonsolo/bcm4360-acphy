@@ -683,6 +683,12 @@ module_param_named(ac_init_state, b43_ac_init_state, bool, 0444);
 MODULE_PARM_DESC(ac_init_state, "AC-PHY: apply wl's captured state at PHY init (else on the first switch to channel 6)");
 static void b43_radio_2069_vcocal(struct b43_wldev *dev);
 
+static bool b43_ac_rfseq;
+module_param_named(ac_rfseq, b43_ac_rfseq, bool, 0444);
+MODULE_PARM_DESC(ac_rfseq, "AC-PHY test: force the RF sequencer through its RX-core-state settling steps on channel set (vendor wlc_phy_rxcore_setstate_acphy, unported)");
+static void b43_phy_ac_rxcore_setstate(struct b43_wldev *dev, u8 mask);
+static void b43_phy_ac_force_rfseq(struct b43_wldev *dev, u8 which);
+
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
 /* ac_por bits beyond the first-load classes: 0x40 skip vcocal after the
@@ -995,6 +1001,17 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43_phy_ac_rfctrl_wl(dev);
 
 	b43_phy_ac_resetcca(dev);
+
+	if (b43_ac_rfseq) {
+		u8 cores = b43_phy_ac_num_cores(dev);
+
+		/* vendor FUN_001aeb3a (real channel/PLL tuning) fires this,
+		 * unconditionally, before anything else in the tune - untested
+		 * standalone. See notes/11. */
+		b43_phy_ac_force_rfseq(dev, 2);
+		b43_phy_ac_rxcore_setstate(dev, (1 << cores) - 1);
+	}
+
 	return 0;
 }
 
@@ -1113,6 +1130,78 @@ static void b43_phy_ac_first_init(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x358, 0xc07f);
 
 	b43info(dev->wl, "phy_ac: first-init registers done\n");
+}
+
+/*
+ * Force one RF-sequencer settling step and wait for hardware to signal
+ * completion (vendor wlc_phy_force_rfseq_acphy). `which` selects one of 6
+ * vendor-defined steps, each a single bit in PHY 0x402/0x403; case values
+ * and their bits come straight from the decompiled switch. Only called from
+ * b43_phy_ac_rxcore_setstate() with which=0 and which=1, matching the
+ * vendor's own only call site.
+ */
+static void b43_phy_ac_force_rfseq(struct b43_wldev *dev, u8 which)
+{
+	static const u16 seq_bit[6] = { 1, 2, 0x20, 4, 8, 0x10 };
+	u16 save400, save19e, bit;
+	int i;
+
+	if (which >= ARRAY_SIZE(seq_bit))
+		return;
+	bit = seq_bit[which];
+
+	save400 = b43_phy_read(dev, 0x400);
+	save19e = b43_phy_read(dev, 0x19e);
+	b43_phy_set(dev, 0x19e, 0x2);
+	b43_phy_set(dev, 0x19e, 0x1);
+	b43_phy_set(dev, 0x400, 0x3);
+	b43_phy_set(dev, 0x402, bit);
+	for (i = 200009; i != 9; i -= 10) {
+		if (!(b43_phy_read(dev, 0x403) & bit))
+			break;
+		udelay(10);
+	}
+	b43_phy_write(dev, 0x400, save400);
+	b43_phy_write(dev, 0x19e, save19e);
+}
+
+/*
+ * Configure the PHY's active RX-core state and run the RF sequencer's
+ * settling steps for it (vendor wlc_phy_rxcore_setstate_acphy). Never
+ * called by wl until the channel-set tail decides the active core count
+ * changed; we always run it once per channel switch, which is a superset
+ * of what's needed and harmless (MAC is suspended throughout).
+ *
+ * Untested hypothesis (ac_rfseq): this step is entirely missing from our
+ * port, and its absence may leave the analog front-end's per-core gain/LNA
+ * state unsettled in a way that's invisible to host-generated TX (which has
+ * extra software latency to settle in) but causes the firmware's own fast,
+ * autonomous transmissions (ACK, beacon) to fail probabilistically. See
+ * notes/10 and notes/11.
+ */
+static void b43_phy_ac_rxcore_setstate(struct b43_wldev *dev, u8 mask)
+{
+	u16 save400, save401;
+
+	b43_mac_suspend(dev);
+
+	save400 = b43_phy_read(dev, 0x400);
+	save401 = b43_phy_read(dev, 0x401);
+
+	b43_phy_maskset(dev, 0x160, ~0x7, mask);
+	b43_phy_maskset(dev, 0x401, ~0x70, (u16)mask << 4);
+	b43_phy_set(dev, 0x401, 0x7000);
+	b43_phy_mask(dev, 0x401, ~0x7);
+	b43_phy_set(dev, 0x400, 0x1);
+
+	b43_phy_ac_force_rfseq(dev, 0);
+	b43_phy_ac_force_rfseq(dev, 1);
+
+	b43_phy_maskset(dev, 0x401, ~0x7, mask);
+	b43_phy_maskset(dev, 0x401, ~0x7000, save401 & 0x7000);
+	b43_phy_write(dev, 0x400, save400);
+
+	b43_mac_enable(dev);
 }
 
 #include "phy_ac_replay.h"
