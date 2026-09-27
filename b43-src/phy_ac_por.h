@@ -60,10 +60,20 @@ static const u16 b43_ac_por_radio[][2] = {
 	{ 0x08e0, 0x0005 },
 	{ 0x08e1, 0x001e },
 	{ 0x08dd, 0x0a09 },
-	{ 0x08e6, 0x00b4 },
-	{ 0x08e7, 0xe666 },
-	{ 0x08c4, 0x02d3 },
-	{ 0x08c5, 0x9999 },
+	/* This whole block is wl's radio state as captured on its very first
+	 * boot, which associates on channel 1 before anything else runs.
+	 * Registers that are also part of the per-channel synthesizer tune
+	 * (b43_radio_2069_tune_regs[]) genuinely differ between channel 1
+	 * and channel 6, and this table runs *after* the correct channel-6
+	 * tune in switch_channel() - applying channel 1's values here was
+	 * silently detuning the radio back to channel 1 on every channel-6
+	 * switch. Skipped (0xffff) rather than deleted, to keep the
+	 * original captured values visible; the real per-channel tune
+	 * already covers these. */
+	{ 0xffff, 0x00b4 }, /* 0x08e6, channel-1 value */
+	{ 0xffff, 0xe666 }, /* 0x08e7, channel-1 value */
+	{ 0xffff, 0x02d3 }, /* 0x08c4, channel-1 value */
+	{ 0xffff, 0x9999 }, /* 0x08c5, channel-1 value */
 	{ 0x08eb, 0x0488 },
 	{ 0x08d6, 0x0cef },
 	{ 0x0113, 0x0000 },
@@ -78,22 +88,22 @@ static const u16 b43_ac_por_radio[][2] = {
 	{ 0x08c9, 0x0006 },
 	{ 0x08ca, 0x0006 },
 	{ 0x08cc, 0xff06 },
-	{ 0x08c7, 0xffea },
-	{ 0x08c8, 0xeaf0 },
+	{ 0xffff, 0xffea }, /* 0x08c7, channel-1 value */
+	{ 0xffff, 0xeaf0 }, /* 0x08c8, channel-1 value */
 	{ 0x0892, 0xd068 },
-	{ 0x0894, 0x3e7a },
-	{ 0x0895, 0x3f3d },
-	{ 0x0896, 0x1da4 },
-	{ 0x0897, 0x0ed2 },
-	{ 0x0899, 0x3e7a },
-	{ 0x089a, 0x3f3d },
-	{ 0x089b, 0x1da4 },
-	{ 0x089c, 0x0ed2 },
-	{ 0x0112, 0x0790 },
-	{ 0x0629, 0x20e9 },
-	{ 0x065b, 0x037f },
-	{ 0x065e, 0x0005 },
-	{ 0x0668, 0x0074 },
+	{ 0xffff, 0x3e7a }, /* 0x0894, channel-1 value */
+	{ 0xffff, 0x3f3d }, /* 0x0895, channel-1 value */
+	{ 0xffff, 0x1da4 }, /* 0x0896, channel-1 value */
+	{ 0xffff, 0x0ed2 }, /* 0x0897, channel-1 value */
+	{ 0xffff, 0x3e7a }, /* 0x0899, channel-1 value */
+	{ 0xffff, 0x3f3d }, /* 0x089a, channel-1 value */
+	{ 0xffff, 0x1da4 }, /* 0x089b, channel-1 value */
+	{ 0xffff, 0x0ed2 }, /* 0x089c, channel-1 value */
+	{ 0xffff, 0x0790 }, /* 0x0112, channel-1 value */
+	{ 0xffff, 0x20e9 }, /* 0x0629, channel-1 value */
+	{ 0xffff, 0x037f }, /* 0x065b, channel-1 value - the one first found by direct RX test */
+	{ 0xffff, 0x0005 }, /* 0x065e, channel-1 value */
+	{ 0xffff, 0x0074 }, /* 0x0668, channel-1 value */
 	{ 0x011a, 0x0000 },
 	{ 0x011b, 0x0000 },
 	{ 0x0719, 0x0000 },
