@@ -705,6 +705,10 @@ static bool b43_ac_txcal_test;
 module_param_named(ac_txcal_test, b43_ac_txcal_test, bool, 0444);
 MODULE_PARM_DESC(ac_txcal_test, "AC-PHY test: exercise the untested TX-cal gain-table save/restore, settle pulse, and ramp-table draft code and log before/after register values (no live TX/tone, see notes/16)");
 
+static bool b43_ac_txcal_loopback_test;
+module_param_named(ac_txcal_loopback_test, b43_ac_txcal_loopback_test, bool, 0444);
+MODULE_PARM_DESC(ac_txcal_loopback_test, "AC-PHY test: additionally enter and immediately exit the untested RF-loopback calibration mode, logging register values before/during/after (documented best-guess for 2 unresolved wl-internal conditions, no tone/live TX, see notes/16 - separate flag from ac_txcal_test since this one writes to live RF front-end registers)");
+
 /* wl supports up to 4 cores in this code path (decompiled-cal/FUN_00199491.c,
  * FUN_0019d224.c index a 4-entry table); our board only ever uses 2.
  */
@@ -735,6 +739,10 @@ struct b43_phy_ac_txcal_radiosave {
 };
 static void b43_phy_ac_txcal_read_radiosave(struct b43_wldev *dev,
 					struct b43_phy_ac_txcal_radiosave *save);
+static void b43_phy_ac_txcal_enter_loopback(struct b43_wldev *dev,
+					struct b43_phy_ac_txcal_radiosave *save);
+static void b43_phy_ac_txcal_exit_loopback(struct b43_wldev *dev,
+				const struct b43_phy_ac_txcal_radiosave *save);
 
 static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
@@ -1116,6 +1124,30 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 			b43_phy_ac_table_read16(dev, 7, 0x100),
 			b43_phy_ac_table_read16(dev, 7, 0x103),
 			b43_phy_ac_table_read16(dev, 7, 0x106));
+	}
+
+	if (b43_ac_txcal_loopback_test) {
+		/* Separate, higher-risk flag: writes to live RF front-end
+		 * registers using a documented best-guess for 2 unresolved
+		 * wl-internal conditions (see b43_phy_ac_txcal_enter_loopback's
+		 * comment). Enters loopback mode, logs the result, then
+		 * immediately exits/restores - no tone, no live TX.
+		 */
+		struct b43_phy_ac_txcal_radiosave radiosave;
+
+		b43info(dev->wl, "phy_ac: txcal loopback test: entering\n");
+		b43_phy_ac_txcal_enter_loopback(dev, &radiosave);
+		b43info(dev->wl, "phy_ac: txcal loopback test: before core0 1a=%04x 1f=%04x 1e=%04x 170=%04x\n",
+			radiosave.r1a[0], radiosave.r1f[0], radiosave.r1e[0],
+			radiosave.r170_or_184[0]);
+		b43info(dev->wl, "phy_ac: txcal loopback test: after-enter core0 1a=%04x 1f=%04x 1e=%04x 170=%04x (want 1a low nibble of top byte=8, 1f bit2=0, 1e bit2=1, 170 bit8=0 bit14=1)\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+
+		b43_phy_ac_txcal_exit_loopback(dev, &radiosave);
+		b43info(dev->wl, "phy_ac: txcal loopback test: after-exit core0 1a=%04x 1f=%04x 1e=%04x 170=%04x (want match 'before')\n",
+			b43_radio_read(dev, 0x1a), b43_radio_read(dev, 0x1f),
+			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
 
 	return 0;
@@ -1517,22 +1549,30 @@ static void b43_phy_ac_txcal_ramp_table(struct b43_wldev *dev, u16 percent)
 }
 
 /*
- * decompiled-cal/FUN_0019454f.c, READ HALF ONLY (lines 16-66) - the seven
- * per-core radio registers wl saves before switching the RF front-end into
- * its on-chip TX-calibration loopback mode. Chip-ID branches resolved to
- * their fixed BCM4360 values (this file is hardcoded for our exact chip
- * everywhere else). The actual loopback-mode WRITES (FUN_0019454f.c lines
- * 67-152 / FUN_00195603.c) are deliberately not ported yet: they depend on
- * BOTH the still-unresolved phy+0x16e field AND a second wl-internal
- * condition (phy+0x17e & 0xc000) that selects which register values to
- * write, and stacking two unconfirmed guesses on code that reconfigures
- * live RF front-end bias/routing is a bigger risk than this project has
- * taken with anything tested solo so far. This function only *reads* -
- * read-only register access has been done extensively and safely all
- * session (debugfs phy/radio/shm/ihr/scr) and carries none of that risk;
- * it exists to verify the register-address resolution against real
- * hardware (do these read back plausible values, not garbage) before
- * anything writes to them.
+ * decompiled-cal/FUN_0019454f.c (enter) / FUN_00195603.c (exit) - switches
+ * the RF front-end into its on-chip TX-calibration loopback mode. Chip-ID
+ * branches resolved to their fixed BCM4360 values (this file is hardcoded
+ * for our exact chip everywhere else).
+ *
+ * Two wl-internal conditions needed resolving, since they're software
+ * state (not hardware registers) and can't just be read:
+ *
+ *  - phy+0x17e & 0xc000: cross-checked against ~10 other decompiled
+ *    functions that test the same mask (FUN_0019a2eb.c, FUN_0019a398.c,
+ *    FUN_0019b279.c, FUN_0019bc45.c, ...), all treating it as a
+ *    multi-valued field with 0 and 0xc000 as the two ends - consistent
+ *    with the standard Broadcom chanspec bandwidth sub-field (bits 14-15:
+ *    20/40/80/some-widest-class). Our test config is always 2.4 GHz/20 MHz,
+ *    so this should be 0, not 0xc000 - taking the "else" branch below.
+ *    This is also the branch consistent with what was already measured
+ *    live: baseline radio 0x1f reads back with bit 2 clear, matching
+ *    exactly what this branch's "mod_radio_reg(0x1f,4,0)" targets.
+ *  - phy+0x16e: still not resolved from any decompiled source (see
+ *    notes/16). Assumed 0 (the branch reached by default/first in every
+ *    if-else that tests this field throughout the whole decompiled
+ *    corpus) - a genuine, documented guess, not a confirmed fact. If the
+ *    read-back values captured by the test path below don't look sane,
+ *    this is the first thing to reconsider.
  */
 static void b43_phy_ac_txcal_read_radiosave(struct b43_wldev *dev,
 					struct b43_phy_ac_txcal_radiosave *save)
@@ -1548,11 +1588,48 @@ static void b43_phy_ac_txcal_read_radiosave(struct b43_wldev *dev,
 		save->r1e[core] = b43_radio_read(dev, 0x1e | c9);
 		save->r1f[core] = b43_radio_read(dev, 0x1f | c9);
 		save->r24[core] = b43_radio_read(dev, 0x24 | c9);
-		/* phy+0x16e unresolved: wl reads either (0x170|c9) or
-		 * (c9|0x184) here depending on it. Reading both is harmless
-		 * (read-only) and lets a live comparison inform which one
-		 * looks like the real saved value later. */
+		/* Assuming phy+0x16e == 0 (see block comment above): the
+		 * saved/restored register here is (0x170|c9), not (c9|0x184). */
 		save->r170_or_184[core] = b43_radio_read(dev, 0x170 | c9);
+	}
+}
+
+static void b43_phy_ac_txcal_enter_loopback(struct b43_wldev *dev,
+					struct b43_phy_ac_txcal_radiosave *save)
+{
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+
+	b43_phy_ac_txcal_read_radiosave(dev, save);
+
+	for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+		u16 c9 = (u16)core << 9;
+
+		/* "else" (non-0xc000-bandwidth) branch of FUN_0019454f.c. */
+		b43_radio_maskset(dev, 0x1a | c9, ~0xf0, 0x80);
+		b43_radio_maskset(dev, 0x1f | c9, ~4, 0);
+		b43_radio_maskset(dev, 0x170 | c9, ~0x100, 0);
+		b43_radio_maskset(dev, 0x170 | c9, ~0x4000, 0x4000);
+		b43_radio_maskset(dev, 0x1e | c9, ~4, 4);
+		b43_radio_maskset(dev, 0x1a | c9, ~0x300, 0);
+		/* phy+0x16e == '\x01' branch skipped: assumed 0, not 1. */
+	}
+}
+
+static void b43_phy_ac_txcal_exit_loopback(struct b43_wldev *dev,
+				const struct b43_phy_ac_txcal_radiosave *save)
+{
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+
+	for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+		u16 c9 = (u16)core << 9;
+
+		b43_radio_write(dev, 0x1a | c9, save->r1a[core]);
+		b43_radio_write(dev, 0x1b | c9, save->r1b[core]);
+		b43_radio_write(dev, 0x1c | c9, save->r1c[core]);
+		b43_radio_write(dev, 0x1e | c9, save->r1e[core]);
+		b43_radio_write(dev, 0x1f | c9, save->r1f[core]);
+		b43_radio_write(dev, 0x24 | c9, save->r24[core]);
+		b43_radio_write(dev, 0x170 | c9, save->r170_or_184[core]);
 	}
 }
 

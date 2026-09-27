@@ -258,3 +258,54 @@ from behavior once the write side is attempted.
    investing further porting effort in; if it changes nothing, it would be
    the first real evidence *against* this theory rather than just another
    untested guess.
+
+## Follow-up: full loopback-mode enter/exit write test (user authorized continuing solo)
+
+Resolved the `phy+0x17e & 0xc000` unknown by cross-referencing ~10 other
+decompiled functions (`FUN_0019a2eb`, `FUN_0019a398`, `FUN_0019b279`,
+`FUN_0019bc45`) that test the same mask: it's the standard Broadcom
+chanspec bandwidth sub-field (bits 14-15), and for our 20 MHz test
+scenario it's `0`, not `0xc000` - so the "else" branch of
+`FUN_0019454f`/`FUN_00195603` is the right one. This is corroborated by
+the earlier read-only finding (notes above): `0x1f` already reads back
+with bit 2 clear, exactly what the else-branch write would set.
+
+`phy+0x16e` (register `0x170` vs `0x184` for the 8th saved/restored
+register) remains an unconfirmed guess - assumed `0` (register `0x170`),
+documented as the first thing to revisit if results look wrong.
+
+Wrote `b43_phy_ac_txcal_enter_loopback()` / `_exit_loopback()` into
+`phy_ac.c` (full port of `FUN_0019454f`/`FUN_00195603`'s else-branch
+logic), gated behind a new, separate `ac_txcal_loopback_test` module
+parameter (kept distinct from `ac_txcal_test` since this one writes to
+live RF front-end bias/routing registers, not just digital table/gain
+state). Test block: enter loopback mode, log core-0 registers, exit
+immediately, log again - no tone, no live TX.
+
+**Result: exact match on every documented expectation.**
+
+```
+before core0:      1a=0004 1f=0000 1e=0010 170=0000
+after-enter core0: 1a=0084 1f=0000 1e=0014 170=4000
+  (want: 1a low nibble of top byte=8 -> yes (0x84);
+         1f bit2=0 -> yes; 1e bit2=1 -> yes (0x14 has bit2 set);
+         170 bit8=0 -> yes; 170 bit14=1 -> yes (0x4000))
+after-exit core0:  1a=0004 1f=0000 1e=0010 170=0000  (matches 'before' exactly)
+```
+
+Identical result across all 5 channel-set invocations logged. No
+warnings/oops/BUG/call-trace in dmesg around load or unload. USB backup
+link held 0% packet loss throughout (before, during, after). Clean
+unload; chip returned to `bcma-pci-bridge`.
+
+This is a real, positive result for the *port*: the loopback-mode-switch
+register logic, including the `phy+0x16e==0` guess, produced internally
+consistent, fully-predicted values and a bit-perfect restore - good
+evidence the enter/exit logic and the `phy+0x16e` guess are both correct,
+or at least self-consistent, for this board. **It still does not test
+the calibration hypothesis itself** - no tone was generated, no
+measurement sweep ran, nothing about actual TX behavior was exercised.
+The next genuinely diagnostic step is still `FUN_001ac9b6` (tone
+generation + measurement sweep), which remains the highest-risk,
+least-tested part of the algorithm and - per the plan above - should be
+tested with the user physically present, not solo.
