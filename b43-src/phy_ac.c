@@ -1342,6 +1342,49 @@ static void b43_phy_ac_txcal_restore_gaintbl(struct b43_wldev *dev,
 	b43_phy_maskset(dev, 0x19e, ~0x2, saved19e & 0x2);
 }
 
+/*
+ * decompiled-cal/FUN_00193d3a.c: a brief (~1us) forced analog settle pulse
+ * on three per-core PHY registers, used right before the calibration
+ * sequence starts. No chip-ID or radio-generation branching at all (unlike
+ * the RF-loopback-mode switch this file's block comment mentions still
+ * needing - decompiled-cal/FUN_0019454f.c / FUN_00195603.c - those depend
+ * on a wl-internal struct field, phy+0x16e, whose assignment site hasn't
+ * been found in anything decompiled so far, so their exact register
+ * mapping for our chip isn't confidently resolved yet; this one has no
+ * such dependency).
+ */
+static void b43_phy_ac_txcal_settle_pulse(struct b43_wldev *dev)
+{
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+	u16 saved[B43_PHY_AC_TXCAL_MAX_CORES][3];
+	static const u16 base[3] = { 0x739, 0x73a, 0x725 };
+	static const u16 orbits[3] = { 0x80, 0x80, 0x204 };
+	int i;
+
+	for (core = 0; core < cores && core < B43_PHY_AC_TXCAL_MAX_CORES; core++) {
+		for (i = 0; i < 3; i++) {
+			u16 reg = base[i] + core * 0x200;
+
+			saved[core][i] = b43_phy_read(dev, reg);
+			b43_phy_set(dev, reg, orbits[i]);
+		}
+	}
+
+	udelay(1);
+
+	if (cores > B43_PHY_AC_TXCAL_MAX_CORES)
+		cores = B43_PHY_AC_TXCAL_MAX_CORES;
+	for (core = cores; core-- > 0;) {
+		for (i = 3; i-- > 0;) {
+			u16 reg = base[i] + core * 0x200;
+
+			b43_phy_write(dev, reg, saved[core][i]);
+		}
+	}
+
+	udelay(1);
+}
+
 #include "phy_ac_replay.h"
 
 /* 2.4 GHz AGC tables as written by the vendor driver on this board. */
