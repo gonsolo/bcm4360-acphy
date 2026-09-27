@@ -892,3 +892,58 @@ evidence now point the same direction, and continuing to treat "we just
 haven't ported enough of the calibration algorithm yet" as the leading
 explanation is no longer well supported by what's actually been tested
 today.
+
+## Follow-up: found register 0x144 has a completely different role elsewhere - an important complication, not a refutation
+
+Before writing up a final summary, went looking for independent
+corroboration of what register `0x144` actually is, rather than resting
+entirely on this session's own derivation from `FUN_001ac9b6`. Found
+`decompiled/FUN_00196f43.c` (an existing, already-decompiled function,
+unrelated to TX-loft calibration - the surrounding writes to radio
+`0x121`/`0x122`/`0x134`/`0x140`-`0x143` look like an RC-tune-style
+calibration, same `core<<9` addressing pattern) that **also** reads
+`0x144` (chip-ID-resolved the same way, `acphychipid==0x4360` -> `0x144`):
+
+```
+do {
+  osl_delay(10);
+  uVar4 = read_radio_reg(pi, 0x144 | core<<9);
+  uVar7 = read_radio_reg(pi, 0x144 | core<<9);
+} while (((uVar7 & 1) == 0 || (uVar4 & 2) == 0) && (++tries != 10));
+```
+
+This polls `0x144` expecting **bits 0 and 1** to become set - a genuine
+"wait for hardware to signal ready" loop, not a one-shot check. This is
+real, independent evidence that register `0x144` **can** be a live,
+dynamic hardware status register that changes under the right
+conditions - it isn't simply dead or permanently pinned to zero as a
+general matter.
+
+**What this does and doesn't change.** It doesn't overturn the finding
+above, but it does add a real complication worth being honest about:
+`0x144` is evidently a multi-purpose status latch whose meaning depends
+on which calibration/mode context is active when it's read (bits 0/1
+here, bit 2 in the TX-loft-cal context `FUN_001ac9b6` uses) - the kind
+of paged/banked behavior common in RF radio register maps. That means
+"this register always reads exactly `0x0000`, including bits 0 and 1,
+across all 36 of this session's measurement attempts" is *consistent
+with* "nothing is happening in the TX chain" (this session's working
+conclusion), but it is no longer safe to treat as definitively ruling
+out "this register's bit-2-as-error-indicator meaning only applies
+under a mode/precondition this project's port still doesn't fully
+establish" - the same category of caveat that applied to every earlier
+round of this investigation, now applying with a bit more concrete
+backing than "maybe I'm missing something."
+
+**Net effect on confidence:** the hardware-fault reading remains the
+better-supported explanation of the accumulated evidence (still backed
+by `notes/15`'s independent OTA finding, the exhaustiveness of what was
+ported and tested today, and the completeness of the 36-combination
+sweep), but it should be held as a strong working hypothesis, not a
+conclusion - exactly the same epistemic status this project has
+maintained for every previous "likely root cause" candidate before it
+was tested further. The concrete, unresolved uncertainty is real: does
+`0x144`'s bit 2 mean the same thing in every mode, or does it require
+some precondition this project's port doesn't yet establish? Answering
+that would need either real chip documentation or a working reference
+implementation to compare against, neither of which is available.
