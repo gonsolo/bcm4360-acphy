@@ -2720,8 +2720,21 @@ static void b43_phy_ac_replay_ch6(struct b43_wldev *dev)
 		ARRAY_SIZE(b43_ac_replay_tbl));
 }
 
+/* SHM 0x7C (ucode word 0x3E): TX lifetime in 256us units. While a frame
+ * waits in the main loop (deferral/backoff/retry) the ucode arms a deadline
+ * of now + this value and completes the frame with supp_reason=5 (LIFE)
+ * once it passes; 0 expires it on the arming pass. wl writes 0x0320. */
+static int b43_ac_txlifetime = -1;
+module_param_named(ac_txlifetime, b43_ac_txlifetime, int, 0644);
+MODULE_PARM_DESC(ac_txlifetime, "AC-PHY: TX lifetime written to SHM 0x7C in 256us units (-1: leave unset)");
+
 static int b43_phy_ac_op_init(struct b43_wldev *dev)
 {
+	if (b43_ac_txlifetime >= 0 && b43_ac_txlifetime <= 0xffff) {
+		b43_shm_write16(dev, B43_SHM_SHARED, 0x7c, b43_ac_txlifetime);
+		b43info(dev->wl, "phy_ac: TX lifetime (SHM 0x7C) = 0x%04x\n",
+			b43_ac_txlifetime);
+	}
 	if (dev->phy.rev <= 1) {
 		b43_phy_ac_tables_init(dev);
 		b43_phy_ac_first_init(dev);
