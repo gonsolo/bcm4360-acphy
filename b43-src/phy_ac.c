@@ -1188,9 +1188,12 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	} else if (b43_ac_por)
 		b43_phy_ac_rfctrl_wl(dev);
 
-	/* After the wl snapshot, which carries channel 6's values. 5 GHz still
-	 * runs on wl's 80 MHz state, so only 2.4 GHz for now. */
-	if (!is_5ghz && b43_ac_farrow)
+	/* After the wl snapshot. wl's own trace uses this same per-channel
+	 * 20 MHz table on 5 GHz channels too (confirmed against its 5 GHz
+	 * scan sweep, notes/53) - but not when ac_5g_80 keeps wl's captured
+	 * 80 MHz state instead of retuning per-channel, a different PHY mode
+	 * this table was never shown to apply to. */
+	if (b43_ac_farrow && !(is_5ghz && b43_ac_5g_80))
 		b43_phy_ac_set_farrow(dev, new_channel);
 
 	b43_phy_ac_resetcca(dev);
