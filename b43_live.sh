@@ -33,6 +33,13 @@ load)
 	shift
 	echo "b43live: === LOAD $* ===" > /dev/kmsg
 	insmod "$PROJ/b43-src/b43.ko" verbose=3 "$@" || exit 1
+	# firmware_class/parameters/path (set in `swap`) only needs to be
+	# pointed at $PROJ/firmware for b43's own request_firmware() calls
+	# during the insmod above (synchronous). Reset it now - left pointed
+	# there, any other device's driver that loads firmware later (e.g.
+	# the USB backup stick on hot-replug) fails to find its firmware in
+	# the normal system path and silently fails to probe.
+	echo "" > /sys/module/firmware_class/parameters/path
 	sleep 3
 	IF=$(b43_if)
 	echo "interface: $IF"
