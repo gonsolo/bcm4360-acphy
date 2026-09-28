@@ -152,11 +152,68 @@ correction. This note's bugs 1-4 supersede the "?" left in notes/29 about
 why ACKs still weren't reliable after the desense/hwaci watchdog analysis -
 the watchdog was never the blocker; the SHM state was.
 
+## Follow-up same night: post-association disconnects are a real, recurring, unsolved issue
+
+Repeated connection attempts after the milestone above show a genuine,
+reproducible instability that the very first successful run mostly avoided:
+association consistently succeeds (auth + assoc + AssocResp all clean,
+every single time tested), but somewhere between ~1s and ~15s later
+something causes a deauth, with two different observed proximate causes:
+
+- `reason=15 4WAY_HANDSHAKE_TIMEOUT` (seen once, on the very first connect -
+  wpa_supplicant logged "Key negotiation completed" TWICE about 2.4s apart
+  before the timeout, suggesting a duplicate/lost EAPOL message rather than
+  the handshake never starting).
+- `CTRL-EVENT-BEACON-LOSS` -> `reason=4 (DISASSOC_DUE_TO_INACTIVITY,
+  locally_generated=1)` about 1s after association, disconnecting ~3s after
+  that (seen once, clean run, no diagnostic interference active).
+- A third instance associated fine, then went completely quiet for ~15s
+  (mid-DHCP, nmcli state `connecting (configuring)`) before a deauth+reauth
+  attempt that this time got NO response at all from the AP (all 3 auth
+  retries timed out) - the whole activation then wedged in `connecting
+  (configuring)` indefinitely until torn down manually.
+
+The RECONNECT after the first disconnect sometimes succeeds cleanly (as in
+the milestone run above, which is why it wasn't caught immediately) and
+sometimes itself fails outright, so this reads as intermittent, not
+deterministic - consistent with this project's already-documented ~11%
+baseline of abnormally long RX gaps during ordinary steady-state operation
+(notes/25/26) and the still-unported `wlc_bmac_watchdog`/`wlc_phy_watchdog`
+(notes/27-31, decompiled but never ported). The beacon-loss variant in
+particular is a strong match for that: if b43 has a real chance of missing
+beacons for multiple consecutive intervals, mac80211/wpa_supplicant's own
+beacon-loss detection will trigger a self-disconnect independent of
+anything at the AP - not a new bug category, but the first time it's been
+seen to actually break something (previously it only affected passive
+capture and scanning).
+
+One methodology note from chasing this: **`rx_packets` on a managed-mode
+netdev is not a usable RX-health signal for this kind of test** - it only
+counts frames delivered up the stack as real 802.3 traffic, not management
+frames (beacons, auth/assoc responses processed internally by mac80211), so
+it read a flat zero throughout a failed-auth window that an independent
+concurrent capture on the USB stick showed 220 real beacons from the AP
+during. Also: adding a monitor vif to a completely different, unrelated phy
+(the USB stick's) while testing b43 should be safe in principle (separate
+hardware) and the udev `wpa_supplicant`-restart override was confirmed
+active, but do this kind of concurrent-capture setup with real skepticism
+of confounds - a stray monitor-vif churn muddied one test round here before
+a clean, diagnostic-free retry reproduced the same class of failure anyway,
+which is what makes it a real finding and not an artifact of that one test.
+
+Not root-caused tonight - would need either bpftrace-based RX/TX-status
+correlation right around one of these disconnects, or finally porting the
+watchdog. Left open for a future session; see "Still open" below.
+
 ## Still open
 
-- The 4-way-handshake-timeout-then-reconnect blip above.
+- **Post-association disconnect instability** (new tonight, see above) -
+  likely the most important next item, since it's the one thing standing
+  between "handshake works in principle" and "usable daily connection."
+- The specific 4-way-handshake-timeout-then-reconnect blip (a sub-case of
+  the above).
 - Confirm stability over a longer connected session (sustained ping, actual
-  data transfer, DHCP renewal).
+  data transfer, DHCP renewal) - blocked on the instability above.
 - Rates 11/24 Mbps "6 of 10 attempts" oddity (notes/12-ish, still
   unexplained, lower priority now that association works).
 - Watchdog porting (`wlc_bmac_watchdog`/`wlc_phy_watchdog`, decompiled but
