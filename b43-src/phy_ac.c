@@ -908,11 +908,23 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 				      b43_ac_por_tbl[i].val & 0xffff);
 		}
 	if (b43_ac_por & B43_AC_POR_SHM)
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por_shm); i++, n[3]++)
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por_shm); i++, n[3]++) {
+			u16 off = b43_ac_por_shm[i].off;
+
+			/* The per-rate blocks the rate maps point at (OFDM
+			 * 6-54M at words 0x4c6.., CCK 1-11M at 0x516..0x54d)
+			 * hold the PLCP templates the ucode sends its own
+			 * ACK/CTS with (word 1: OFDM L-SIG, CCK SIGNAL).
+			 * initvals set them up; wl's first-load values there
+			 * zero those words, and every ucode ACK then died as a
+			 * txphyerr (rate field 0). */
+			if (off >= 0x098c && off < 0x0a9c)
+				continue;
 			if (b43_ac_por_shm[i].routing != 0xffff)
 				b43_shm_write16(dev, b43_ac_por_shm[i].routing,
 						b43_ac_por_shm[i].off,
 						b43_ac_por_shm[i].val);
+		}
 	if ((b43_ac_por & B43_AC_POR_CC) && dev->dev->bus_type == B43_BUS_BCMA)
 		for (i = 0; i < ARRAY_SIZE(b43_ac_por_cc); i++, n[4]++)
 			if (b43_ac_por_cc[i][0] != 0xffff)

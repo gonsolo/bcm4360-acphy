@@ -3734,6 +3734,13 @@ error:
 
 static void b43_security_init(struct b43_wldev *dev)
 {
+	/* rev 40+ (AC) ucode has no key table pointer at the legacy KTP word:
+	 * it reads 0 there, so clearing the "key table" zeroed SHM 0x000-0x3a0
+	 * (rate maps, ACK/CTS PHY control, ucode state) on every core init.
+	 * AC has no hardware crypto support yet, so leave the key memory alone. */
+	if (dev->phy.type == B43_PHYTYPE_AC)
+		return;
+
 	dev->ktp = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_KTP);
 	/* KTP is a word address, but we address SHM bytewise.
 	 * So multiply by two.
@@ -4383,6 +4390,8 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (modparam_nohwcrypt)
 		return -ENOSPC; /* User disabled HW-crypto */
+	if (wl->current_dev->phy.type == B43_PHYTYPE_AC)
+		return -EOPNOTSUPP; /* no AC key table yet, see b43_security_init */
 
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||
 	     vif->type == NL80211_IFTYPE_MESH_POINT) &&
@@ -4523,6 +4532,12 @@ static void b43_op_configure_filter(struct ieee80211_hw *hw,
 		   FIF_OTHER_BSS |
 		   FIF_BCN_PRBRESP_PROMISC;
 
+	/* b43_op_start() zeroes wl->filter_flags, but mac80211 computes
+	 * @changed against its own cached flags, so after an interface
+	 * restart it reports no change and MACCTL kept the zeroed filter.
+	 * Compare against what the hardware was actually programmed with. */
+	if (wl->filter_flags != *fflags)
+		changed |= wl->filter_flags ^ *fflags;
 	wl->filter_flags = *fflags;
 
 	if (changed && b43_status(dev) >= B43_STAT_INITIALIZED)

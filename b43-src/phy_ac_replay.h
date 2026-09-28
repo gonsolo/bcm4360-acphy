@@ -1473,7 +1473,11 @@ static const struct { u16 routing, off; u8 bits; u32 val; } b43_ac_replay_shm[] 
 	{ 0x0001, 0x0032, 16, 0x0032 },
 	{ 0x0001, 0x0180, 16, 0x0527 },
 	{ 0x0001, 0x0182, 16, 0x01f4 },
-	{ 0x0001, 0x00b8, 16, 0x7148 },
+	/* SHM word 0x5c is a ucode command, not state: nonzero = "send a
+	 * CTS-to-self with this NAV (us)" (ucode 0x0CA3). wl left 29 ms here
+	 * from a calibration; replaying it fired a CTS-to-self (with a zero
+	 * PLCP rate, so it died as a txphyerr) on every channel-6 switch. */
+	{ 0xffff, 0x00b8, 16, 0x7148 },
 	{ 0x0001, 0x0096, 16, 0x0400 },
 	{ 0x0001, 0x0260, 16, 0x0000 },
 	{ 0x0001, 0x0262, 16, 0x000f },
