@@ -41,6 +41,34 @@ MIMO beyond 2 spatial streams, hardware crypto acceleration, or full RF
 calibration (LO leakage cancellation, PAPD, temperature-compensated TX
 power control). Section 9 lists open items explicitly.
 
+**Prerequisites - what this document does NOT include.** This is not a
+self-contained "how to write a wireless driver" guide. It is the
+AC-PHY-specific delta on top of three things an implementer must obtain
+separately:
+
+1. **b43's existing generic driver infrastructure.** Bus/core probing
+   (bcma), DMA ring management, interrupt handling, mac80211 registration,
+   PLCP generation, and the generic SHM-based rate-limit mechanism are all
+   assumed as a given foundation throughout this document ("reused, not
+   AC-specific" appears repeatedly below). That infrastructure is already
+   upstream, GPL-licensed, and not itself in question - but it is a real
+   and substantial dependency, not a detail.
+2. **Calibration and tuning data tables, independently captured.** The 23
+   PHY calibration tables (§2.2), the 50-register x ~28-channel radio
+   tuning table (§3), and the per-channel Farrow resampler values (§3.1)
+   are described here by *shape, register list, and format* - not by
+   their actual numeric contents. Those numbers must be captured from a
+   live reference driver trace (as this project did) or derived
+   independently; this document tells you precisely what to go capture,
+   not what the values are.
+3. **Firmware.** The AC-PHY microcode that actually runs on the chip is a
+   separate binary blob with its own licensing/redistribution terms, not
+   something a specification document can substitute for or describe
+   around. This document assumes that blob is already available to the
+   implementer by legitimate means; it says nothing about how to obtain
+   one or reimplement one (reimplementing the microcode itself would be an
+   enormously larger undertaking than anything covered here).
+
 **Target hardware.** Broadcom BCM4360 802.11ac combo chip, radio
 synthesizer part 0x2069 revision 4, PHY core revision 42 (referred to
 throughout as "AC-PHY" to distinguish it from b43's existing legacy
