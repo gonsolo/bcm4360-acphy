@@ -156,3 +156,50 @@ No hardware changes tonight from this investigation (read-only bpftrace and
 dmesg checks only); the earlier session's fixes (`37455b6`, `1aa39fb`) are
 unaffected. Chip left in safe idle monitor-mode state, USB backup link
 verified, netwatch active.
+
+## Addendum: checked whether the vtable resolution is a quick win - it isn't
+
+Before deferring item 1 above to "a future session," spent a bounded,
+read-only effort actually checking whether it's tractable right now.
+
+`grep -rn "0xd8" decompiled-*` across every already-decompiled file found
+**two more call sites at the exact same vtable slot** (offset `0xd8`):
+`wlc_bmac_recv.c` (`param_1[(ulong)param_2 + 4]`) and `wlc_bmac_init.c`
+(`param_1[4]` and, guarded by the identical `+0x84 == 4` condition seen in
+`wlc_bmac_watchdog`, `param_1[7]`). `wlc_bmac_init.c` also loops over
+`param_1+0x20` through `+0x48` (6 slots, 8 bytes apart) calling each
+populated slot's *own* vtable offset `+8` (a different, generic per-slot
+hook) - `param_1[4]` and `param_1[7]` are two specific slots inside that
+same 6-element array. This confirms `wlc_info+0x20`/`+0x38` are elements of
+an array of per-PHY-instance object pointers (most likely one entry per
+active band/core), each with its own vtable, and slot `0xd8` (index 27) is
+a **generic, driver-wide callback present in every PHY type's ops table** -
+called from `recv`, `init`, and `watchdog` alike, not a bespoke
+AC-PHY-only hook. That's useful structural confirmation, but still doesn't
+say *which* function AC-PHY's specific ops table has at slot 27.
+
+Checked for a shortcut past that: if the AC-PHY ops table is a single
+`static const` struct literal somewhere in the binary, its address ought to
+carry its own symbol, and the `.ko`'s relocations at that symbol+0xd8 would
+name the target function *statically*, no execution needed. Searched the
+full extracted symbol dump (`extracted/wl_kallsyms.txt`, 5156 entries,
+confirmed to include local/static data symbols - e.g. per-core LUT arrays
+like `acphy_est_pwr_lut_core1_rev0` show up by name - so this isn't a
+"only exported symbols" limitation) for anything resembling a per-phytype
+ops/function table (`*_ops`, `*_fns`, `*_vtbl`, `acphy_ops`, `phy_ops`,
+etc.) - **found none for any PHY type**, only unrelated driver-level `ops`
+structs (`wl_netdev_ops`, `wl_cfg80211_ops`, `wl_ethtool_ops`). The most
+likely explanation is that this vtable gets populated **field-by-field at
+runtime** (`pi->ops->slot27 = wlc_phy_watchdog_hook_acphy;`, scattered
+across a per-phytype attach path with conditional compilation) rather than
+via one static initializer - which means there's no single symbol+offset
+to statically resolve, and the earlier "read the ELF relocations" idea
+doesn't apply here.
+
+This is a real (if negative) result: it rules out the one shortcut that
+could have made this a 10-minute win, and confirms notes/29/31's original
+assessment was correct rather than overly pessimistic. The actual next step
+is unchanged from the priority list above (item 1) but is now known with
+more confidence to require finding and decompiling whichever per-PHY-type
+attach function does the field-by-field vtable population - a genuinely
+open-ended decompilation task, not a quick lookup.
