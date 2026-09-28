@@ -3540,11 +3540,16 @@ static const struct { u16 routing, off; u16 val; } b43_ac_por_shm[] = {
 	{ 1, 0x0074, 0x0000 },
 	{ 1, 0x0076, 0x0b96 },
 	{ 1, 0x0078, 0x0060 },
-	/* wl's first-boot value; initvals + the channel-6 replay leave this at
-	 * 0. With 0x0320 here the ucode never accepts the ACKs it receives for
-	 * its own frames and retries each one to the limit (found by bisecting
-	 * this table: this entry alone reproduces it). */
-	{ 0xffff, 0x007c, 0x0320 },
+	/* TX frame lifetime (ucode word 0x3E), 256us units; wl's real value.
+	 * A prior bisect (see git history) disabled this based on a metric
+	 * (txallfrm attempts per probe) that this value itself caps - at 0,
+	 * every waiting frame's deadline is "now", so it's completed as
+	 * supp_reason=LIFE after 0-2 real attempts instead of retrying to the
+	 * limit. That looked like "fewer attempts = better" on the bisect's
+	 * metric but was actually starving real traffic (notes/41/45/46):
+	 * with this restored, auth/assoc/DHCP succeeded cleanly on 3/3 live
+	 * trials, vs. every prior attempt timing out or going IPv6-only. */
+	{ 1, 0x007c, 0x0320 },
 	{ 1, 0x0080, 0x0008 },
 	{ 1, 0x0082, 0x2710 },
 	{ 1, 0x0090, 0x040a },
