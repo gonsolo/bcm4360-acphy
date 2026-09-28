@@ -2871,6 +2871,10 @@ static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 	if (b43_phy_ac_check_ack_watchdog(dev))
 		return;
 
+	/* See notes/38: wl's real watchdog runs a periodic bulk RX-ring
+	 * refill sweep this port never had; do the equivalent here. */
+	b43_dma_rx_retry_poisoned(dev);
+
 	b43info(dev->wl, "phy_ac: MACCTL=%08x IRQ reason=%08x mask=%08x pio=%d\n",
 		b43_read32(dev, B43_MMIO_MACCTL),
 		b43_read32(dev, B43_MMIO_GEN_IRQ_REASON),

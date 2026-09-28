@@ -194,6 +194,15 @@ struct b43_dmadesc_meta {
 	dma_addr_t dmaaddr;
 	/* ieee80211 TX status. Only used once per 802.11 frag. */
 	bool is_last_fragment;
+	/* RX only: set when a GFP_ATOMIC refill attempt failed in dma_rx()
+	 * and the old (recycled) buffer was reposted instead - see
+	 * b43_dma_rx_retry_poisoned(). NOT the same thing as "this slot's
+	 * buffer is b43_rx_buffer_is_poisoned()": a freshly allocated,
+	 * never-yet-used slot is *always* poisoned by design (that's how a
+	 * real incoming frame gets detected later) - poison alone can't tell
+	 * "idle, working fine" apart from "stuck after a failed refill".
+	 * This flag is the actual, unambiguous signal for the latter. */
+	bool rx_refill_failed;
 };
 
 struct b43_dmaring;
@@ -305,6 +314,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 void b43_dma_handle_rx_overflow(struct b43_dmaring *ring);
 
 void b43_dma_rx(struct b43_dmaring *ring);
+
+void b43_dma_rx_retry_poisoned(struct b43_wldev *dev);
 
 void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
 			    unsigned int engine_index, bool enable);

@@ -1707,8 +1707,15 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 	err = setup_rx_descbuffer(ring, desc, meta, GFP_ATOMIC);
 	if (unlikely(err)) {
 		b43dbg(ring->dev->wl, "DMA RX: setup_rx_descbuffer() failed\n");
+		/* GFP_ATOMIC can fail under ordinary memory pressure, and
+		 * unlike a real frame arriving, nothing else will ever retry
+		 * this specific slot on its own - flag it so
+		 * b43_dma_rx_retry_poisoned() (pwork_15sec) gives it another
+		 * try later from a context that can use GFP_KERNEL. */
+		meta->rx_refill_failed = true;
 		goto drop_recycle_buffer;
 	}
+	meta->rx_refill_failed = false;
 
 	unmap_descbuffer(ring, dmaaddr, ring->rx_buffersize, 0);
 	skb_put(skb, len + ring->frameoffset);
@@ -1722,6 +1729,94 @@ drop_recycle_buffer:
 	/* Poison and recycle the RX buffer. */
 	b43_poison_rx_buffer(ring, skb);
 	sync_descbuffer_for_device(ring, dmaaddr, ring->rx_buffersize);
+}
+
+/* wl's real driver runs a periodic (~1.024s) dma_rxfill() sweep over the
+ * whole RX ring from its watchdog (see notes/38) - a bulk catch-up refill,
+ * separate from and in addition to per-frame reactive refill. This port has
+ * never had an equivalent: dma_rx() below only refills reactively, one
+ * descriptor at a time, via GFP_ATOMIC (interrupt-thread context) - if that
+ * single allocation attempt fails, the descriptor is left holding its
+ * recycled buffer *permanently*: nothing ever retries that specific slot
+ * again unless a frame happens to land there once more. Under ordinary
+ * memory pressure (unrelated to RF conditions) this can silently and
+ * cumulatively shrink the RX ring's usable capacity over time - a concrete,
+ * plausible mechanism for this port's long-standing intermittent
+ * RX-reliability problem (notes/25/26/34).
+ *
+ * This is that catch-up sweep: scan every RX slot for one dma_rx() flagged
+ * as rx_refill_failed (see that field's comment in dma.h - deliberately
+ * NOT the same check as b43_rx_buffer_is_poisoned(): an idle slot that
+ * simply hasn't received its first frame yet is *always* poisoned by
+ * design, so using poison alone as the retry signal was tried first and
+ * found to false-positive on essentially the whole ring on a quiet
+ * connection - only the explicit flag, set at the one specific call site
+ * where a real allocation failure happened, is unambiguous) and retry the
+ * allocation with GFP_KERNEL (this runs from pwork_15sec, a workqueue
+ * context that can sleep, not the interrupt thread's tighter budget).
+ *
+ * Locking/safety: b43_dma_rx() itself only ever runs under wl->mutex (via
+ * the threaded IRQ handler, b43_do_interrupt_thread() -> b43_dma_rx()) and
+ * so does this (via b43_periodic_work_handler()) - the two can never run
+ * concurrently, so there is no *software* race on rx_refill_failed or the
+ * ring's other bookkeeping. There is no way to fully synchronize with the
+ * DMA hardware itself, but a flagged slot's buffer was left exactly as
+ * dma_rx()'s own reactive-refill failure path already leaves it - the same
+ * "hardware won't return to this exact slot until the ring wraps all the
+ * way around" timing margin that already makes that in-place reactive
+ * refill safe applies equally here; this isn't a new risk category, just
+ * the same swap done slightly later, from a context that can retry harder.
+ */
+void b43_dma_rx_retry_poisoned(struct b43_wldev *dev)
+{
+	struct b43_dmaring *ring = dev->dma.rx_ring;
+	struct b43_dmadesc_generic *desc;
+	struct b43_dmadesc_meta *meta;
+	struct sk_buff *old_skb;
+	dma_addr_t old_dmaaddr;
+	int i, fixed = 0;
+
+	if (!ring || dev->__using_pio_transfers)
+		return;
+
+	for (i = 0; i < ring->nr_slots; i++) {
+		desc = ring->ops->idx2desc(ring, i, &meta);
+
+		/* meta->rx_refill_failed is plain host memory (not part of the
+		 * DMA buffer), and only ever changes here or in dma_rx(),
+		 * both of which run under wl->mutex - no sync/recheck needed
+		 * to read it safely, and NOT the same thing as checking
+		 * b43_rx_buffer_is_poisoned() (see the field's comment in
+		 * dma.h): most idle slots are legitimately, harmlessly
+		 * poisoned simply because no frame has landed there yet. */
+		if (!meta->rx_refill_failed)
+			continue;
+
+		/* This slot's buffer was already left correctly posted/
+		 * device-owned by dma_rx()'s failure path - it hasn't been
+		 * touched since, so the same "hardware won't return to this
+		 * exact slot until the ring wraps all the way around" timing
+		 * margin that already makes dma_rx()'s own in-place reactive
+		 * refill safe applies here too; this isn't a new risk
+		 * category, just the same swap done later. */
+		old_skb = meta->skb;
+		old_dmaaddr = meta->dmaaddr;
+		if (setup_rx_descbuffer(ring, desc, meta, GFP_KERNEL) == 0) {
+			meta->rx_refill_failed = false;
+			unmap_descbuffer(ring, old_dmaaddr,
+					 ring->rx_buffersize, 0);
+			dev_kfree_skb_any(old_skb);
+			fixed++;
+		} else {
+			/* Allocation failed again; meta is untouched (still
+			 * the old buffer, flag stays set for next time). */
+			sync_descbuffer_for_device(ring, old_dmaaddr,
+						   ring->rx_buffersize);
+		}
+	}
+	if (fixed)
+		b43info(dev->wl,
+			"phy_ac: recovered %d stuck RX descriptor(s)\n", fixed);
 }
 
 void b43_dma_handle_rx_overflow(struct b43_dmaring *ring)
