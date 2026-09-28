@@ -26,6 +26,13 @@ bash /home/gonsolo/bcm4360-acphy/tools/postboot.sh
 echo "=== swap (wl -> bcma) ==="
 /home/gonsolo/bcm4360-acphy/b43_live.sh swap
 
+# Second boot of this kernel hit b43's own firmware ("ac1initvals42.fw",
+# "ucode42.fw") failing to load once, immediately after swap - a plain
+# manual retry seconds later worked cleanly, so this looks like a timing
+# race in the bcma bus registration/probe settling rather than anything
+# wrong with the firmware path itself. Give it a moment before insmod.
+sleep 2
+
 echo "=== load b43 (staged 7.2.7 build) ==="
 /home/gonsolo/bcm4360-acphy/b43_live.sh load ac_replay=1 dma32=1 ac_por=63 nohwcrypt=1
 
