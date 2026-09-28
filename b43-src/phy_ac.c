@@ -2756,10 +2756,120 @@ static void b43_phy_ac_log_macstat(struct b43_wldev *dev)
 }
 
 /* Diagnostic: MAC, interrupt and DMA state, every 15 seconds. */
+/* wl runs a real periodic watchdog (wlc_bmac_watchdog/wlc_phy_watchdog)
+ * that this port has never had an equivalent for (see notes/27-31/34): a
+ * ~1.024s cycle doing DMA-error recovery and PHY/ACI recalibration. Its
+ * absence is the leading suspect for this port's intermittent RX/ACK
+ * reliability (notes/25/26's abnormal-gap baseline, notes/34's bpftrace
+ * evidence of a live connection's keepalive probes going repeatedly
+ * unacked). Fully porting it is blocked on resolving two still-unidentified
+ * indirect (vtable) function-pointer calls in the proprietary driver
+ * (notes/34's addendum) - real, open-ended reverse-engineering, not
+ * something to guess at on a live radio.
+ *
+ * This is a pragmatic stand-in, not a fix for the underlying cause: watch
+ * the ucode's own TX-vs-ACKed frame counters (the same SHM_SH_TXALLFRM/
+ * TXACKFRM this project's diagnostics have used all along) once actually
+ * associated to a BSS, and if the ACK ratio stays bad for several
+ * consecutive 15s windows, recover the same way b43 already recovers from
+ * a firmware watchdog timeout or a fatal DMA error: b43_controller_restart().
+ * That's an existing, already-proven-safe mechanism (full core re-init,
+ * used elsewhere in this file for exactly this class of "something is
+ * wrong, recover" situation) - this only adds a new, read-only-until-the-
+ * threshold-trips trigger for it, not a new recovery mechanism.
+ */
+static uint b43_ac_ackwatchdog = 1;
+module_param_named(ac_ackwatchdog, b43_ac_ackwatchdog, uint, 0644);
+MODULE_PARM_DESC(ac_ackwatchdog,
+		 "AC-PHY: recover via a core restart if the ACK ratio stays "
+		 "degraded for several consecutive 15s windows (0 to disable)");
+
+/* Minimum frames sent in a window before its ACK ratio means anything -
+ * an idle or lightly-loaded link shouldn't trip this on a small sample. */
+#define B43_AC_ACKWD_MIN_FRAMES	20
+/* Trigger when fewer than 1/this fraction of frames got ACKed. */
+#define B43_AC_ACKWD_BAD_RATIO	2
+/* Consecutive bad windows required before actually restarting (~45s). */
+#define B43_AC_ACKWD_BAD_WINDOWS	3
+
+/* Returns true if it restarted the controller, in which case the caller
+ * must not touch any more registers (same discipline as the existing
+ * firmware-watchdog and fatal-DMA-error restart call sites in main.c,
+ * which both return immediately after calling b43_controller_restart()). */
+static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
+{
+	struct b43_phy_ac *ac = dev->phy.ac;
+	u16 txallfrm, txackfrm, d_all, d_ack;
+
+	if (!b43_ac_ackwatchdog)
+		return false;
+	/* Only meaningful once actually associated: scanning/monitor mode
+	 * naturally has a low ACK ratio (broadcast probes aren't ACKed). */
+	if (is_zero_ether_addr(dev->wl->bssid))
+		return false;
+
+	txallfrm = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_TXALLFRM);
+	txackfrm = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_TXACKFRM);
+
+	if (!ac->ack_ratio_valid) {
+		ac->last_txallfrm = txallfrm;
+		ac->last_txackfrm = txackfrm;
+		ac->ack_ratio_valid = true;
+		ac->ack_ratio_bad_windows = 0;
+		return false;
+	}
+
+	/* u16 wraparound is fine here: unsigned subtraction still gives the
+	 * right delta as long as at most one wrap happened since last read,
+	 * which a 16-bit ucode counter over a 15s window will not exceed. */
+	d_all = txallfrm - ac->last_txallfrm;
+	d_ack = txackfrm - ac->last_txackfrm;
+	ac->last_txallfrm = txallfrm;
+	ac->last_txackfrm = txackfrm;
+
+	if (d_all < B43_AC_ACKWD_MIN_FRAMES) {
+		ac->ack_ratio_bad_windows = 0;
+		return false;
+	}
+
+	if (d_ack * B43_AC_ACKWD_BAD_RATIO < d_all) {
+		ac->ack_ratio_bad_windows++;
+		b43warn(dev->wl,
+			"phy_ac: ACK ratio degraded (%u/%u acked this window, "
+			"%u/%u consecutive bad)\n",
+			d_ack, d_all, ac->ack_ratio_bad_windows,
+			B43_AC_ACKWD_BAD_WINDOWS);
+		if (ac->ack_ratio_bad_windows >= B43_AC_ACKWD_BAD_WINDOWS) {
+			b43err(dev->wl,
+			       "phy_ac: ACK ratio degraded for %u consecutive "
+			       "windows, restarting the controller\n",
+			       ac->ack_ratio_bad_windows);
+			/* Re-baseline once the restart brings the core back
+			 * up, rather than judging the first post-restart
+			 * window against pre-restart counters. */
+			ac->ack_ratio_valid = false;
+			/* Not b43_controller_restart(): that quietly reinits
+			 * the hardware without telling mac80211, which leaves
+			 * this recurring trigger's connections stuck
+			 * association-stale (observed live: no re-DHCP, no
+			 * re-handshake, just a silently reset radio). This
+			 * needs the full ieee80211_restart_hw()-driven path. */
+			b43_controller_restart_full(dev, "AC-PHY ACK ratio degraded");
+			return true;
+		}
+	} else {
+		ac->ack_ratio_bad_windows = 0;
+	}
+	return false;
+}
+
 static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 {
 	struct b43_dmaring *rx = dev->dma.rx_ring;
 	struct b43_dmaring *tx = dev->dma.tx_ring_AC_BE;
+
+	if (b43_phy_ac_check_ack_watchdog(dev))
+		return;
 
 	b43info(dev->wl, "phy_ac: MACCTL=%08x IRQ reason=%08x mask=%08x pio=%d\n",
 		b43_read32(dev, B43_MMIO_MACCTL),

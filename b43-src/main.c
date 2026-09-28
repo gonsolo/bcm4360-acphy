@@ -5484,6 +5484,58 @@ out:
 	b43info(wl, "Controller restarted\n");
 }
 
+/* Like b43_chip_reset() above, but for b43_controller_restart_full(): only
+ * brings the core down, then hands off to ieee80211_restart_hw() instead of
+ * bringing it back up and quietly reloading the cached config itself.
+ * b43_chip_reset()'s approach leaves mac80211/userspace believing the link
+ * is still fully up (no re-association, no DHCP renewal) even though the
+ * hardware was silently reinitialised underneath them - fine for the rare,
+ * genuine hardware-error cases it was written for, but not for a trigger
+ * that's expected to fire somewhat routinely (see phy_ac.c's AC-PHY ACK
+ * ratio watchdog) where actually recovering the connection matters more
+ * than doing it quietly. Do not call this directly, use
+ * b43_controller_restart_full().
+ */
+static void b43_chip_reset_full(struct work_struct *work)
+{
+	struct b43_wldev *dev =
+	    container_of(work, struct b43_wldev, full_restart_work);
+	struct b43_wl *wl = dev->wl;
+	int prev_status;
+
+	mutex_lock(&wl->mutex);
+	prev_status = b43_status(dev);
+	if (prev_status >= B43_STAT_STARTED)
+		dev = b43_wireless_core_stop(dev);
+	if (dev && prev_status >= B43_STAT_INITIALIZED)
+		b43_wireless_core_exit(dev);
+	mutex_unlock(&wl->mutex);
+
+	/* ieee80211_restart_hw() documents that mac80211 assumes the
+	 * driver/hardware is completely uninitialised and stopped at this
+	 * point (true above) and that it alone will call ->start() to bring
+	 * it back - do not also call b43_wireless_core_init()/_start() here.
+	 * Called without wl->mutex held: mac80211 queues the actual
+	 * reconfiguration on its own workqueue, but ->start() will need the
+	 * mutex itself once that runs. */
+	b43info(wl, "Controller full restart - handing off to mac80211\n");
+	ieee80211_restart_hw(wl->hw);
+}
+
+/* Perform a full hardware+association reset: unlike b43_controller_restart(),
+ * this forces mac80211 to redo association (and, downstream, DHCP) once the
+ * hardware comes back up, via ieee80211_restart_hw(). Use this for triggers
+ * that are expected to recur under normal operation (not just rare fatal
+ * errors), where silently reinitialising the hardware without mac80211's
+ * knowledge would otherwise leave the link association-stale. */
+void b43_controller_restart_full(struct b43_wldev *dev, const char *reason)
+{
+	if (b43_status(dev) < B43_STAT_INITIALIZED)
+		return;
+	b43info(dev->wl, "Controller full RESET (%s) ...\n", reason);
+	ieee80211_queue_work(dev->wl->hw, &dev->full_restart_work);
+}
+
 static int b43_setup_bands(struct b43_wldev *dev,
 			   bool have_2ghz_phy, bool have_5ghz_phy)
 {
@@ -5693,6 +5745,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	if (!wl->current_dev)
 		wl->current_dev = dev;
 	INIT_WORK(&dev->restart_work, b43_chip_reset);
+	INIT_WORK(&dev->full_restart_work, b43_chip_reset_full);
 
 	dev->phy.ops->switch_analog(dev, 0);
 	b43_device_disable(dev, 0);
@@ -5901,6 +5954,7 @@ static void b43_bcma_remove(struct bcma_device *core)
 	/* We must cancel any work here before unregistering from ieee80211,
 	 * as the ieee80211 unreg will destroy the workqueue. */
 	cancel_work_sync(&wldev->restart_work);
+	cancel_work_sync(&wldev->full_restart_work);
 	cancel_work_sync(&wl->firmware_load);
 
 	B43_WARN_ON(!wl);
@@ -5984,6 +6038,7 @@ static void b43_ssb_remove(struct ssb_device *sdev)
 	/* We must cancel any work here before unregistering from ieee80211,
 	 * as the ieee80211 unreg will destroy the workqueue. */
 	cancel_work_sync(&wldev->restart_work);
+	cancel_work_sync(&wldev->full_restart_work);
 	cancel_work_sync(&wl->firmware_load);
 
 	B43_WARN_ON(!wl);

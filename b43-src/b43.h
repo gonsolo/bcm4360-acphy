@@ -254,6 +254,9 @@ enum {
 #define B43_SHM_SH_HOSTF4		0x0078	/* Hostflags 4 for ucode options */
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
 #define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5 Ghz channel */
+/* ucode macstat counters (rev 40+ AC firmware; also present on older ucode) */
+#define B43_SHM_SH_TXALLFRM		0x00E0	/* Total frames transmitted */
+#define B43_SHM_SH_TXACKFRM		0x00E6	/* Frames transmitted, ACK received */
 #define  B43_SHM_SH_CHAN_40MHZ		0x0200	/* Bit set, if 40 Mhz channel width */
 #define B43_SHM_SH_MACHW_L		0x00C0	/* Location where the ucode expects the MAC capabilities */
 #define B43_SHM_SH_MACHW_H		0x00C2	/* Location where the ucode expects the MAC capabilities */
@@ -876,6 +879,11 @@ struct b43_wldev {
 	unsigned int periodic_state;
 
 	struct work_struct restart_work;
+	/* Separate from restart_work: a full ieee80211_restart_hw()-driven
+	 * recovery that forces mac80211 to redo association/DHCP afterward,
+	 * for triggers where the quiet register-level restart_work reinit
+	 * isn't enough (see b43_controller_restart_full in main.c). */
+	struct work_struct full_restart_work;
 
 	/* encryption/decryption */
 	u16 ktp;		/* Key table pointer */

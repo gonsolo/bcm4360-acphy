@@ -76,6 +76,7 @@ void b43_dummy_transmission(struct b43_wldev *dev, bool ofdm, bool pa_on);
 void b43_wireless_core_reset(struct b43_wldev *dev, bool gmode);
 
 void b43_controller_restart(struct b43_wldev *dev, const char *reason);
+void b43_controller_restart_full(struct b43_wldev *dev, const char *reason);
 
 #define B43_PS_ENABLED	(1 << 0)	/* Force enable hardware power saving */
 #define B43_PS_DISABLED	(1 << 1)	/* Force disable hardware power saving */
