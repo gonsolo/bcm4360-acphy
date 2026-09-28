@@ -21,7 +21,14 @@ swap)
 	sysctl -qw kernel.panic_on_oops=1 kernel.panic=10 \
 		kernel.hung_task_panic=1 kernel.hung_task_timeout_secs=30 \
 		kernel.softlockup_panic=1
-	echo "$PROJ/firmware" > /sys/module/firmware_class/parameters/path
+	# Only override the firmware search path if b43's firmware isn't already
+	# in it (NixOS hardware.firmware now installs it). Save the original -
+	# on NixOS it's the system's only firmware dir, there is no /lib/firmware.
+	FWP=/sys/module/firmware_class/parameters/path
+	if [ ! -e "$(cat $FWP)/b43/ucode42.fw" ] && [ ! -e "$(cat $FWP)/b43/ucode42.fw.zst" ]; then
+		cat $FWP > /run/b43live_fwpath_orig
+		echo "$PROJ/firmware" > $FWP
+	fi
 	modprobe -a mac80211 ssb cordic bcma
 	nmcli dev set wlp3s0 managed no 2>/dev/null
 	echo bcma-pci-bridge > /sys/bus/pci/devices/$DEV/driver_override
@@ -33,14 +40,14 @@ load)
 	shift
 	echo "b43live: === LOAD $* ===" > /dev/kmsg
 	insmod "$PROJ/b43-src/b43.ko" verbose=3 "$@" || exit 1
-	# firmware_class/parameters/path (set in `swap`) only needs to be
-	# pointed at $PROJ/firmware for b43's own request_firmware() calls
-	# during the insmod above (synchronous). Reset it now - left pointed
-	# there, any other device's driver that loads firmware later (e.g.
-	# the USB backup stick on hot-replug) fails to find its firmware in
-	# the normal system path and silently fails to probe.
-	echo "" > /sys/module/firmware_class/parameters/path
-	sleep 3
+	# b43 requests firmware asynchronously (work item scheduled in probe),
+	# so wait for the netdev - registered only once firmware has loaded -
+	# before restoring the firmware search path `swap` may have overridden.
+	for _ in $(seq 100); do [ -n "$(b43_if)" ] && break; sleep 0.1; done
+	if [ -e /run/b43live_fwpath_orig ]; then
+		cat /run/b43live_fwpath_orig > /sys/module/firmware_class/parameters/path
+		rm /run/b43live_fwpath_orig
+	fi
 	IF=$(b43_if)
 	echo "interface: $IF"
 	nmcli dev set "$IF" managed no

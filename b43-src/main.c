@@ -3120,6 +3120,11 @@ void b43_mac_enable(struct b43_wldev *dev)
 	}
 }
 
+/* Stock b43 waits ~40ms; brcmsmac waits 83ms (wlc_bmac_suspend_mac_and_wait). */
+static int b43_suspend_ms = 40;
+module_param_named(suspend_ms, b43_suspend_ms, int, 0644);
+MODULE_PARM_DESC(suspend_ms, "MAC suspend timeout in ms (stock b43: 40)");
+
 /* https://bcm-specs.sipsolutions.net/SuspendMAC */
 void b43_mac_suspend(struct b43_wldev *dev)
 {
@@ -3141,13 +3146,19 @@ void b43_mac_suspend(struct b43_wldev *dev)
 			udelay(10);
 		}
 		/* Hm, it seems this will take some time. Use msleep(). */
-		for (i = 40; i; i--) {
+		for (i = 0; i < b43_suspend_ms; i++) {
 			tmp = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
-			if (tmp & B43_IRQ_MAC_SUSPENDED)
+			if (tmp & B43_IRQ_MAC_SUSPENDED) {
+				/* The old limit was 40ms; log anything past it.
+				 * AC ucode can hold off suspend while a frame
+				 * with a TX lifetime (SHM 0x7C) is in flight. */
+				if (i > 40)
+					b43info(dev->wl, "MAC suspend took ~%dms\n", i);
 				goto out;
+			}
 			msleep(1);
 		}
-		b43err(dev->wl, "MAC suspend failed\n");
+		b43err(dev->wl, "MAC suspend failed (%dms)\n", b43_suspend_ms);
 	}
 out:
 	dev->mac_suspended++;
