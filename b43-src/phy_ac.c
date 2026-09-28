@@ -1052,6 +1052,45 @@ static void b43_phy_ac_rfctrl_wl(struct b43_wldev *dev)
 	}
 }
 
+#include "phy_ac_farrow.h"
+
+static bool b43_ac_farrow = true;
+module_param_named(ac_farrow, b43_ac_farrow, bool, 0644);
+MODULE_PARM_DESC(ac_farrow, "AC-PHY: program the per-channel RX/TX Farrow resampler on channel switch");
+
+/*
+ * The ADC/DAC run from a clock derived from the synthesizer, so the
+ * fractional resampler to the baseband rate depends on the channel. wl
+ * (static function at 0x1a581c) writes these on every channel switch;
+ * without them every channel kept channel 6's ratio, 3.5% off on
+ * channel 1 (notes/51).
+ */
+static void b43_phy_ac_set_farrow(struct b43_wldev *dev, unsigned int channel)
+{
+	const struct b43_phy_ac_farrow *f = NULL;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(b43_phy_ac_farrow_20); i++)
+		if (b43_phy_ac_farrow_20[i].channel == channel)
+			f = &b43_phy_ac_farrow_20[i];
+	if (!f)
+		return;
+
+	b43_phy_write(dev, 0x19a, f->rx[0]);
+	b43_phy_write(dev, 0x19b, f->rx[1]);
+	b43_phy_write(dev, 0x19c, f->rx[2]);
+	b43_phy_write(dev, 0x199, f->rx[3]);
+	b43_phy_write(dev, 0x1a1, f->rx[0]);
+	b43_phy_write(dev, 0x1a2, f->rx[1]);
+	b43_phy_write(dev, 0x1a3, f->rx[2]);
+	b43_phy_write(dev, 0x1a0, f->rx[3]);
+	b43_phy_write(dev, 0x1603, f->tx[0]);
+	b43_phy_write(dev, 0x1602, f->tx[1]);
+	b43_phy_write(dev, 0x1607, f->tx[2]);
+	b43_phy_write(dev, 0x1606, f->tx[3]);
+	b43_phy_write(dev, 0x1601, b43_phy_read(dev, 0x601));
+}
+
 static void b43_phy_ac_tune(struct b43_wldev *dev,
 			    const struct b43_radio_2069_chan *e,
 			    unsigned int channel)
@@ -1148,6 +1187,11 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 			b43_phy_write(dev, B43_PHY_AC_BW1A + i, e->bw[i]);
 	} else if (b43_ac_por)
 		b43_phy_ac_rfctrl_wl(dev);
+
+	/* After the wl snapshot, which carries channel 6's values. 5 GHz still
+	 * runs on wl's 80 MHz state, so only 2.4 GHz for now. */
+	if (!is_5ghz && b43_ac_farrow)
+		b43_phy_ac_set_farrow(dev, new_channel);
 
 	b43_phy_ac_resetcca(dev);
 
