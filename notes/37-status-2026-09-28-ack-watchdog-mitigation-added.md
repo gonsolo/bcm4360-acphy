@@ -136,6 +136,33 @@ establish a clean baseline for end-to-end verification. Left as the first
 item for a future session, ideally attempted when a quick passive check
 (or the USB stick's own recent journal) shows a quieter period.
 
+## Addendum: DHCP specifically is the worst-case indicator of this bug, and that's expected
+
+Tried again later (no beacon-loss events in the preceding 3 minutes, USB
+stick pinging cleanly) with a concurrent packet capture on `port 67 or port
+68`. Every attempt showed the same clean pattern: our own DHCPDISCOVER goes
+out fine (2-4 broadcast retransmissions from the DHCP client itself over
+several seconds), and **zero DHCPOFFER replies ever captured** - not once,
+across several tries, even after raising `ipv4.dhcp-timeout` to 90s on the
+test profile (reverted back to default afterward; didn't help).
+
+This has a simple, satisfying explanation that doesn't need a new
+hypothesis: **DHCPOFFER/ACK are broadcast frames, and 802.11 never retries
+broadcast or multicast frames** (only unicast frames get up to 7 MAC-layer
+retries). Auth, association, and a unicast ping all get that retry margin
+and can survive a brief RX gap; a broadcast DHCP response gets exactly one
+shot over the air, with nothing to fall back on if we happen to miss that
+specific window. Given the same underlying intermittent-RX-gap problem
+this whole investigation has characterized (notes/25/26/34), DHCP is
+*expected* to be the single worst-affected step, disproportionately more
+fragile than everything else tested tonight - not evidence of a separate,
+new bug, just the least forgiving place the same one shows up.
+
+Still doesn't change the practical conclusion: full end-to-end verification
+of the `ieee80211_restart_hw()` fix needs a calmer RF window than tonight
+has offered. Chip returned to safe idle monitor state; the `b43-test`
+profile's `ipv4.dhcp-timeout` is back to its default (0).
+
 ## Current state
 
 - `ac_ackwatchdog=1` (default) is active in the loaded module.
