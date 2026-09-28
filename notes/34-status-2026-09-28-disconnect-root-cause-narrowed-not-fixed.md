@@ -203,3 +203,95 @@ is unchanged from the priority list above (item 1) but is now known with
 more confidence to require finding and decompiling whichever per-PHY-type
 attach function does the field-by-field vtable population - a genuinely
 open-ended decompilation task, not a quick lookup.
+
+## Addendum 2: made real (if incomplete) progress on this same night
+
+Decided the "genuinely open-ended decompilation task" above was still worth
+a bounded, read-only attempt, since it's the single highest-value remaining
+lead and there was no reason to believe it needed *hours*, only that it
+needed *more than a symbol-table lookup*.
+
+**Disassembled the entire wl.ko binary for the first time in this
+project's history.** Every previous decompilation (all of `decompiled*/`)
+used Ghidra's `-noanalysis` import, which - confirmed directly, not
+assumed - never populates the cross-reference database *or* even the
+instruction listing outside of functions individually decompiled by name:
+`getReferencesTo()` returned 0 hits even for `wlc_phy_watchdog`, a function
+we *know* is called directly (its call site is sitting right there in
+`wlc_bmac_watchdog.c`), and `getInstructions(true)` returned 0 program-wide.
+Fixed by calling `disassemble()` from every one of the 2958 known function
+symbols (`dump_func_addrs.java`, `find_addr_taken_refs.java`) - fast,
+zero semantic analysis, purely mechanical - which produced 359,169 real
+`Instruction` objects, now permanently saved in `ghidra_proj/` (gitignored,
+as always - this only touches local RE tooling state, nothing hardware- or
+repo-facing). This is a genuinely useful, reusable improvement for *any*
+future decompilation work on this binary, independent of tonight's specific
+question.
+
+With real instructions to scan, wrote `find_addr_taken_refs.java` (strict
+address-equality match against every known function's entry point - the
+same technique, just done via raw operand scanning instead of Ghidra's
+empty reference database) and found a **first, concrete, verified example**
+of exactly the pattern being hunted: inside `wlc_phy_attach_acphy` (already
+decompiled tonight, just never read this far - line 737 of that file),
+AC-PHY's `phy_info` object gets a whole block of direct-field callback
+pointers populated at attach time:
+
+```c
+*(undefined **)(param_1 + 0x28)  = &UNK_001b0ecf;
+*(undefined **)(param_1 + 0x30)  = &UNK_0018f4ba;
+*(undefined **)(param_1 + 0x38)  = &UNK_001a7dc9;
+*(undefined **)(param_1 + 0x40)  = &UNK_0019a1df;
+*(undefined **)(param_1 + 0x100) = &UNK_001980bd;
+*(undefined **)(param_1 + 0xc0)  = &UNK_00198b6b;
+*(undefined **)(param_1 + 0xd0)  = &UNK_0019a268;
+*(undefined **)(param_1 + 200)   = &UNK_00193ba7;
+*(code **)(param_1 + 0xf8) = wlc_phy_btc_adjust_acphy;
+```
+
+This is real, new information: `phy_info` (AC-PHY's `pi`) stores several
+callback hooks as **direct struct fields**, not through a separate
+`vtable`-pointer indirection - the earlier mental model ("obj->vtable->slot")
+was wrong for *this* structure. One slot is a named, already-known function
+(`wlc_phy_btc_adjust_acphy`, Bluetooth-coexistence adjustment - not
+previously connected to any offset in this project). The other seven are
+unnamed code addresses that fall *inside* other already-named AC-PHY
+functions (`wlc_phy_tx_tone_acphy`, `wlc_phy_ac_caps`,
+`wlc_phy_stf_chain_temp_throttle_acphy`, `wlc_phy_table_write_acphy` x2,
+`wlc_phy_txpower_sromlimit_get_acphy`, `wlc_phy_rxcore_setstate_acphy`,
+`wlc_phy_crs_min_pwr_cal_acphy`) - almost certainly small `static` helper
+functions that never got their own symbol in the extracted table, callable
+individually via `decompile_at_addr.java` in a future session if any of
+them turn out to matter.
+
+**Crucially, ran the exact same strict-match scan for offset `0xd8`
+against all 2958 known functions (not just AC-PHY ones) across the whole
+359k-instruction disassembly, and it does NOT appear anywhere as a direct
+immediate-address store** (the one clean hit found this way,
+`wlc_lcnphy_set_tx_pwr_ctrl` at some *other* object's `+0xd8`, belongs to
+LCN-PHY's attach path, a different phy type entirely - not ours). Combined
+with `phy_info`'s own field list above (which has no `0xd8` entry for
+AC-PHY), **this now conclusively rules out `phy_info` as the object
+`wlc_bmac_watchdog`'s vtable calls operate on** - it's confirmed to be a
+separate, still-unidentified structure, most likely `wlc_hw_info`'s or
+`wlc_info`'s array of per-band/per-core sub-objects (the same 6-slot array,
+offsets `+0x20` through `+0x48`, that `wlc_bmac_init.c`'s loop iterates and
+that `wlc_bmac_watchdog`/`wlc_bmac_recv` also index into at slots 4 and 7).
+Checked two plausible constructors for where that array gets *populated*
+(`wlc_bmac_attach`, `wlc_attach` - both decompiled fresh tonight) and found
+several *other*, unrelated `+0x20`-offset writes in each (this offset is
+heavily reused across many distinct structs in this codebase, as
+expected) but not the specific array-of-6 write - still open.
+
+**Net effect**: didn't finish resolving the original question, but turned
+"not resolvable, needs open-ended decompilation" into a precisely scoped
+remaining task with working tools already built and one wrong hypothesis
+(`phy_info`) definitively eliminated with hard evidence rather than
+assumption. The reusable scripts (`dump_func_addrs.java`,
+`find_addr_taken_refs.java`, `find_addr_taken_refs_at_offset.java`) are
+committed for whichever future session picks this back up - point them at
+`wlc_bmac_attach`/`wlc_attach`/other constructor candidates and search for
+a write to offsets `0x20`/`0x28`/.../`0x48` on a register that also gets
+compared against `+0x84 == 4` nearby, which is the concrete fingerprint of
+the right structure. No hardware touched; only the local Ghidra project
+database (gitignored) was modified by the disassembly pass.
