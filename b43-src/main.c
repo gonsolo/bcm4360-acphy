@@ -3125,6 +3125,31 @@ static int b43_suspend_ms = 40;
 module_param_named(suspend_ms, b43_suspend_ms, int, 0644);
 MODULE_PARM_DESC(suspend_ms, "MAC suspend timeout in ms (stock b43: 40)");
 
+/* What brcmsmac dumps when wlc_bmac_suspend_mac_and_wait() times out
+ * (psmdebug 0x154, phydebug 0x158, psm_brc 0x490), plus repeated psmdebug
+ * samples to tell a spinning PSM from a stopped one, and the caller. */
+static void b43_mac_suspend_diag(struct b43_wldev *dev)
+{
+	static DEFINE_RATELIMIT_STATE(rs, 10 * HZ, 3);
+	u32 pc[8];
+	int i;
+
+	if (!__ratelimit(&rs))
+		return;
+	for (i = 0; i < ARRAY_SIZE(pc); i++) {
+		pc[i] = b43_read32(dev, 0x154);
+		udelay(1);
+	}
+	b43err(dev->wl, "suspend diag: psmdebug %08x %08x %08x %08x %08x %08x %08x %08x\n",
+	       pc[0], pc[1], pc[2], pc[3], pc[4], pc[5], pc[6], pc[7]);
+	b43err(dev->wl, "suspend diag: phydebug %08x psm_brc %04x macctl %08x reason %08x ucodestat %04x\n",
+	       b43_read32(dev, 0x158), b43_read16(dev, 0x490),
+	       b43_read32(dev, B43_MMIO_MACCTL),
+	       b43_read32(dev, B43_MMIO_GEN_IRQ_REASON),
+	       b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_UCODESTAT));
+	dump_stack();
+}
+
 /* https://bcm-specs.sipsolutions.net/SuspendMAC */
 void b43_mac_suspend(struct b43_wldev *dev)
 {
@@ -3159,6 +3184,8 @@ void b43_mac_suspend(struct b43_wldev *dev)
 			msleep(1);
 		}
 		b43err(dev->wl, "MAC suspend failed (%dms)\n", b43_suspend_ms);
+		if (dev->phy.type == B43_PHYTYPE_AC)
+			b43_mac_suspend_diag(dev);
 	}
 out:
 	dev->mac_suspended++;
