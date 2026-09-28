@@ -119,6 +119,23 @@ builds clean, doesn't touch the other 3 already-proven call sites) but its
 actual "does it restore full connectivity" behavior needs a real end-to-end
 test once conditions allow a baseline connection to succeed at all.
 
+Tried several more times over the following ~10 minutes with the same
+result, with one telling variation: one attempt got *past* auth/assoc
+cleanly (no retry spam in the log, reached IPv6 link-local/mDNS setup) but
+then DHCP itself timed out - a different failure point than the earlier
+auth/assoc timeouts, consistent with an intermittent condition rather than
+a fixed, reproducible block. The USB stick logged a *second* independent
+`CTRL-EVENT-BEACON-LOSS` during this window (one-off, self-recovered - its
+own connection stayed at 0% packet loss overall across a 5-ping check
+right after). Two independent beacon-loss events on completely unrelated
+hardware/driver, in the same ~15-minute span, is fairly strong evidence
+that this specific window had genuinely elevated real-world RF
+interference at the physical location, on top of (not instead of) this
+port's own known reliability issue - not a promising time to be trying to
+establish a clean baseline for end-to-end verification. Left as the first
+item for a future session, ideally attempted when a quick passive check
+(or the USB stick's own recent journal) shows a quieter period.
+
 ## Current state
 
 - `ac_ackwatchdog=1` (default) is active in the loaded module.
