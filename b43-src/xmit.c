@@ -236,6 +236,11 @@ static uint b43_ac_txcore = 1;
 module_param_named(ac_txcore, b43_ac_txcore, uint, 0644);
 MODULE_PARM_DESC(ac_txcore, "AC-PHY TX core mask for PhyTxControlWord_0");
 
+static bool b43_ac_decerr_pass = true;
+module_param_named(ac_decerr_pass, b43_ac_decerr_pass, bool, 0644);
+MODULE_PARM_DESC(ac_decerr_pass, "AC-PHY: pass frames the ucode flags DECERR up to mac80211 instead of dropping them");
+static unsigned int b43_ac_decerr_logged;
+
 static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 				 struct sk_buff *skb,
 				 struct ieee80211_tx_info *info, u16 cookie)
@@ -779,10 +784,20 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	if (phystat0 & B43_RX_PHYST0_SHORTPRMBL)
 		status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
 	if (macstat & B43_RX_MAC_DECERR) {
-		/* Decryption with the given key failed.
-		 * Drop the packet. We also won't be able to decrypt it with
-		 * the key in software. */
-		goto drop;
+		/* The AC ucode sets this bit on frames it never decrypted: this
+		 * port programs no hardware keys on AC, and it shows up even on
+		 * unprotected EAPOL frames (notes/50). Dropping here killed
+		 * 4-way handshake message 3 and DHCP replies; mac80211's own
+		 * software decryption still rejects anything really corrupt. */
+		if (dev->phy.type == B43_PHYTYPE_AC && b43_ac_decerr_pass) {
+			if (b43_ac_decerr_logged < 8) {
+				b43_ac_decerr_logged++;
+				b43info(dev->wl, "RX: DECERR passed up (len %u, macstat %04x)\n",
+					skb->len, macstat);
+			}
+		} else {
+			goto drop;
+		}
 	}
 
 	/* Skip PLCP and padding */

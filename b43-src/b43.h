@@ -256,7 +256,8 @@ enum {
 #define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5 Ghz channel */
 /* ucode macstat counters (rev 40+ AC firmware; also present on older ucode) */
 #define B43_SHM_SH_TXALLFRM		0x00E0	/* Total frames transmitted */
-#define B43_SHM_SH_TXACKFRM		0x00E6	/* Frames transmitted, ACK received */
+#define B43_SHM_SH_TXACKFRM		0x00E6	/* ACK frames we transmitted (for received unicast) */
+#define B43_SHM_SH_RXACKUCAST		0x011C	/* ACKs received for our unicast frames */
 #define  B43_SHM_SH_CHAN_40MHZ		0x0200	/* Bit set, if 40 Mhz channel width */
 #define B43_SHM_SH_MACHW_L		0x00C0	/* Location where the ucode expects the MAC capabilities */
 #define B43_SHM_SH_MACHW_H		0x00C2	/* Location where the ucode expects the MAC capabilities */

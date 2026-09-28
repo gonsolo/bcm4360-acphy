@@ -693,6 +693,9 @@ MODULE_PARM_DESC(ac_5g_80, "AC-PHY test: on 5 GHz keep wl's 80 MHz setup instead
 static bool b43_ac_init_state;
 module_param_named(ac_init_state, b43_ac_init_state, bool, 0444);
 MODULE_PARM_DESC(ac_init_state, "AC-PHY: apply wl's captured state at PHY init (else on the first switch to channel 6)");
+static bool b43_ac_state_once;
+module_param_named(ac_state_once, b43_ac_state_once, bool, 0644);
+MODULE_PARM_DESC(ac_state_once, "AC-PHY: apply wl's captured state only on the first switch to channel 6 per core init");
 static void b43_radio_2069_vcocal(struct b43_wldev *dev);
 
 static bool b43_ac_rfseq;
@@ -1108,13 +1111,17 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	for (i = 0; i < 6; i++)
 		b43_phy_write(dev, B43_PHY_AC_BW1A + i, e->bw[i]);
 
-	/* wl's captured state is applied once on channel 6; our own tuning
-	 * then works for the other 2.4 GHz channels. */
-	if (!b43_ac_init_state) {
-		if (b43_ac_replay && new_channel == 6)
+	/* wl's captured state is applied on channel 6; our own tuning then
+	 * works for the other 2.4 GHz channels. Without ac_state_once this
+	 * re-runs on every return to channel 6, e.g. after each off-channel
+	 * scan step while associated. */
+	if (!b43_ac_init_state && new_channel == 6 &&
+	    !(b43_ac_state_once && phy_ac->wl_state_applied)) {
+		if (b43_ac_replay)
 			b43_phy_ac_replay_ch6(dev);
-		if (b43_ac_por && new_channel == 6)
+		if (b43_ac_por)
 			b43_phy_ac_apply_por(dev);
+		phy_ac->wl_state_applied = true;
 	}
 	if (is_5ghz && b43_ac_por && b43_ac_5g_80) {
 		u32 ioctl;
@@ -2790,8 +2797,13 @@ static void b43_phy_ac_log_macstat(struct b43_wldev *dev)
  * used elsewhere in this file for exactly this class of "something is
  * wrong, recover" situation) - this only adds a new, read-only-until-the-
  * threshold-trips trigger for it, not a new recovery mechanism.
+ *
+ * Off by default: TXACKFRM counts ACKs we *send* (it equals the unicast
+ * frames we received), not ACKs received for our frames, so this ratio says
+ * nothing about TX health; and its restart path is the leading suspect for
+ * a hard freeze (notes/48, notes/50). Needs a real metric before reuse.
  */
-static uint b43_ac_ackwatchdog = 1;
+static uint b43_ac_ackwatchdog;
 module_param_named(ac_ackwatchdog, b43_ac_ackwatchdog, uint, 0644);
 MODULE_PARM_DESC(ac_ackwatchdog,
 		 "AC-PHY: recover via a core restart if the ACK ratio stays "
