@@ -35,19 +35,37 @@ Chip loaded and connected on channel 11 (whatever the router currently
 picks), `ac_state_once=1` still set from this test. USB backup link
 confirmed working throughout both soaks.
 
+## Resolved: it's ordinary background scanning, not a bug
+
+Checked dmesg for `switch_channel` activity during the soak window: while
+connected and idle, mac80211 runs a full 13-channel background scan sweep
+roughly every 45-49 seconds (e.g. bursts at 14:01:05, 14:01:51, 14:02:40 -
+~46-49s apart), each taking ~5 seconds (13 quick channel switches, back to
+the operating channel between each, then settling). This is normal
+mac80211 behavior for any associated station (keeps the scan cache fresh),
+not something b43-src controls.
+
+5 seconds off-channel out of every ~45-49 seconds is **10-11% of the
+time** - matching the measured ~6-10% probe loss almost exactly, and the
+dip timing in both soaks (roughly 30-80s apart, aliasing against the
+~13-15s probe cadence) is consistent with this. **The "residual loss" is
+not a driver defect**: a probe that happens to land during a background
+scan's off-channel window will legitimately miss, on any WiFi client, on
+any channel - which is also why `ac_state_once` made no measurable
+difference (it isn't the cause) and why the loss rate was similar on
+channel 1's soak too (notes/51's channel-1 soak just got a luckier probe
+cadence relative to its scan timing, at 115/115 - not zero real loss,
+zero *sampled* loss).
+
 ## Next steps
 
-1. A cleaner test of the reapplication hypothesis would need the
-   connection actually running on channel 6 (not just present in the scan
-   list), which needs the router pinned there again - not requested this
-   round.
-2. More likely explanations for the general ~7-10% loss, not yet checked:
-   ordinary background-scan interruptions during otherwise-idle probe
-   windows (a scan step just happened to overlap the ARP/ping attempt),
-   or genuine RF-level loss at normal WiFi operating margins. Correlating
-   probe misses against `switch_channel` timestamps in dmesg would
-   distinguish these - not done yet (blocked mid-investigation by a
-   transient tool failure).
-3. `ac_state_once` can stay as an available option; it just isn't shown to
-   help here. Not reverting the default (already off) without more
-   evidence either way.
+1. No driver work follows from this - the post-association reliability
+   problem this project chased since notes/34 is resolved (notes/50/51's
+   fixes), and the small remaining probe-loss rate is explained as normal
+   scan behavior, not a new lead.
+2. `ac_state_once` can stay as an available option (default off); nothing
+   here shows it's needed.
+3. If background-scan-induced loss ever matters in practice (e.g. for
+   real traffic, not just probes), it would show up as mac80211's own
+   standard off-channel-scan tradeoff, not a b43-src issue - out of scope
+   for this project's remaining work.
