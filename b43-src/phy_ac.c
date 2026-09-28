@@ -2828,7 +2828,14 @@ static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
 	ac->last_txackfrm = txackfrm;
 
 	if (d_all < B43_AC_ACKWD_MIN_FRAMES) {
-		ac->ack_ratio_bad_windows = 0;
+		/* Not enough traffic this window to say anything - inconclusive,
+		 * not "fine". Leave ack_ratio_bad_windows as-is: sparse/bursty
+		 * traffic (real application traffic, or the effect of notes/41's
+		 * early-suppression bug itself reducing per-frame attempt counts)
+		 * would otherwise reset the streak every time a quiet window
+		 * happened to fall between two genuinely bad ones, making this
+		 * watchdog far less likely to ever trigger during exactly the
+		 * kind of bursty-traffic degradation it exists to catch. */
 		return false;
 	}
 
