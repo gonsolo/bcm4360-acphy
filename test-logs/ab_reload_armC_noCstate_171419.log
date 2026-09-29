@@ -1,0 +1,43 @@
+=== Arm armC_noCstate: N=5 extra_params='' Tue Sep 29 05:14:19 PM CEST 2026 ===
+--- attempt 1/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 15
+wlp3s0b1:disconnected:
+[ 2817.777970] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2817.986016] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2818.193966] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 1: state=disconnected suspend_failures=12
+--- attempt 2/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 21
+wlp3s0b1:disconnected:
+[ 2859.239944] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2859.447928] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2859.655952] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 2: state=disconnected suspend_failures=15
+--- attempt 3/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 19
+wlp3s0b1:disconnected:
+[ 2902.461961] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2902.669924] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2902.877924] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 3: state=disconnected suspend_failures=12
+--- attempt 4/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 20
+wlp3s0b1:disconnected:
+[ 2962.475342] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2962.683382] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2962.891333] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 4: state=disconnected suspend_failures=18
+--- attempt 5/5 ---
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/43)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 2986.737917] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=12)
+[ 2986.738321] wlp3s0b1: associated
+[ 2986.783876] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 5: state=connected suspend_failures=10
+=== Arm armC_noCstate done: 1/5 connected, Tue Sep 29 05:17:31 PM CEST 2026 ===

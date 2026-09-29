@@ -13,14 +13,15 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/80-status-2026-09-29-reload-ab-flawed-by-design-ac_state_once-cannot-affect-first-connect.md`
+**Read `notes/81-status-2026-09-29-cstates-ruled-out-ap-is-ch11-not-ch6-correction.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
-regression writeup, `notes/78`/`notes/79` for the channel-6 replay
-finding and the scan-only A/B it continues). The numbered files in
+regression writeup, `notes/78`-`80` for the channel-6 replay finding and
+two A/B tests it continues - note `notes/81` corrects a wrong assumption
+in `notes/78`, the AP is on channel 11, not 6). The numbered files in
 `notes/` are a chronological log of the whole investigation; earlier
 "session summary" checkpoints (`notes/17`, `notes/76`) are also good
-wide-angle reads, but `notes/80` is the most current.
+wide-angle reads, but `notes/81` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
@@ -38,27 +39,29 @@ kernel this project developed against):
   (notes/76).
 
 **Current blocker: the exact same driver/binary is reliably reliable on
-kernel 6.18.53 and reliably unreliable (0/5 to ~40%) on kernel 7.2.7** —
-a confirmed, repeatable, clean-A/B-tested kernel-version regression
-(notes/76), not a firmware/RF/hardware issue. The specific kernel-side
-mechanism is not yet found despite an extensive targeted commit search
-(bcma, mac80211, PCI ASPM/power-up, irq/workqueue/hrtimer — all checked
-and ruled out, notes/77); the most concrete current lead is a scan-
-triggered channel-switch/MAC-suspend collision (notes/77), sharpened by
-notes/78's finding that channel 6 (our AP's channel, and one of the
-channels notes/77 saw disproportionately fail) re-triggers a heavy,
-~1300-register vendor-state replay on every scan revisit — the
-`ac_state_once` runtime knob suppresses that and was live-tested as
-safe, but **still not proven to reduce the actual failure rate** — a
-reload-based A/B (notes/80) turned out to be flawed by design (the flag
-provably cannot affect a single fresh connect attempt, only repeat
-scan-triggered returns to channel 6 on an already-associated link) and
-a scan-only A/B (notes/79) hit zero failures in both arms. The real
-differential test (connect once, then scan repeatedly on the same
-module load, comparing scan-triggered failure counts) hasn't been run
-yet. A newer, not-yet-understood RX-blackout symptom found live at the
-end of an earlier session (notes/77, Part 6) also still needs a clean
-re-check.
+kernel 6.18.53 and reliably unreliable (~30-40%, 5/15 in the most recent
+sampling) on kernel 7.2.7** — a confirmed, repeatable, clean-A/B-tested
+kernel-version regression (notes/76), not a firmware/RF/hardware issue.
+**Staying on 6.18.53 as the daily-use kernel is explicitly not an
+option** — 7.2.x has to be made reliable, 6.18.53 is reference-only for
+A/B testing. The specific kernel-side mechanism is not yet found despite
+an extensive targeted commit search (bcma, mac80211, PCI ASPM/power-up,
+irq/workqueue/hrtimer, and — as of notes/81 — CPU C-states/wakeup
+latency, all checked and ruled out, notes/77/81); the most concrete
+still-open lead is a scan-triggered channel-switch/MAC-suspend
+collision (notes/77). notes/78 found a real, heavy (~1300-register)
+vendor-state replay that fires on every touch of channel 6 (a fixed
+staging channel every module bring-up passes through, not — as notes/78
+first assumed — the AP's own channel, which is actually channel 11;
+corrected in notes/81) and can be suppressed with the `ac_state_once`
+runtime knob, but two different A/B attempts (notes/79, notes/80) each
+turned out to be shaped wrong to actually test whether it reduces the
+failure rate — still an open, unresolved lead, not a ruled-out one.
+Next concrete step (see the project's daily-use plan): diff mac80211's
+`drv_*` tracepoint/timing behavior between the two kernels during a
+real connect, rather than another blind reload-count A/B. A newer,
+not-yet-understood RX-blackout symptom found live at the end of an
+earlier session (notes/77, Part 6) also still needs a clean re-check.
 
 Not working / not attempted:
 - 5 GHz transmit (receive works, notes/53) and a from-scratch
