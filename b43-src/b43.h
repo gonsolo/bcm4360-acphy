@@ -557,6 +557,22 @@ enum {
 #define B43_IRQ_TIMEOUT			0x80000000
 
 #define B43_IRQ_ALL			0xFFFFFFFF
+/* AC-PHY only: interrupt sources wl's real IRQ mask enables that no
+ * mainline b43 PHY type has ever named (bits 21-23), plus TIMER0 and
+ * CCA_MEASURE_OK (both already named but not in B43_IRQ_MASKTEMPLATE)
+ * and TIMEOUT. Diffed live against a real wl association trace
+ * (traces/wl-init-20260927-184726.trace) - notes/61. Names are
+ * placeholders; real semantics unconfirmed. */
+#define B43_IRQ_AC_UNK21		0x00200000
+#define B43_IRQ_AC_UNK22		0x00400000
+#define B43_IRQ_AC_UNK23		0x00800000
+#define B43_IRQ_AC_EXTRA_MASK		(B43_IRQ_TIMER0 | \
+					 B43_IRQ_CCA_MEASURE_OK | \
+					 B43_IRQ_AC_UNK21 | \
+					 B43_IRQ_AC_UNK22 | \
+					 B43_IRQ_AC_UNK23 | \
+					 B43_IRQ_TIMEOUT)
+
 #define B43_IRQ_MASKTEMPLATE		(B43_IRQ_TBTT_INDI | \
 					 B43_IRQ_ATIM_END | \
 					 B43_IRQ_PMQ | \

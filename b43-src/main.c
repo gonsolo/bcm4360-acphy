@@ -3436,6 +3436,14 @@ static bool b43_ac_fifo = true;
 module_param_named(ac_fifo, b43_ac_fifo, bool, 0444);
 MODULE_PARM_DESC(ac_fifo, "AC-PHY: carve MAC FIFOs like wl (rev 40+)");
 
+/* See B43_IRQ_AC_EXTRA_MASK in b43.h and notes/60-61: experimental,
+ * unmasks IRQ sources wl's real mask enables that ours never has, to
+ * test whether that's why our ucode sleeps for seconds instead of
+ * waking promptly on a posted TX frame. Default off - unconfirmed. */
+static bool b43_ac_irq_extra;
+module_param_named(ac_irq_extra, b43_ac_irq_extra, bool, 0644);
+MODULE_PARM_DESC(ac_irq_extra, "AC-PHY test: unmask extra IRQ sources wl enables (notes/60-61)");
+
 static void b43_ac_fifo_init(struct b43_wldev *dev)
 {
 	static const u8 fifos[] = { 7, 0, 1, 2, 3, 4, 5 };
@@ -4948,6 +4956,13 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 	dev->irq_mask = B43_IRQ_MASKTEMPLATE;
 	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
 		dev->irq_mask &= ~B43_IRQ_PHY_TXERR;
+	/* See B43_IRQ_AC_EXTRA_MASK / notes/60-61: our AC port's ucode sleeps
+	 * (NAP) for seconds at a time instead of waking promptly to service
+	 * a posted TX frame, unlike wl on the same hardware. wl's real IRQ
+	 * mask enables several sources ours never has (notes/61); test
+	 * whether unmasking them lets the ucode wake on them too. */
+	if (dev->phy.type == B43_PHYTYPE_AC && b43_ac_irq_extra)
+		dev->irq_mask |= B43_IRQ_AC_EXTRA_MASK;
 
 	dev->mac_suspended = 1;
 
