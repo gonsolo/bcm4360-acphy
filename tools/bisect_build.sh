@@ -29,7 +29,13 @@
 #    them sticks at =y (`grep` them back out and check - don't trust
 #    the first pass).
 #    Boots to systemd.unit=multi-user.target (plain text console), not
-#    graphical - avoids depending on a working mouse/GDM entirely.
+#    graphical - avoids depending on a working mouse/GDM entirely. Also
+#    passes systemd.wants=getty@tty1.service explicitly - this NixOS
+#    config disables getty@tty1 by default (GDM normally owns tty1),
+#    so without this override multi-user.target reaches a fully healthy
+#    running state with SSH/NetworkManager up but *no login prompt
+#    anywhere* (notes/96) - easy to mistake for a hang since nothing
+#    further gets logged, but it isn't one.
 #  - the SSH key + pampelmuse ~/src/linux clone from notes/93 already exist
 #  - IMPORTANT: only call this via a backgrounded Bash tool invocation
 #    (run_in_background / &), never via a detached remote nohup/screen -
@@ -91,7 +97,7 @@ title NixOS (bisect)
 sort-key nixos-bisect
 version bisect $COMMIT (mainline, no NixOS initrd, custom minimal config, text console)
 linux /EFI/nixos/$EFI_NAME
-options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.unit=multi-user.target
+options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.unit=multi-user.target systemd.wants=getty@tty1.service
 machine-id 1e7ffcf2ac3d46e0855327b0012ddbee
 EOF
 sudo bootctl set-oneshot nixos-bisect.conf

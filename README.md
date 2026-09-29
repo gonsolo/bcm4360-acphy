@@ -13,17 +13,18 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/95-status-2026-09-29-second-bisect-boot-no-input-fixed-hid-chain-plus-text-console.md`
-first** — it's the current entry point: two bisect boot attempts at the
-same commit (`60b8d4d49281`) have each hit a different missing-builtin-
-driver problem in the minimal kernel config (notes/94: `/boot` is
-`vfat` with no `nofail` in fstab, took down the whole boot; notes/95:
-reached graphical login but had no keyboard/mouse, the Apple SPI
-keyboard+trackpad chain was all modules) - both diagnosed straight from
-the journal/hardware and fixed, no lasting harm either time (the
-one-shot boot's persistent-default safety property worked as intended).
-Also switched to booting a plain text console instead of graphical, to
-remove the GDM/mouse dependency entirely. notes/93 has the fuller
+**Read `notes/96-status-2026-09-29-third-bisect-boot-no-getty-fixed-with-explicit-systemd-wants.md`
+first** — it's the current entry point: three bisect boot attempts at
+the same commit (`60b8d4d49281`), each hitting a different boot-
+environment problem, each diagnosed straight from the journal and
+fixed with no lasting harm (notes/94: `/boot`, `vfat`, no `nofail` in
+fstab, took down the whole boot; notes/95: no keyboard/mouse, the Apple
+SPI input chain was all modules - fixed, and switched to a text console
+to drop the GDM/mouse dependency entirely; notes/96: the text console
+then reached a fully healthy running system with SSH/network up but no
+login prompt anywhere, because this NixOS config disables `getty@tty1`
+by default since GDM normally owns it - fixed with a kernel-cmdline
+`systemd.wants=`, no rebuild needed this time). notes/93 has the fuller
 compile-server/bisect setup context. notes/92 concluded the timing-
 instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
 16/16 samples from an ordinary daily-use boot autoload; on 6.18.53
