@@ -7,6 +7,8 @@ tools/bar0peek
 tools/bar0rd
 tools/psmpc_fast
 tools/scr_fast
+tools/full_snapshot
+tools/hw_timing
 tools/tmux
 tools/macdump
 tools/python3

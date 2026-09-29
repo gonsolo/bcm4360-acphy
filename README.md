@@ -11,33 +11,46 @@ Linux since kernel 4.5 (~2016) — nobody had gotten it working. This
 project is not there either, but it's the furthest getting I'm aware
 of anyone getting: real hardware, real reception, real association.
 
-## Status (2026-09-27)
+## Status (2026-09-29)
 
-**Not ready for daily use.** Read `notes/10-status-2026-09-27-gain-override.md`
-for the full, current picture; the numbered files in `notes/` are a
-chronological log of the whole investigation.
+**Read `notes/77-status-2026-09-29-kernel-7.2.7-regression-narrowed-to-scan-triggered-suspend-plus-a-new-rx-blackout.md`
+first** — it's the current entry point and links back to everything else
+that still matters. The numbered files in `notes/` are a chronological
+log of the whole investigation; earlier "session summary" checkpoints
+(`notes/17`, `notes/76`) are also good wide-angle reads, but `notes/77` is
+the most current.
 
-Working, on real hardware:
-- Attach, firmware upload, DMA, radio power-up and channel tuning.
-- **Receive** on both 2.4 GHz and 5 GHz: decodes the majority of a
-  nearby AP's beacons, scan, open-system authentication, association.
+**The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
+long since resolved** — it turned out to be several distinct SHM/POR-replay
+bugs (see notes/33, "Bug 1-4"), not a hardware fault. Since then:
 
-Not working:
-- **The firmware's own automatically-generated transmissions (ACKs,
-  beacons) fail ~90-95% of the time** with a genuine hardware PHY
-  transmission-error interrupt, while host-generated transmissions
-  (data frames built and queued by the driver) are 100% clean at every
-  rate tested. This is why WPA2 can't complete — the access point never
-  reliably receives our ACKs. The root cause is unresolved; see
-  `notes/07` through `notes/10` for everything ruled out (chip-control
-  registers, MAC timing, the TX FIFO threshold setup, every shared-
-  memory word the vendor driver is known to write, gain-calibration
-  freshness) and what's suspected to remain (something in the PHY's
-  analog/calibration state, or a difference below the register
-  abstraction — needs instrumentation this project doesn't have, e.g.
-  an RF capture during a failure).
-- 5 GHz transmit and a from-scratch (non-replay) channel-set/init path
-  are unfinished; see `notes/`.
+Working, on real hardware, on kernel 6.18.53 (the original/historical
+kernel this project developed against):
+- Attach, firmware upload, DMA, radio power-up, channel tuning (2.4 GHz
+  and 5 GHz, including the Farrow-resampler per-channel fix, notes/51/53).
+- Full WPA2 4-way handshake, DHCP (IPv4 and IPv6), and real IP traffic
+  (ping, ARP) over the actual BCM4360 hardware (notes/33) — the project's
+  original milestone.
+- Reliable reconnection: 4-5/5 clean first-try connections, zero MAC-
+  suspend failures, in the project's most recent clean A/B test
+  (notes/76).
+
+**Current blocker: the exact same driver/binary is reliably reliable on
+kernel 6.18.53 and reliably unreliable (0/5 to ~40%) on kernel 7.2.7** —
+a confirmed, repeatable, clean-A/B-tested kernel-version regression
+(notes/76), not a firmware/RF/hardware issue. The specific kernel-side
+mechanism is not yet found despite an extensive targeted commit search
+(bcma, mac80211, PCI ASPM/power-up, irq/workqueue/hrtimer — all checked
+and ruled out, notes/77); the most concrete current lead is a scan-
+triggered channel-switch/MAC-suspend collision (notes/77) and a newer,
+not-yet-understood RX-blackout symptom found live at the end of the last
+session (notes/77, Part 6) needing a clean-reboot re-check before trusting
+it.
+
+Not working / not attempted:
+- 5 GHz transmit (receive works, notes/53) and a from-scratch
+  (non-replay) channel-set/init path.
+- The kernel-7.2.7 regression above.
 
 ## How this is built
 
