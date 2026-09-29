@@ -35,7 +35,13 @@
 #    so without this override multi-user.target reaches a fully healthy
 #    running state with SSH/NetworkManager up but *no login prompt
 #    anywhere* (notes/96) - easy to mistake for a hang since nothing
-#    further gets logged, but it isn't one.
+#    further gets logged, but it isn't one. Also passes
+#    systemd.debug-shell=1 - an unauthenticated root shell on tty9
+#    (Ctrl+Alt+F9), independent of PAM/login/the normal user shell -
+#    the tty1 getty login itself was observed to authenticate
+#    successfully and then have its shell exit immediately with no
+#    journal-visible error (notes/97), so this is the fallback path in
+#    case that recurs.
 #  - the SSH key + pampelmuse ~/src/linux clone from notes/93 already exist
 #  - IMPORTANT: only call this via a backgrounded Bash tool invocation
 #    (run_in_background / &), never via a detached remote nohup/screen -
@@ -97,7 +103,7 @@ title NixOS (bisect)
 sort-key nixos-bisect
 version bisect $COMMIT (mainline, no NixOS initrd, custom minimal config, text console)
 linux /EFI/nixos/$EFI_NAME
-options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.unit=multi-user.target systemd.wants=getty@tty1.service
+options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.unit=multi-user.target systemd.wants=getty@tty1.service systemd.debug-shell=1
 machine-id 1e7ffcf2ac3d46e0855327b0012ddbee
 EOF
 sudo bootctl set-oneshot nixos-bisect.conf

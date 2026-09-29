@@ -13,9 +13,9 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/96-status-2026-09-29-third-bisect-boot-no-getty-fixed-with-explicit-systemd-wants.md`
-first** — it's the current entry point: three bisect boot attempts at
-the same commit (`60b8d4d49281`), each hitting a different boot-
+**Read `notes/97-status-2026-09-29-fourth-bisect-boot-login-succeeds-shell-exits-instantly-debug-shell-staged.md`
+first** — it's the current entry point: four bisect boot attempts at
+the same commit (`60b8d4d49281`) now, each hitting a different boot-
 environment problem, each diagnosed straight from the journal and
 fixed with no lasting harm (notes/94: `/boot`, `vfat`, no `nofail` in
 fstab, took down the whole boot; notes/95: no keyboard/mouse, the Apple
@@ -24,8 +24,12 @@ to drop the GDM/mouse dependency entirely; notes/96: the text console
 then reached a fully healthy running system with SSH/network up but no
 login prompt anywhere, because this NixOS config disables `getty@tty1`
 by default since GDM normally owns it - fixed with a kernel-cmdline
-`systemd.wants=`, no rebuild needed this time). notes/93 has the fuller
-compile-server/bisect setup context. notes/92 concluded the timing-
+`systemd.wants=`; notes/97: login itself now succeeds but the shell
+exits within about a second with no journal-visible error - not yet
+root-caused, worked around by staging `systemd.debug-shell=1`, an
+unauthenticated root shell on tty9 independent of PAM/login entirely).
+notes/93 has the fuller compile-server/bisect setup context. notes/92
+concluded the timing-
 instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
 16/16 samples from an ordinary daily-use boot autoload; on 6.18.53
 (notes/90/91, same instrumented binary), `psctl=0ms` and `wait=0-3ms`.
