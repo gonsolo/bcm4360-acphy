@@ -12,8 +12,14 @@ P=/home/gonsolo/bcm4360-acphy
 IF=wlp3s0b1
 SSID="${B43_AUTORECOVER_SSID:-Vodafone-2A84}"
 LOG=$P/test-logs/b43_autorecover.log
+# notes/88 live test: a single real connect attempt can legitimately
+# take up to ~70s (connect_test.sh's own ceiling, matching mac80211's
+# auth-retry timeout) before succeeding or failing on its own - a 60s
+# trigger can pre-empt a still-in-flight attempt. 90s gives real
+# attempts room to finish while still recovering promptly from a
+# genuinely stuck/flapping interface.
 POLL_SECS=15
-DISCONNECTED_POLLS_TRIGGER=4  # ~60s
+DISCONNECTED_POLLS_TRIGGER=6  # ~90s
 MAX_PER_HOUR=6
 ATTEMPTS_FILE=/run/b43_autorecover_attempts
 

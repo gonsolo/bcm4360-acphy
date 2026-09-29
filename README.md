@@ -13,7 +13,7 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/87-status-2026-09-29-phase-2a-auto-recovery-watchdog-built-and-live-tested.md`
+**Read `notes/88-status-2026-09-29-present-but-stuck-path-tested-threshold-fixed-two-refinements-found.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
 regression writeup, `notes/78`-`81` for the channel-6 replay/A-B/
@@ -22,13 +22,13 @@ state scanning has slow `drv_config` outliers unrelated to
 `b43_mac_suspend`, `notes/84` for the phase-timing instrumentation that
 pins the *connect-time* slowness on `b43_mac_suspend` genuinely failing,
 `notes/85`-`86` for two failed attempts to reproduce the steady-state
-outliers, now parked — `notes/87` builds and live-tests an automatic
-detect-and-reload watchdog, `tools/b43_autorecover.sh`, so a stuck
-connection now self-heals within ~60-75s instead of needing manual
-intervention). The numbered files in `notes/` are a chronological log of
-the whole investigation; earlier "session summary" checkpoints
-(`notes/17`, `notes/76`) are also good wide-angle reads, but `notes/87`
-is the most current.
+outliers, now parked, `notes/87` for building and live-testing the
+auto-recovery watchdog `tools/b43_autorecover.sh` — `notes/88` then
+tested its other trigger path, found the 60s threshold could pre-empt a
+still-in-flight connect attempt, and fixed it to 90s). The numbered
+files in `notes/` are a chronological log of the whole investigation;
+earlier "session summary" checkpoints (`notes/17`, `notes/76`) are also
+good wide-angle reads, but `notes/88` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
