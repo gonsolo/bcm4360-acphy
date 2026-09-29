@@ -1,0 +1,45 @@
+=== Arm armA_default: N=5 extra_params='' Tue Sep 29 04:58:44 PM CEST 2026 ===
+--- attempt 1/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 10
+wlp3s0b1:disconnected:
+[ 1899.920155] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 1900.128168] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 1900.336106] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 1: state=disconnected suspend_failures=14
+--- attempt 2/5 ---
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/8)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 1924.814789] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=13)
+[ 1924.815276] wlp3s0b1: associated
+[ 1924.920324] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 2: state=connected suspend_failures=9
+--- attempt 3/5 ---
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/10)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 1945.087769] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=20)
+[ 1945.088100] wlp3s0b1: associated
+[ 1945.093138] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 3: state=connected suspend_failures=8
+--- attempt 4/5 ---
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/12)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 1965.293940] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=17)
+[ 1965.294378] wlp3s0b1: associated
+[ 1965.369079] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 4: state=connected suspend_failures=8
+--- attempt 5/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 18
+wlp3s0b1:disconnected:
+[ 2002.320580] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2002.528584] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2002.736471] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 5: state=disconnected suspend_failures=11
+=== Arm armA_default done: 3/5 connected, Tue Sep 29 05:01:12 PM CEST 2026 ===

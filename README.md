@@ -13,14 +13,14 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/79-status-2026-09-29-ac_state_once-ab-scan-only-inconclusive-both-arms-clean.md`
+**Read `notes/80-status-2026-09-29-reload-ab-flawed-by-design-ac_state_once-cannot-affect-first-connect.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
-regression writeup, `notes/78` for the channel-6 replay finding it
-continues). The numbered files in `notes/` are a chronological log of
-the whole investigation; earlier "session summary" checkpoints
-(`notes/17`, `notes/76`) are also good wide-angle reads, but `notes/79`
-is the most current.
+regression writeup, `notes/78`/`notes/79` for the channel-6 replay
+finding and the scan-only A/B it continues). The numbered files in
+`notes/` are a chronological log of the whole investigation; earlier
+"session summary" checkpoints (`notes/17`, `notes/76`) are also good
+wide-angle reads, but `notes/80` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
@@ -49,10 +49,16 @@ notes/78's finding that channel 6 (our AP's channel, and one of the
 channels notes/77 saw disproportionately fail) re-triggers a heavy,
 ~1300-register vendor-state replay on every scan revisit — the
 `ac_state_once` runtime knob suppresses that and was live-tested as
-safe, but **not yet proven to reduce the actual failure rate** (needs a
-real A/B, notes/78). A newer, not-yet-understood RX-blackout symptom
-found live at the end of an earlier session (notes/77, Part 6) also
-still needs a clean re-check.
+safe, but **still not proven to reduce the actual failure rate** — a
+reload-based A/B (notes/80) turned out to be flawed by design (the flag
+provably cannot affect a single fresh connect attempt, only repeat
+scan-triggered returns to channel 6 on an already-associated link) and
+a scan-only A/B (notes/79) hit zero failures in both arms. The real
+differential test (connect once, then scan repeatedly on the same
+module load, comparing scan-triggered failure counts) hasn't been run
+yet. A newer, not-yet-understood RX-blackout symptom found live at the
+end of an earlier session (notes/77, Part 6) also still needs a clean
+re-check.
 
 Not working / not attempted:
 - 5 GHz transmit (receive works, notes/53) and a from-scratch

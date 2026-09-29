@@ -1,0 +1,43 @@
+=== Arm armB_state_once: N=5 extra_params='ac_state_once=1' Tue Sep 29 05:01:34 PM CEST 2026 ===
+--- attempt 1/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 16
+wlp3s0b1:disconnected:
+[ 2052.328738] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2052.536806] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2052.744736] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 1: state=disconnected suspend_failures=12
+--- attempt 2/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 18
+wlp3s0b1:disconnected:
+[ 2109.224966] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2109.432939] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2109.641037] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 2: state=disconnected suspend_failures=11
+--- attempt 3/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 16
+wlp3s0b1:disconnected:
+[ 2155.593238] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2155.801237] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2156.009220] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 3: state=disconnected suspend_failures=14
+--- attempt 4/5 ---
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/26)
+PHY TX errors during connect: 1
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 2178.131733] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=22)
+[ 2178.132058] wlp3s0b1: associated
+[ 2178.152482] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 4: state=connected suspend_failures=10
+--- attempt 5/5 ---
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 19
+wlp3s0b1:disconnected:
+[ 2208.388111] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 2208.596065] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 2208.803988] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 5: state=disconnected suspend_failures=12
+=== Arm armB_state_once done: 1/5 connected, Tue Sep 29 05:04:45 PM CEST 2026 ===
