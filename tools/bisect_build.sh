@@ -1,58 +1,52 @@
 #!/usr/bin/env bash
 # Build+package one git-bisect candidate kernel on the remote builder
 # (pampelmuse) and stage it as a one-shot local boot entry. Run from the
-# laptop. Assumes:
+# laptop. See notes/100 for the full story of how this pipeline evolved
+# (notes/93-99 chronicle six failed boot attempts caused by hand-picking
+# which drivers must be builtin, one at a time, by trial and error -
+# storage/vfat, HID/input, GPU (i915) were each discovered as a boot
+# failure before being fixed).
+#
+# Current design (notes/100), much more robust than the earlier one:
+#  - ~/src/linux/.config is NixOS's own actual .config for the real,
+#    working 7.2.7 kernel (from the linux-7.2.7-dev package in the Nix
+#    store), NOT a hand-built minimal config - guaranteed to already
+#    support everything this hardware needs, since it's what's really
+#    running day to day. `make localmodconfig` (LSMOD=current lsmod)
+#    trims it down to roughly what's actually relevant on this specific
+#    machine, per the user's "strip what's obviously not needed"
+#    request - safe because it's a standard, well-tested kbuild tool,
+#    not hand-guessing individual Kconfig symbols.
+#  - Module compression is disabled (CONFIG_MODULE_COMPRESS unset) so
+#    plain .ko files, no compression-library dependency in the initrd.
+#  - A real, generic initrd (built by this script, see below) loads
+#    *every* module the kernel produced via `modprobe -a`, using a
+#    depmod-generated dependency database - this is what actually
+#    eliminates the whole "which driver needs to be builtin" class of
+#    bug going forward, not another round of manual Kconfig guessing.
+#    Everything in the kernel's own modules_install tree (storage, HID,
+#    GPU, sound, whatever) loads automatically and generically. Only
+#    b43.ko (out-of-tree, not part of the kernel's own module tree)
+#    still needs a manual insmod, via bisect-boot/load.sh after login.
+#  - Boots to the real default target (graphical.target/GDM, no
+#    systemd.unit= override) with systemd.wants=getty@tty1.service and
+#    systemd.debug-shell=1 as fallbacks, and hid_apple.fnmode=2 (this
+#    hardware's F-keys default to media functions, not literal Fn -
+#    notes/98) - though note Ctrl+Alt+F9 VT-switching was not observed
+#    to work on this hardware even with fnmode fixed (notes/98),
+#    unexplained, treat tty9 access as unreliable.
+#
+# Assumes:
 #  - ~/src/linux has the commit already checked out (git bisect does this)
-#  - ~/src/linux/.config exists locally with the project's minimal,
-#    boot-without-initrd config. Required builtin (=y, not =m) since
-#    there's no initrd/depmod to load modules for any of this before
-#    it's needed - each was hit for real as a boot failure before being
-#    added (notes/93, notes/94, notes/95):
-#      storage/root-fs:  SCSI, BLK_DEV_SD, ATA, SATA_AHCI, EXT4_FS
-#      boot-fs (/boot is the EFI System Partition, vfat, no `nofail`
-#        in fstab, so a failed mount here takes down local-fs.target
-#        and drops to the emergency shell):
-#                         FAT_FS, VFAT_FS, NLS_CODEPAGE_437, NLS_ISO8859_1
-#      input (no keyboard/trackpad without these - notes/95):
-#                         LEDS_CLASS, SPI_PXA2XX, SPI_PXA2XX_PCI,
-#                         KEYBOARD_APPLESPI, HID, HID_APPLE, HID_GENERIC,
-#                         USB_HID, USB_XHCI_HCD, USB_XHCI_PCI,
-#                         INPUT_MOUSEDEV, INPUT_LEDS, INPUT_EVDEV
-#      GPU (no accel = no cursor, no compositing of new windows/search
-#        results - kernel falls back to the generic `simpledrm` driver,
-#        which has no hardware cursor plane; GDM/gnome-shell itself
-#        still renders since that's the one static surface simpledrm
-#        *can* show - notes/99):
-#                         DRM_I915
-#    Kconfig dependency note: `make olddefconfig` does NOT auto-upgrade
-#    an existing =m to =y just because a blocking dependency later
-#    becomes satisfied - if two of these depend on each other (e.g.
-#    KEYBOARD_APPLESPI/HID_APPLE/INPUT_LEDS all depend on LEDS_CLASS),
-#    fix the dependency first, rerun olddefconfig, then re-apply =y to
-#    whichever ones got silently held back at =m, and rerun once more.
-#    If regenerating .config from scratch, flip all of the above from
-#    =m to =y, rerunning olddefconfig between passes until every one of
-#    them sticks at =y (`grep` them back out and check - don't trust
-#    the first pass).
-#    Boots to the *real* default target (graphical.target/GDM, same as
-#    normal - no systemd.unit= override) now that notes/95's input fix
-#    is confirmed working (keyboard+trackpad correctly detected in the
-#    journal) - that was the only known reason GDM wasn't viable.
-#    Passes systemd.wants=getty@tty1.service as a fallback text login
-#    (this NixOS config disables getty@tty1 by default since GDM
-#    normally owns tty1, notes/96) and systemd.debug-shell=1 as a
-#    last-resort unauthenticated root shell on tty9 (Ctrl+Alt+F9) -
-#    on this hardware also needs hid_apple.fnmode=2 (also passed) since
-#    the default fnmode=1 sends bare F-keys as media functions, not
-#    literal Fn, though Ctrl+Alt+F9 VT-switching was not observed to
-#    work even with fnmode fixed and Fn held (notes/98) - not yet
-#    understood, tty9 access is unconfirmed, treat it as unreliable.
-#    Separately: the getty@tty1 *text* login was observed to
-#    authenticate successfully and then have its shell exit cleanly
-#    (no crash/signal/oops - just exits) within about a second, cause
-#    not yet found (notes/97/98) - if graphical.target/GDM also hits
-#    this, that's a strong clue it's not console-specific.
+#  - ~/src/linux/.config exists locally, built as described above
 #  - the SSH key + pampelmuse ~/src/linux clone from notes/93 already exist
+#  - ~/busybox-static exists on pampelmuse (a statically-linked
+#    pkgsStatic.busybox build, copied once - `nix-shell -p
+#    pkgsStatic.busybox --run 'echo $(readlink -f $(which busybox))'`
+#    locally, then scp to pampelmuse - includes modprobe/switch_root/
+#    mdev applets, no shared-library bundling needed since it's static)
+#  - a generic init script for the initrd - kept as
+#    tools/bisect_initrd_init (deploy alongside this script)
 #  - IMPORTANT: only call this via a backgrounded Bash tool invocation
 #    (run_in_background / &), never via a detached remote nohup/screen -
 #    pampelmuse's logind kills those the moment the SSH session closes
@@ -63,6 +57,7 @@ REMOTE=gonsolo@192.168.0.236
 LOCAL_LINUX=~/src/linux
 STAGE=~/bcm4360-acphy/bisect-boot
 B43SRC=~/bcm4360-acphy/b43-src
+INITSCRIPT=~/bcm4360-acphy/tools/bisect_initrd_init
 
 COMMIT=$(cd "$LOCAL_LINUX" && git rev-parse --short=12 HEAD)
 echo "=== bisect_build: $COMMIT ==="
@@ -76,6 +71,25 @@ echo "--- building bzImage + modules (-j18) ---"
 ssh -i "$KEY" "$REMOTE" "cd ~/src/linux && make -j18 bzImage modules > /tmp/build.log 2>&1"
 ssh -i "$KEY" "$REMOTE" "tail -3 /tmp/build.log; test -f ~/src/linux/arch/x86/boot/bzImage"
 
+echo "--- modules_install + depmod ---"
+ssh -i "$KEY" "$REMOTE" "cd ~/src/linux && rm -rf ~/modinstall && make -j18 modules_install INSTALL_MOD_PATH=~/modinstall INSTALL_MOD_STRIP=1 > /tmp/modinstall.log 2>&1; tail -3 /tmp/modinstall.log"
+
+echo "--- building generic modprobe-everything initrd ---"
+scp -i "$KEY" "$INITSCRIPT" "$REMOTE:~/initrd-init" >/dev/null
+ssh -i "$KEY" "$REMOTE" "
+set -e
+rm -rf ~/initramfs-root
+mkdir -p ~/initramfs-root/bin ~/initramfs-root/proc ~/initramfs-root/sys ~/initramfs-root/dev ~/initramfs-root/newroot ~/initramfs-root/lib
+cp ~/busybox-static ~/initramfs-root/bin/busybox
+chmod +x ~/initramfs-root/bin/busybox
+cp ~/initrd-init ~/initramfs-root/init
+chmod +x ~/initramfs-root/init
+cp -a ~/modinstall/lib/modules ~/initramfs-root/lib/modules
+cd ~/initramfs-root
+find . | cpio -o -H newc 2>/dev/null | gzip -9 > ~/initrd.img
+"
+ssh -i "$KEY" "$REMOTE" "ls -la ~/initrd.img"
+
 echo "--- syncing b43-src, building against this kernel ---"
 rsync -a --exclude='*.ko' --exclude='*.o' --exclude='*.mod' --exclude='*.mod.c' \
 	--exclude='.*.cmd' --exclude='Module.symvers' --exclude='modules.order' \
@@ -83,36 +97,32 @@ rsync -a --exclude='*.ko' --exclude='*.o' --exclude='*.mod' --exclude='*.mod.c' 
 ssh -i "$KEY" "$REMOTE" "cd ~/b43-src-bisect && make -j18 KDIR=/home/gonsolo/src/linux > /tmp/b43build.log 2>&1"
 ssh -i "$KEY" "$REMOTE" "tail -3 /tmp/b43build.log; test -f ~/b43-src-bisect/b43.ko"
 
-echo "--- packaging (tar+xz on the remote, small transfer either way) ---"
+echo "--- packaging (tar+xz on the remote) ---"
 ssh -i "$KEY" "$REMOTE" "cd ~/src/linux && tar -cJf /tmp/bisect-pkg.tar.xz -C arch/x86/boot bzImage \
-	-C /home/gonsolo/src/linux/drivers/bcma bcma.ko \
-	-C /home/gonsolo/src/linux/drivers/ssb ssb.ko \
-	-C /home/gonsolo/src/linux/drivers/leds led-class.ko \
-	-C /home/gonsolo/src/linux/net/wireless cfg80211.ko \
-	-C /home/gonsolo/src/linux/net/mac80211 mac80211.ko \
-	-C /home/gonsolo/src/linux/lib/math cordic.ko \
-	-C /home/gonsolo/src/linux/net/rfkill rfkill.ko \
-	-C /home/gonsolo/src/linux/lib/crypto libarc4.ko \
+	-C /home/gonsolo initrd.img \
 	-C /home/gonsolo/b43-src-bisect b43.ko"
 
-echo "--- pulling package (via USB stick interface, not the buggy b43 link) ---"
+echo "--- pulling package ---"
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
-scp -i "$KEY" -o BindAddress=192.168.0.98 "$REMOTE:/tmp/bisect-pkg.tar.xz" "$STAGE/pkg.tar.xz"
+scp -i "$KEY" "$REMOTE:/tmp/bisect-pkg.tar.xz" "$STAGE/pkg.tar.xz"
 tar -xJf "$STAGE/pkg.tar.xz" -C "$STAGE"
 rm "$STAGE/pkg.tar.xz"
 ls -la "$STAGE"
 
 echo "--- staging boot entry (default entry untouched, one-shot only) ---"
-EFI_NAME="bisect-$COMMIT-bzImage.efi"
-sudo cp "$STAGE/bzImage" "/boot/EFI/nixos/$EFI_NAME"
+EFI_KERNEL="bisect-$COMMIT-bzImage.efi"
+EFI_INITRD="bisect-$COMMIT-initrd.img"
+sudo cp "$STAGE/bzImage" "/boot/EFI/nixos/$EFI_KERNEL"
+sudo cp "$STAGE/initrd.img" "/boot/EFI/nixos/$EFI_INITRD"
 DEFAULT_ENTRY=$(sudo awk '/^default /{print $2}' /boot/loader/loader.conf)
 INIT=$(sudo grep -oP 'init=\S+' "/boot/loader/entries/$DEFAULT_ENTRY")
 cat <<EOF | sudo tee /boot/loader/entries/nixos-bisect.conf >/dev/null
 title NixOS (bisect)
 sort-key nixos-bisect
-version bisect $COMMIT (mainline, no NixOS initrd, custom minimal config, graphical default + fallbacks)
-linux /EFI/nixos/$EFI_NAME
+version bisect $COMMIT (mainline, generic modprobe-everything initrd, graphical default)
+linux /EFI/nixos/$EFI_KERNEL
+initrd /EFI/nixos/$EFI_INITRD
 options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.wants=getty@tty1.service systemd.debug-shell=1 hid_apple.fnmode=2
 machine-id 1e7ffcf2ac3d46e0855327b0012ddbee
 EOF
@@ -122,16 +132,16 @@ cat > "$STAGE/load.sh" <<'EOF'
 #!/usr/bin/env bash
 set -eu
 cd "$(dirname "$0")"
+DEV=0000:03:00.0
+if [ "$(basename "$(readlink -f /sys/bus/pci/devices/$DEV/driver 2>/dev/null)" 2>/dev/null)" != bcma-pci-bridge ]; then
+	echo bcma-pci-bridge | sudo tee /sys/bus/pci/devices/$DEV/driver_override
+	[ -e /sys/bus/pci/devices/$DEV/driver ] && \
+		echo "$DEV" | sudo tee /sys/bus/pci/devices/$DEV/driver/unbind
+	echo "$DEV" | sudo tee /sys/bus/pci/drivers_probe
+fi
 echo /home/gonsolo/bcm4360-acphy/firmware | sudo tee /sys/module/firmware_class/parameters/path
-sudo insmod cordic.ko
-sudo insmod rfkill.ko
-sudo insmod libarc4.ko
-sudo insmod cfg80211.ko
-sudo insmod mac80211.ko
-sudo insmod bcma.ko
-sudo insmod ssb.ko
-sudo insmod led-class.ko
 sudo insmod b43.ko verbose=3
+sleep 1
 echo "b43 interface: $(ls /sys/class/net | grep -E '^wl')"
 EOF
 chmod +x "$STAGE/load.sh"

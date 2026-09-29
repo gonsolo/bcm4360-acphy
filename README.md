@@ -13,21 +13,21 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/99-status-2026-09-29-sixth-bisect-boot-graphical-login-worked-no-i915-driver-caused-broken-rendering.md`
+**Read `notes/100-status-2026-09-29-switched-to-nixos-config-plus-generic-modprobe-everything-initrd.md`
 first** — it's the current entry point: six bisect boot attempts at the
-same commit (`60b8d4d49281`) now, each hitting a different boot-
-environment problem and each getting further than the last (notes/94:
-`/boot` `vfat` mount, took down the whole boot; notes/95: no keyboard/
-mouse, the Apple SPI input chain was all modules - fixed; notes/96:
-healthy system, no login prompt, `getty@tty1` disabled by this NixOS
-config - fixed; notes/97/98: text-console login worked but the shell
-exited cleanly and the `debug-shell` fallback's `tty9` was unreachable
-- pivoted back to the real default `graphical.target`/GDM per the
-user's request; notes/99: **GDM login itself worked**, but no mouse
-cursor and nothing dynamically-added ever rendered (search results,
-windows) - the real Intel GPU driver (`DRM_I915`) was, like every fix
-before it, a module with nothing to load it, so the kernel fell back to
-the unaccelerated, cursor-less `simpledrm` driver - fixed). notes/93
+same commit (`60b8d4d49281`) each hit a different missing-driver
+problem in a hand-built minimal kernel config (notes/94-99: `/boot`
+`vfat`, HID/input, GPU `i915`, each discovered and fixed one at a
+time). Per the user's steer - use NixOS's own actual `.config` for the
+real working kernel instead of hand-guessing one, and build a real
+initrd instead of forcing everything builtin - **notes/100 reworks the
+whole bisect-kernel pipeline**: base config is NixOS's genuine
+`linux-7.2.7-dev` config, `localmodconfig`-trimmed (a standard tool,
+not hand-guessing) for build size, and a real, generic initrd
+(`modprobe -a` over every module the kernel produced, via a proper
+`depmod` database) loads everything automatically - eliminating the
+whole "which driver needs to be builtin" bug class going forward,
+rather than fixing the next instance of it one boot at a time. notes/93
 has the fuller compile-server/bisect setup context. notes/92 concluded
 the timing-
 instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in

@@ -1,0 +1,27 @@
+#!/bin/busybox sh
+# Minimal generic initrd for bcm4360-acphy git-bisect kernels (notes/100).
+# Loads every in-tree module the kernel shipped (so we stop having to
+# hand-guess which specific driver must be builtin - notes/94/95/99),
+# then switches to the real root and execs the real init (read from the
+# init= kernel cmdline parameter, same as the boot entry already sets).
+/bin/busybox mount -t proc none /proc
+/bin/busybox mount -t sysfs none /sys
+/bin/busybox mount -t devtmpfs none /dev
+
+KVER=$(/bin/busybox uname -r)
+echo "initrd: kernel $KVER, loading modules..." > /dev/kmsg
+
+MODS=$(/bin/busybox find /lib/modules/$KVER -name '*.ko' | /bin/busybox sed -e 's#.*/##' -e 's/\.ko$//')
+/bin/busybox modprobe -a $MODS 2>/dev/kmsg
+
+/bin/busybox sleep 1
+/bin/busybox mdev -s
+
+echo "initrd: mounting real root" > /dev/kmsg
+/bin/busybox mount -t ext4 /dev/sda3 /newroot
+
+REALINIT=$(/bin/busybox sed -n 's/.*\binit=\(\S*\).*/\1/p' /proc/cmdline)
+[ -n "$REALINIT" ] || REALINIT=/sbin/init
+echo "initrd: switch_root -> $REALINIT" > /dev/kmsg
+
+exec /bin/busybox switch_root /newroot "$REALINIT"
