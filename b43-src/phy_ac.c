@@ -680,6 +680,12 @@ static bool b43_ac_replay;
 module_param_named(ac_replay, b43_ac_replay, bool, 0444);
 MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channel 6 PHY/radio state");
 
+/* See notes/62: wl's real hostflags (HOSTF2/HOSTF3), which this port
+ * never writes at all. Test flag, default off - unconfirmed live. */
+static bool b43_ac_hostflags;
+module_param_named(ac_hostflags, b43_ac_hostflags, bool, 0644);
+MODULE_PARM_DESC(ac_hostflags, "AC-PHY test: write wl's real HOSTF2/HOSTF3 value (notes/62)");
+
 static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
 
 bool b43_ac_5ghz;
@@ -2806,6 +2812,20 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 	b43info(dev->wl, "phy_ac: init (core_rev %u, radio24=%d, chip %04x, board %04x, radio_on %d)\n",
 		dev->dev->core_rev, b43_phy_ac_use_radio24(dev),
 		dev->dev->chip_id, dev->dev->board_type, dev->phy.ac->radio_on);
+
+	/* See notes/62: this port never writes HOSTF2/HOSTF3 (SHM 0x60/0x62)
+	 * at all. The ucode's own idle-loop predicate (ucode42.fw 0x000C/
+	 * 0x000D) reads those two words directly and skips NAP if EITHER is
+	 * nonzero - wl's real trace sets both to a nonzero, specific value
+	 * right around association; this port leaves them zero, so nothing
+	 * stops the ucode from freely NAPping whenever its other (SCR-based)
+	 * flags happen to be momentarily clear. Value below is wl's real
+	 * captured HOSTF2/HOSTF3 (traces/wl-init-20260927-184726.trace,
+	 * bits 16-47: SKCFPUP|N40W|ANTSELEN|MLADVW|PR45960W plus several
+	 * bits b43.h has no name for - written as a raw OR, not decoded
+	 * bit-by-bit). Test flag, default off. */
+	if (b43_ac_hostflags)
+		b43_hf_write(dev, b43_hf_read(dev) | 0xb0518c050000ULL);
 
 	return 0;
 }
