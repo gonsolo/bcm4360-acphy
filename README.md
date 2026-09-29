@@ -13,23 +13,22 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/100-status-2026-09-29-switched-to-nixos-config-plus-generic-modprobe-everything-initrd.md`
-first** — it's the current entry point: six bisect boot attempts at the
+**Read `notes/101-status-2026-09-29-eighth-bisect-boot-no-apps-run-current-system-missing-fixed-initrd-only.md`
+first** — it's the current entry point. Six bisect boot attempts at the
 same commit (`60b8d4d49281`) each hit a different missing-driver
-problem in a hand-built minimal kernel config (notes/94-99: `/boot`
-`vfat`, HID/input, GPU `i915`, each discovered and fixed one at a
-time). Per the user's steer - use NixOS's own actual `.config` for the
-real working kernel instead of hand-guessing one, and build a real
-initrd instead of forcing everything builtin - **notes/100 reworks the
-whole bisect-kernel pipeline**: base config is NixOS's genuine
-`linux-7.2.7-dev` config, `localmodconfig`-trimmed (a standard tool,
-not hand-guessing) for build size, and a real, generic initrd
-(`modprobe -a` over every module the kernel produced, via a proper
-`depmod` database) loads everything automatically - eliminating the
-whole "which driver needs to be builtin" bug class going forward,
-rather than fixing the next instance of it one boot at a time. notes/93
-has the fuller compile-server/bisect setup context. notes/92 concluded
-the timing-
+problem in a hand-built minimal kernel config (notes/94-99). Per the
+user's steer, notes/100 reworked the whole pipeline: NixOS's own actual
+`.config` as the base (not hand-guessed), `localmodconfig`-trimmed for
+size, and a real, generic initrd (`modprobe -a` over every module via a
+proper `depmod` database) instead of forcing individual drivers
+builtin. The next attempt got much further (desktop, mouse, keyboard
+shortcuts all worked) but **no application could be launched at all** -
+`notes/101` traced this to `/run/current-system` never being created,
+a NixOS-specific step the generic initrd didn't know about (real NixOS
+boots set this up before handing off to systemd) - fixed in the init
+script alone, the first fix in this whole saga needing no kernel
+rebuild at all. notes/93 has the fuller compile-server/bisect setup
+context. notes/92 concluded the timing-
 instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
 16/16 samples from an ordinary daily-use boot autoload; on 6.18.53
 (notes/90/91, same instrumented binary), `psctl=0ms` and `wait=0-3ms`.

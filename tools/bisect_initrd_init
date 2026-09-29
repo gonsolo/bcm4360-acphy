@@ -22,6 +22,20 @@ echo "initrd: mounting real root" > /dev/kmsg
 
 REALINIT=$(/bin/busybox sed -n 's/.*\binit=\(\S*\).*/\1/p' /proc/cmdline)
 [ -n "$REALINIT" ] || REALINIT=/sbin/init
-echo "initrd: switch_root -> $REALINIT" > /dev/kmsg
+
+# NixOS's own real initrd sets up /run/current-system (and
+# /run/booted-system) *before* handing off to systemd - our custom init
+# skips that NixOS-specific step, which breaks everything that resolves
+# commands via /run/current-system/sw/bin/* (dbus-daemon, ibus-daemon,
+# even bash itself - notes/101). Mount /run as tmpfs under the new root
+# ourselves and create the symlinks pointing at the same system closure
+# init= already names, so systemd (which detects an already-suitable
+# /run mount and doesn't remount it) inherits them intact.
+SYSTEM=$(/bin/busybox dirname "$REALINIT")
+/bin/busybox mount -t tmpfs none /newroot/run
+/bin/busybox ln -sfn "$SYSTEM" /newroot/run/current-system
+/bin/busybox ln -sfn "$SYSTEM" /newroot/run/booted-system
+
+echo "initrd: switch_root -> $REALINIT (system=$SYSTEM)" > /dev/kmsg
 
 exec /bin/busybox switch_root /newroot "$REALINIT"
