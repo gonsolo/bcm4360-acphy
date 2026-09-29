@@ -60,3 +60,42 @@ a completely different, more tractable investigation than firmware
 internals. If gen 10 has *also* degraded: points back toward something
 environmental (RF conditions, or a real hardware-condition change), and
 tonight's firmware-level work remains the most relevant thread.
+
+## CONFIRMED: reboot into gen 10 (6.18.53), same code, 5/5 clean
+
+Rebooted into generation 10 (staged above). Rebuilt `b43.ko` for
+6.18.53 (the module on disk was left built for 7.2.7 from tonight's
+other testing - a real vermagic mismatch, not a finding, just needed a
+rebuild). Ran the exact same proven `b43_live.sh` sequence, same
+`b43-test` NetworkManager profile, same physical location/router/time
+window as the 0/5 result on 7.2.7 minutes earlier:
+
+**5/5 connections, zero `MAC suspend failed` events.**
+
+Sanity-checked further given a `ping -I wlp3s0b1` initially reported
+100% loss despite a successful association: captured directly on the
+wire with `tcpdump` and found real ICMP echo replies arriving
+correctly, ~3ms RTT - `ping -I`'s own reporting was confused by two
+simultaneous default routes (the stick's and b43's) sharing the same
+subnet, not a real data-path problem. Data was flowing correctly the
+whole time.
+
+This is about as clean a confirmation as this kind of test gets: same
+hardware, same physical environment, same driver binary logic, same
+load sequence, only the kernel version differs (6.18.53 vs 7.2.7) - and
+the outcome flips from perfect to completely broken. The whole night's
+firmware/ucode-level investigation (notes/56-75) may be real, correct,
+and worth keeping, but it is very unlikely to be the proximate cause of
+the specific reliability collapse the user has been experiencing since
+the 7.2.7 port. That cause is almost certainly something in the kernel
+version change itself.
+
+## Next step
+
+Bisect what changed between kernel 6.18.53 and 7.2.7 that could affect
+this: USB/PCIe timing, interrupt/softirq scheduling, mac80211/cfg80211
+internals, or NixOS's own kernel config differences between the two
+`linuxKernel.packages` sets. A `git log`/config diff between the two
+kernel source trees (both likely already fetched/built locally under
+`/nix/store`) is the natural starting point, rather than more firmware
+work.
