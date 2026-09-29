@@ -13,13 +13,14 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/78-status-2026-09-29-channel6-replay-retrigger-matches-scan-failure-pattern-ac_state_once-live-tested.md`
+**Read `notes/79-status-2026-09-29-ac_state_once-ab-scan-only-inconclusive-both-arms-clean.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
-regression writeup it continues). The numbered files in `notes/` are a
-chronological log of the whole investigation; earlier "session summary"
-checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
-`notes/78` is the most current.
+regression writeup, `notes/78` for the channel-6 replay finding it
+continues). The numbered files in `notes/` are a chronological log of
+the whole investigation; earlier "session summary" checkpoints
+(`notes/17`, `notes/76`) are also good wide-angle reads, but `notes/79`
+is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
