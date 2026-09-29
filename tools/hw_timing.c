@@ -33,15 +33,17 @@ static long long now_ns(void)
 
 struct probe { const char *file; const char *addr; const char *label; int fd; };
 
-/* mmio16 is a 16-bit read (b43_read16) - MACCTL/IRQ_REASON/IRQ_MASK are
- * 32-bit registers, so read both halves (lo=bits0-15, hi=bits16-31). */
+/* notes/72: candidates for the SHM word wl reads right after 0x158 each
+ * ~1.024s tick (control=0x0001058a, via DATA_UNALIGNED) - arithmetic was
+ * ambiguous (contradicts itself against the HOSTF2 calibration point),
+ * so testing candidates empirically instead: whichever one shares the
+ * exact 1.024s rhythm with 0x158 is the real one. */
 static struct probe probes[] = {
-	{ "mmio16", "154", "pc" },
-	{ "mmio16", "158", "phydebug" },  /* notes/58: CRS|TXF during the auth window */
-	{ "mmio16", "120", "macctl_lo" },
-	{ "mmio16", "122", "macctl_hi" },
-	{ "mmio16", "128", "irqreason_lo" },
-	{ "mmio16", "12a", "irqreason_hi" },
+	{ "mmio16", "158",  "tick" },     /* the 1.024s watchdog read itself */
+	{ "shm",    "162a", "cand_a" },   /* byte offset, direct */
+	{ "shm",    "58a",  "cand_b" },   /* word index, direct (HOSTF2-style) */
+	{ "shm",    "b14",  "cand_c" },   /* word 0xB14 (low half of the pair) */
+	{ "shm",    "1628", "cand_d" },   /* byte 0x1628 (aligned low half) */
 };
 #define NPROBES (int)(sizeof(probes) / sizeof(probes[0]))
 
