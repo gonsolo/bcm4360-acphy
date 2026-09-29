@@ -13,12 +13,13 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/77-status-2026-09-29-kernel-7.2.7-regression-narrowed-to-scan-triggered-suspend-plus-a-new-rx-blackout.md`
+**Read `notes/78-status-2026-09-29-channel6-replay-retrigger-matches-scan-failure-pattern-ac_state_once-live-tested.md`
 first** — it's the current entry point and links back to everything else
-that still matters. The numbered files in `notes/` are a chronological
-log of the whole investigation; earlier "session summary" checkpoints
-(`notes/17`, `notes/76`) are also good wide-angle reads, but `notes/77` is
-the most current.
+that still matters (start with `notes/77` for the fuller kernel-
+regression writeup it continues). The numbered files in `notes/` are a
+chronological log of the whole investigation; earlier "session summary"
+checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
+`notes/78` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
@@ -42,10 +43,15 @@ a confirmed, repeatable, clean-A/B-tested kernel-version regression
 mechanism is not yet found despite an extensive targeted commit search
 (bcma, mac80211, PCI ASPM/power-up, irq/workqueue/hrtimer — all checked
 and ruled out, notes/77); the most concrete current lead is a scan-
-triggered channel-switch/MAC-suspend collision (notes/77) and a newer,
-not-yet-understood RX-blackout symptom found live at the end of the last
-session (notes/77, Part 6) needing a clean-reboot re-check before trusting
-it.
+triggered channel-switch/MAC-suspend collision (notes/77), sharpened by
+notes/78's finding that channel 6 (our AP's channel, and one of the
+channels notes/77 saw disproportionately fail) re-triggers a heavy,
+~1300-register vendor-state replay on every scan revisit — the
+`ac_state_once` runtime knob suppresses that and was live-tested as
+safe, but **not yet proven to reduce the actual failure rate** (needs a
+real A/B, notes/78). A newer, not-yet-understood RX-blackout symptom
+found live at the end of an earlier session (notes/77, Part 6) also
+still needs a clean re-check.
 
 Not working / not attempted:
 - 5 GHz transmit (receive works, notes/53) and a from-scratch
