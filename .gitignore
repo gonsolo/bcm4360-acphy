@@ -5,6 +5,8 @@ tools/iw
 tools/tcpdump
 tools/bar0peek
 tools/bar0rd
+tools/psmpc_fast
+tools/scr_fast
 tools/tmux
 tools/macdump
 tools/python3
