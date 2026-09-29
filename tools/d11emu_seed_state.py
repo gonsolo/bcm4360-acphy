@@ -1,6 +1,6 @@
 import json, sys
 
-state_in, shm_txt, pc_hex, state_out = sys.argv[1:5]
+state_in, shm_txt, ihr_txt, pc_hex, state_out = sys.argv[1:6]
 d = json.load(open(state_in))
 
 shm = d['shared_memory']
@@ -14,6 +14,18 @@ with open(shm_txt) as f:
         word = byte_off // 2
         if word < len(shm):
             shm[word] = val
+
+if ihr_txt != '-':
+    ihr = d['internal_hardware_registers']
+    with open(ihr_txt) as f:
+        for line in f:
+            parts = line.split()
+            if len(parts) != 2:
+                continue
+            word = int(parts[0], 16)
+            val = int(parts[1], 16)
+            if word < len(ihr):
+                ihr[word] = val
 
 d['pc'] = int(pc_hex, 16)
 d['running'] = True
