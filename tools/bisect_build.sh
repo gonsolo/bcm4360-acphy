@@ -4,14 +4,32 @@
 # laptop. Assumes:
 #  - ~/src/linux has the commit already checked out (git bisect does this)
 #  - ~/src/linux/.config exists locally with the project's minimal,
-#    boot-without-initrd config: storage/root-fs builtin (SCSI,
-#    BLK_DEV_SD, ATA, SATA_AHCI, EXT4_FS) *and* boot-fs builtin (FAT_FS,
-#    VFAT_FS, NLS_CODEPAGE_437, NLS_ISO8859_1 - /boot is the EFI System
-#    Partition, vfat, and fstab has no `nofail` on it, so a module-only
-#    vfat driver with no initrd to load it takes down all of
-#    local-fs.target and drops to the emergency shell - notes/94, hit
-#    for real on the first bisect attempt). If regenerating .config from
-#    scratch, flip all of these from =m to =y before building.
+#    boot-without-initrd config. Required builtin (=y, not =m) since
+#    there's no initrd/depmod to load modules for any of this before
+#    it's needed - each was hit for real as a boot failure before being
+#    added (notes/93, notes/94, notes/95):
+#      storage/root-fs:  SCSI, BLK_DEV_SD, ATA, SATA_AHCI, EXT4_FS
+#      boot-fs (/boot is the EFI System Partition, vfat, no `nofail`
+#        in fstab, so a failed mount here takes down local-fs.target
+#        and drops to the emergency shell):
+#                         FAT_FS, VFAT_FS, NLS_CODEPAGE_437, NLS_ISO8859_1
+#      input (no keyboard/trackpad without these - notes/95):
+#                         LEDS_CLASS, SPI_PXA2XX, SPI_PXA2XX_PCI,
+#                         KEYBOARD_APPLESPI, HID, HID_APPLE, HID_GENERIC,
+#                         USB_HID, USB_XHCI_HCD, USB_XHCI_PCI,
+#                         INPUT_MOUSEDEV, INPUT_LEDS, INPUT_EVDEV
+#    Kconfig dependency note: `make olddefconfig` does NOT auto-upgrade
+#    an existing =m to =y just because a blocking dependency later
+#    becomes satisfied - if two of these depend on each other (e.g.
+#    KEYBOARD_APPLESPI/HID_APPLE/INPUT_LEDS all depend on LEDS_CLASS),
+#    fix the dependency first, rerun olddefconfig, then re-apply =y to
+#    whichever ones got silently held back at =m, and rerun once more.
+#    If regenerating .config from scratch, flip all of the above from
+#    =m to =y, rerunning olddefconfig between passes until every one of
+#    them sticks at =y (`grep` them back out and check - don't trust
+#    the first pass).
+#    Boots to systemd.unit=multi-user.target (plain text console), not
+#    graphical - avoids depending on a working mouse/GDM entirely.
 #  - the SSH key + pampelmuse ~/src/linux clone from notes/93 already exist
 #  - IMPORTANT: only call this via a backgrounded Bash tool invocation
 #    (run_in_background / &), never via a detached remote nohup/screen -
@@ -71,9 +89,9 @@ INIT=$(sudo grep -oP 'init=\S+' "/boot/loader/entries/$DEFAULT_ENTRY")
 cat <<EOF | sudo tee /boot/loader/entries/nixos-bisect.conf >/dev/null
 title NixOS (bisect)
 sort-key nixos-bisect
-version bisect $COMMIT (mainline, no NixOS initrd, custom minimal config)
+version bisect $COMMIT (mainline, no NixOS initrd, custom minimal config, text console)
 linux /EFI/nixos/$EFI_NAME
-options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf
+options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.unit=multi-user.target
 machine-id 1e7ffcf2ac3d46e0855327b0012ddbee
 EOF
 sudo bootctl set-oneshot nixos-bisect.conf

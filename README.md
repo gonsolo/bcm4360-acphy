@@ -13,15 +13,18 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/94-status-2026-09-29-first-bisect-boot-hit-emergency-mode-vfat-fix-rebuilt.md`
-first** — it's the current entry point: the first bisect boot attempt
-hit systemd's emergency shell (`/boot`, the EFI System Partition, is
-`vfat` with no `nofail` in fstab, and the minimal kernel had `vfat`
-as an unloadable module) - diagnosed straight from the journal, fixed,
-and the corrected kernel is rebuilt and re-staged, ready for another
-reboot attempt. No lasting harm; the one-shot boot's persistent-default
-safety property worked exactly as intended. notes/93 has the fuller
-setup context. notes/92 concluded the timing-
+**Read `notes/95-status-2026-09-29-second-bisect-boot-no-input-fixed-hid-chain-plus-text-console.md`
+first** — it's the current entry point: two bisect boot attempts at the
+same commit (`60b8d4d49281`) have each hit a different missing-builtin-
+driver problem in the minimal kernel config (notes/94: `/boot` is
+`vfat` with no `nofail` in fstab, took down the whole boot; notes/95:
+reached graphical login but had no keyboard/mouse, the Apple SPI
+keyboard+trackpad chain was all modules) - both diagnosed straight from
+the journal/hardware and fixed, no lasting harm either time (the
+one-shot boot's persistent-default safety property worked as intended).
+Also switched to booting a plain text console instead of graphical, to
+remove the GDM/mouse dependency entirely. notes/93 has the fuller
+compile-server/bisect setup context. notes/92 concluded the timing-
 instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
 16/16 samples from an ordinary daily-use boot autoload; on 6.18.53
 (notes/90/91, same instrumented binary), `psctl=0ms` and `wait=0-3ms`.
