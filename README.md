@@ -13,22 +13,22 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/86-status-2026-09-29-aged-module-still-clean-steady-state-outliers-remain-unreproduced.md`
+**Read `notes/87-status-2026-09-29-phase-2a-auto-recovery-watchdog-built-and-live-tested.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
 regression writeup, `notes/78`-`81` for the channel-6 replay/A-B/
 C-state threads, `notes/82`-`83` for the ftrace finding that steady-
 state scanning has slow `drv_config` outliers unrelated to
 `b43_mac_suspend`, `notes/84` for the phase-timing instrumentation that
-pins the *connect-time* slowness on `b43_mac_suspend` genuinely failing
-— `notes/85`-`86` then tried twice to reproduce the steady-state
-outliers on a freshly-loaded, then a deliberately-aged, module instance
-and came back clean both times, 174 samples total, so that thread is
-parked pending a real repro rather than "not yet localized"). The
-numbered files in `notes/` are a chronological log of the whole
-investigation; earlier "session summary" checkpoints (`notes/17`,
-`notes/76`) are also good wide-angle reads, but `notes/86` is the most
-current.
+pins the *connect-time* slowness on `b43_mac_suspend` genuinely failing,
+`notes/85`-`86` for two failed attempts to reproduce the steady-state
+outliers, now parked — `notes/87` builds and live-tests an automatic
+detect-and-reload watchdog, `tools/b43_autorecover.sh`, so a stuck
+connection now self-heals within ~60-75s instead of needing manual
+intervention). The numbered files in `notes/` are a chronological log of
+the whole investigation; earlier "session summary" checkpoints
+(`notes/17`, `notes/76`) are also good wide-angle reads, but `notes/87`
+is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
@@ -137,8 +137,11 @@ and `notes/00-overview.md` onward for the reverse-engineering process.
 testing (see `notes/07`) from combining an experimental 5 GHz bandwidth
 change with live TX. If you're experimenting on hardware where Wi-Fi is
 your only network path, read the test-harness notes in `notes/`
-first — `tools/postboot.sh` and `tools/netwatch.sh` exist specifically
-because of lessons learned the hard way.
+first — `tools/postboot.sh`, `tools/netwatch.sh`, and (since notes/87)
+`tools/b43_autorecover.sh` exist specifically because of lessons learned
+the hard way; run `sudo tools/postboot.sh` after every reboot to arm all
+of them (netwatch unloads b43 if the network goes fully dark,
+b43-autorecover reloads it automatically if the connection gets stuck).
 
 ## License
 

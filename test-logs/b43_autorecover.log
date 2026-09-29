@@ -1,0 +1,8 @@
+Tue Sep 29 06:00:20 PM CEST 2026 b43-autorecover start (ssid=Vodafone-2A84)
+Tue Sep 29 06:00:50 PM CEST 2026 wlp3s0b1 state=absent (1)
+Tue Sep 29 06:01:05 PM CEST 2026 wlp3s0b1 state=absent (2)
+Tue Sep 29 06:01:20 PM CEST 2026 wlp3s0b1 state=absent (3)
+Tue Sep 29 06:01:35 PM CEST 2026 wlp3s0b1 state=absent (4)
+Tue Sep 29 06:01:35 PM CEST 2026 wlp3s0b1 disconnected ~60s (interface absent), reloading (attempt 1/6 this hour)
+rmmod: ERROR: Module b43 is not currently loaded
+b43 interface: wlan0
