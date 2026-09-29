@@ -4,7 +4,14 @@
 # laptop. Assumes:
 #  - ~/src/linux has the commit already checked out (git bisect does this)
 #  - ~/src/linux/.config exists locally with the project's minimal,
-#    boot-without-initrd config (storage/fs builtin, see notes/93)
+#    boot-without-initrd config: storage/root-fs builtin (SCSI,
+#    BLK_DEV_SD, ATA, SATA_AHCI, EXT4_FS) *and* boot-fs builtin (FAT_FS,
+#    VFAT_FS, NLS_CODEPAGE_437, NLS_ISO8859_1 - /boot is the EFI System
+#    Partition, vfat, and fstab has no `nofail` on it, so a module-only
+#    vfat driver with no initrd to load it takes down all of
+#    local-fs.target and drops to the emergency shell - notes/94, hit
+#    for real on the first bisect attempt). If regenerating .config from
+#    scratch, flip all of these from =m to =y before building.
 #  - the SSH key + pampelmuse ~/src/linux clone from notes/93 already exist
 #  - IMPORTANT: only call this via a backgrounded Bash tool invocation
 #    (run_in_background / &), never via a detached remote nohup/screen -

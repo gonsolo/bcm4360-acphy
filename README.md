@@ -13,8 +13,15 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/93-status-2026-09-29-remote-compile-server-and-first-bisect-kernel-staged.md`
-first** — it's the current entry point. notes/92 concluded the timing-
+**Read `notes/94-status-2026-09-29-first-bisect-boot-hit-emergency-mode-vfat-fix-rebuilt.md`
+first** — it's the current entry point: the first bisect boot attempt
+hit systemd's emergency shell (`/boot`, the EFI System Partition, is
+`vfat` with no `nofail` in fstab, and the minimal kernel had `vfat`
+as an unloadable module) - diagnosed straight from the journal, fixed,
+and the corrected kernel is rebuilt and re-staged, ready for another
+reboot attempt. No lasting harm; the one-shot boot's persistent-default
+safety property worked exactly as intended. notes/93 has the fuller
+setup context. notes/92 concluded the timing-
 instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
 16/16 samples from an ordinary daily-use boot autoload; on 6.18.53
 (notes/90/91, same instrumented binary), `psctl=0ms` and `wait=0-3ms`.
