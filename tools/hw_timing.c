@@ -35,12 +35,13 @@ struct probe { const char *file; const char *addr; const char *label; int fd; };
 
 static struct probe probes[] = {
 	{ "mmio16", "154", "pc" },
-	{ "ihr",    "b3",  "ihrb3" },
-	{ "ihr",    "93",  "ihr93" },
-	{ "ihr",    "95",  "ihr95" },
-	{ "ihr",    "97",  "ihr97" },
-	{ "shm",    "6a",  "shm6a" },
-	{ "ihr",    "15b", "ihr15b" },
+	{ "ihr",    "47",  "ihr47" },   /* gates entry to the 0xEC0 timer block (notes/69) */
+	{ "ihr",    "150", "ihr150" },
+	{ "ihr",    "151", "ihr151" },
+	{ "ihr",    "155", "ihr155" },
+	{ "ihr",    "156", "ihr156" },
+	{ "ihr",    "159", "ihr159" },
+	{ "ihr",    "119", "ihr119" },  /* low half of the free-running timer */
 };
 #define NPROBES (int)(sizeof(probes) / sizeof(probes[0]))
 
