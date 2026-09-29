@@ -32,3 +32,8 @@ b43-src/modules.order
 # Per-kernel-version prebuilt modules (notes/89), rebuildable from
 # source at any time - not proprietary, just large binaries.
 /b43-src-builds/
+
+# git-bisect candidate kernel + modules staged for the current one-shot
+# boot (notes/93, tools/bisect_build.sh) - transient, regenerated per
+# bisect step, never worth committing.
+/bisect-boot/

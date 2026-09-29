@@ -13,19 +13,21 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/92-status-2026-09-29-conclusive-the-entire-80ms-is-the-suspend-ack-poll-nothing-left-to-split-in-driver-code.md`
-first** — it's the current entry point and the conclusive result of
-this whole timing-instrumentation thread: on 7.2.7, `psctl=0ms` and
-`wait=79-86ms` in 16/16 samples from an ordinary daily-use boot
-autoload (not even a contrived test); on 6.18.53 (notes/90/91, same
-instrumented binary), `psctl=0ms` and `wait=0-3ms`. **The entire
-regression is now isolated to one single-register poll** (waiting for
-the ucode to set `B43_IRQ_MAC_SUSPENDED` after a `MACCTL` write) -
-every other phase of the same function and its caller is proven equally
-fast on both kernels, and there is no more driver-side code left to
-split with timing instrumentation. Root cause not found, but the search
-space is now precisely bounded; `git bisect` is the well-scoped next
-step (see notes/92). It links back to everything that built up to this
+**Read `notes/93-status-2026-09-29-remote-compile-server-and-first-bisect-kernel-staged.md`
+first** — it's the current entry point. notes/92 concluded the timing-
+instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
+16/16 samples from an ordinary daily-use boot autoload; on 6.18.53
+(notes/90/91, same instrumented binary), `psctl=0ms` and `wait=0-3ms`.
+**The entire regression is isolated to one single-register poll**
+(waiting for the ucode to set `B43_IRQ_MAC_SUSPENDED` after a `MACCTL`
+write) - every other phase of the same function is equally fast on both
+kernels, and there's no more driver-side code left to split. A `git
+bisect` is now underway to find *why*: a remote compile server
+(pampelmuse, 24 cores, same LAN) is wired up, the first candidate
+commit (`60b8d4d49281`, ~15 steps predicted out of 66,387 commits
+between v6.18 and v7.2) is built and staged as a one-shot boot entry
+(default entry, normal 7.2.7 daily use, untouched), waiting on a
+reboot to test. It links back to everything that built up to this
 (start with `notes/77` for the fuller kernel-regression writeup,
 `notes/78`-`81` for the channel-6 replay/A-B/C-state threads, `notes/82`-
 `83` for the ftrace finding on steady-state scanning, `notes/84` for the
@@ -34,8 +36,9 @@ phase-timing instrumentation that first pinned connect-time slowness on
 scanning mystery, `notes/87`-`88` for the auto-recovery watchdog,
 `notes/89` for the lock-vs-suspend split, `notes/90` for the 6.18.53
 reference capture, `notes/91` for the refuted IRQ-race hypothesis and
-the psctl/wait split). The numbered files in `notes/` are a
-chronological log of the whole investigation; earlier "session summary"
+the psctl/wait split, `notes/92` for the conclusive 7.2.7 confirmation).
+The numbered files in `notes/` are a chronological log of the whole
+investigation; earlier "session summary"
 checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
 `notes/92` is the most current.
 
