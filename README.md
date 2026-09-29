@@ -13,7 +13,7 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/88-status-2026-09-29-present-but-stuck-path-tested-threshold-fixed-two-refinements-found.md`
+**Read `notes/89-status-2026-09-29-suspend-is-genuinely-slow-not-mutex-contention-6-18-53-build-staged-for-reference-boot.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
 regression writeup, `notes/78`-`81` for the channel-6 replay/A-B/
@@ -22,13 +22,16 @@ state scanning has slow `drv_config` outliers unrelated to
 `b43_mac_suspend`, `notes/84` for the phase-timing instrumentation that
 pins the *connect-time* slowness on `b43_mac_suspend` genuinely failing,
 `notes/85`-`86` for two failed attempts to reproduce the steady-state
-outliers, now parked, `notes/87` for building and live-testing the
-auto-recovery watchdog `tools/b43_autorecover.sh` — `notes/88` then
-tested its other trigger path, found the 60s threshold could pre-empt a
-still-in-flight connect attempt, and fixed it to 90s). The numbered
-files in `notes/` are a chronological log of the whole investigation;
-earlier "session summary" checkpoints (`notes/17`, `notes/76`) are also
-good wide-angle reads, but `notes/88` is the most current.
+outliers, now parked, `notes/87`-`88` for building, testing and fixing
+the auto-recovery watchdog `tools/b43_autorecover.sh` — `notes/89` then
+split the timing further (it's genuinely inside `b43_mac_suspend`, not
+mutex contention), found a msleep(1)-rounding correction, found mixed
+frozen/moving PSM-PC failure signatures in one capture, and pre-staged
+an instrumented 6.18.53 build so a future reference boot can directly
+compare against 7.2.7 in minutes). The numbered files in `notes/` are a
+chronological log of the whole investigation; earlier "session summary"
+checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
+`notes/89` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay

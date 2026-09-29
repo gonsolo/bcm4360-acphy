@@ -4260,10 +4260,11 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	int antenna;
 	int err = 0;
-	ktime_t __t0, __t_suspend, __t_chan, __t_txpwr, __t_antenna, __t_end;
+	ktime_t __t0, __t_lock, __t_suspend, __t_chan, __t_txpwr, __t_antenna, __t_end;
 
 	__t0 = ktime_get();
 	mutex_lock(&wl->mutex);
+	__t_lock = ktime_get();
 	b43_mac_suspend(dev);
 	__t_suspend = __t_chan = __t_txpwr = __t_antenna = ktime_get();
 
@@ -4336,9 +4337,10 @@ out_mac_enable:
 	if (b43_optiming_thresh_ms >= 0 &&
 	    ktime_ms_delta(__t_end, __t0) >= b43_optiming_thresh_ms) {
 		b43info(dev->wl,
-			"optiming: total=%lldms lock+suspend=%lldms chan=%lldms txpwr=%lldms antenna=%lldms mac_enable=%lldms\n",
+			"optiming: total=%lldms lock=%lldms suspend=%lldms chan=%lldms txpwr=%lldms antenna=%lldms mac_enable=%lldms\n",
 			ktime_ms_delta(__t_end, __t0),
-			ktime_ms_delta(__t_suspend, __t0),
+			ktime_ms_delta(__t_lock, __t0),
+			ktime_ms_delta(__t_suspend, __t_lock),
 			ktime_ms_delta(__t_chan, __t_suspend),
 			ktime_ms_delta(__t_txpwr, __t_chan),
 			ktime_ms_delta(__t_antenna, __t_txpwr),
