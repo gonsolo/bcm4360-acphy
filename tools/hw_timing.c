@@ -33,15 +33,15 @@ static long long now_ns(void)
 
 struct probe { const char *file; const char *addr; const char *label; int fd; };
 
+/* mmio16 is a 16-bit read (b43_read16) - MACCTL/IRQ_REASON/IRQ_MASK are
+ * 32-bit registers, so read both halves (lo=bits0-15, hi=bits16-31). */
 static struct probe probes[] = {
 	{ "mmio16", "154", "pc" },
-	{ "ihr",    "47",  "ihr47" },   /* gates entry to the 0xEC0 timer block (notes/69) */
-	{ "ihr",    "150", "ihr150" },
-	{ "ihr",    "151", "ihr151" },
-	{ "ihr",    "155", "ihr155" },
-	{ "ihr",    "156", "ihr156" },
-	{ "ihr",    "159", "ihr159" },
-	{ "ihr",    "119", "ihr119" },  /* low half of the free-running timer */
+	{ "mmio16", "158", "phydebug" },  /* notes/58: CRS|TXF during the auth window */
+	{ "mmio16", "120", "macctl_lo" },
+	{ "mmio16", "122", "macctl_hi" },
+	{ "mmio16", "128", "irqreason_lo" },
+	{ "mmio16", "12a", "irqreason_hi" },
 };
 #define NPROBES (int)(sizeof(probes) / sizeof(probes[0]))
 
