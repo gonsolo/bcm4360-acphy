@@ -686,6 +686,12 @@ static bool b43_ac_hostflags;
 module_param_named(ac_hostflags, b43_ac_hostflags, bool, 0644);
 MODULE_PARM_DESC(ac_hostflags, "AC-PHY test: write wl's real HOSTF2/HOSTF3 value (notes/62)");
 
+/* See notes/64: HOSTF1 (SHM 0x5E), also never written. Test flag,
+ * default off - a reasoned guess (EDCF|ACIW), not a captured wl value. */
+static bool b43_ac_hostf1;
+module_param_named(ac_hostf1, b43_ac_hostf1, bool, 0644);
+MODULE_PARM_DESC(ac_hostf1, "AC-PHY test: write HOSTF1 EDCF|ACIW (notes/64, guess not captured)");
+
 static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
 
 bool b43_ac_5ghz;
@@ -2826,6 +2832,25 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 	 * bit-by-bit). Test flag, default off. */
 	if (b43_ac_hostflags)
 		b43_hf_write(dev, b43_hf_read(dev) | 0xb0518c050000ULL);
+
+	/* See notes/64: HOSTF1 (SHM 0x5E, word 0x2F) gates something deeper
+	 * still. ucode42.fw 0x0407, right before the code that (eventually)
+	 * sets SCR 0x2C - one of the two ucode-internal flags the idle loop
+	 * also checks alongside HOSTF2/3 - does `JZX ShmDir(0x2F), 0x414`:
+	 * if HOSTF1 == 0, the entire per-FIFO TX-status dispatch block is
+	 * skipped outright. This port never writes HOSTF1 either, so it's
+	 * always 0. Unlike HOSTF2/3, no live wl value was safely capturable
+	 * (it's set once at attach, before any ifdown/ifup trace window, and
+	 * capturing that moment needs a reload-while-tracing test that has
+	 * crashed this machine before - not repeated solo). Value below is
+	 * not wl's real bytes; it's a reasoned pick from b43.h's own named
+	 * HOSTF1 bits that plausibly apply here: B43_HF_EDCF ("on if WME and
+	 * MAC suspended" - literally this port's whole story) and
+	 * B43_HF_ACIW ("shift bits by 2 on PHY CRS" - notes/58's CRS|TXF
+	 * finding). Separate flag from ac_hostflags since it's a guess, not
+	 * a captured value; default off. */
+	if (b43_ac_hostf1)
+		b43_hf_write(dev, b43_hf_read(dev) | B43_HF_EDCF | B43_HF_ACIW);
 
 	return 0;
 }
