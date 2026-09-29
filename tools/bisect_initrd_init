@@ -1,12 +1,38 @@
 #!/bin/busybox sh
-# Minimal generic initrd for bcm4360-acphy git-bisect kernels (notes/100).
-# Loads every in-tree module the kernel shipped (so we stop having to
-# hand-guess which specific driver must be builtin - notes/94/95/99),
-# then switches to the real root and execs the real init (read from the
-# init= kernel cmdline parameter, same as the boot entry already sets).
+# Minimal generic initrd for bcm4360-acphy git-bisect kernels (notes/100,
+# notes/101, notes/102). Loads every in-tree module the kernel shipped
+# (so we stop having to hand-guess which specific driver must be
+# builtin - notes/94/95/99), then switches to the real root and execs
+# the real init (read from the init= kernel cmdline parameter, same as
+# the boot entry already sets).
 /bin/busybox mount -t proc none /proc
 /bin/busybox mount -t sysfs none /sys
 /bin/busybox mount -t devtmpfs none /dev
+
+echo "initrd: mounting real root" > /dev/kmsg
+/bin/busybox mount -t ext4 /dev/sda3 /newroot
+
+REALINIT=$(/bin/busybox sed -n 's/.*\binit=\(\S*\).*/\1/p' /proc/cmdline)
+[ -n "$REALINIT" ] || REALINIT=/sbin/init
+SYSTEM=$(/bin/busybox dirname "$REALINIT")
+
+# Point the kernel's firmware search path at this same system closure's
+# consolidated firmware dir *before* loading any modules - not after
+# (bisect-boot/load.sh, run manually post-login, is too late for
+# anything the initrd's own modprobe -a below loads and firmware-probes
+# immediately, like the mt76 USB WiFi stick - notes/102). $SYSTEM/firmware
+# is a stable NixOS convention (-> .../<hash>-firmware/lib/firmware),
+# identical across generations, so this doesn't need /run/current-system
+# to exist yet - we're still in the initrd's own mount namespace here,
+# so the path needs the /newroot prefix.
+FWLINK=$(/bin/busybox chroot /newroot /bin/busybox readlink -f "$SYSTEM/firmware" 2>/dev/null)
+FWPATH="/newroot$FWLINK"
+if [ -n "$FWPATH" ] && [ -d "$FWPATH" ]; then
+	echo "$FWPATH" > /sys/module/firmware_class/parameters/path
+	echo "initrd: firmware path -> $FWPATH" > /dev/kmsg
+else
+	echo "initrd: WARNING no firmware path resolved from $SYSTEM/firmware" > /dev/kmsg
+fi
 
 KVER=$(/bin/busybox uname -r)
 echo "initrd: kernel $KVER, loading modules..." > /dev/kmsg
@@ -17,12 +43,6 @@ MODS=$(/bin/busybox find /lib/modules/$KVER -name '*.ko' | /bin/busybox sed -e '
 /bin/busybox sleep 1
 /bin/busybox mdev -s
 
-echo "initrd: mounting real root" > /dev/kmsg
-/bin/busybox mount -t ext4 /dev/sda3 /newroot
-
-REALINIT=$(/bin/busybox sed -n 's/.*\binit=\(\S*\).*/\1/p' /proc/cmdline)
-[ -n "$REALINIT" ] || REALINIT=/sbin/init
-
 # NixOS's own real initrd sets up /run/current-system (and
 # /run/booted-system) *before* handing off to systemd - our custom init
 # skips that NixOS-specific step, which breaks everything that resolves
@@ -31,7 +51,6 @@ REALINIT=$(/bin/busybox sed -n 's/.*\binit=\(\S*\).*/\1/p' /proc/cmdline)
 # ourselves and create the symlinks pointing at the same system closure
 # init= already names, so systemd (which detects an already-suitable
 # /run mount and doesn't remount it) inherits them intact.
-SYSTEM=$(/bin/busybox dirname "$REALINIT")
 /bin/busybox mount -t tmpfs none /newroot/run
 /bin/busybox ln -sfn "$SYSTEM" /newroot/run/current-system
 /bin/busybox ln -sfn "$SYSTEM" /newroot/run/booted-system

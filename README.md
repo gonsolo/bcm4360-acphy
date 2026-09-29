@@ -13,21 +13,19 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/101-status-2026-09-29-eighth-bisect-boot-no-apps-run-current-system-missing-fixed-initrd-only.md`
-first** — it's the current entry point. Six bisect boot attempts at the
-same commit (`60b8d4d49281`) each hit a different missing-driver
-problem in a hand-built minimal kernel config (notes/94-99). Per the
-user's steer, notes/100 reworked the whole pipeline: NixOS's own actual
-`.config` as the base (not hand-guessed), `localmodconfig`-trimmed for
-size, and a real, generic initrd (`modprobe -a` over every module via a
-proper `depmod` database) instead of forcing individual drivers
-builtin. The next attempt got much further (desktop, mouse, keyboard
-shortcuts all worked) but **no application could be launched at all** -
-`notes/101` traced this to `/run/current-system` never being created,
-a NixOS-specific step the generic initrd didn't know about (real NixOS
-boots set this up before handing off to systemd) - fixed in the init
-script alone, the first fix in this whole saga needing no kernel
-rebuild at all. notes/93 has the fuller compile-server/bisect setup
+**Read `notes/102-status-2026-09-29-ninth-bisect-boot-desktop-fully-worked-no-usb-stick-network-firmware-path-timing.md`
+first** — it's the current entry point, and the first genuinely good
+boot report: after six missing-driver fixes (notes/94-99) and a rework
+to use NixOS's own actual `.config` plus a real generic `modprobe`-
+everything initrd (notes/100), then a fix for `/run/current-system`
+never being created (notes/101), **the desktop fully worked** - apps
+launched, a terminal opened, the user even ran `claude` inside the
+bisect-booted kernel. The one gap: the USB WiFi backup stick never got
+network, traced to a pure ordering bug (notes/102) - the initrd loads
+every module, including the stick's driver, before the firmware search
+path is set, so its immediate firmware request silently failed; fixed
+by moving the firmware-path setup earlier in the init script, no kernel
+rebuild needed. notes/93 has the fuller compile-server/bisect setup
 context. notes/92 concluded the timing-
 instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
 16/16 samples from an ordinary daily-use boot autoload; on 6.18.53

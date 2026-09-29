@@ -139,7 +139,6 @@ if [ "$(basename "$(readlink -f /sys/bus/pci/devices/$DEV/driver 2>/dev/null)" 2
 		echo "$DEV" | sudo tee /sys/bus/pci/devices/$DEV/driver/unbind
 	echo "$DEV" | sudo tee /sys/bus/pci/drivers_probe
 fi
-echo /home/gonsolo/bcm4360-acphy/firmware | sudo tee /sys/module/firmware_class/parameters/path
 sudo insmod b43.ko verbose=3
 sleep 1
 echo "b43 interface: $(ls /sys/class/net | grep -E '^wl')"
