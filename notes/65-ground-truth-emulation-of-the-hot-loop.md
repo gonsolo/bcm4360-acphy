@@ -89,10 +89,28 @@ real hardware is still unknown - this run necessarily started SCR at 0
 If something upstream of `0x1198` (its real callers, `0x01C0`/`0x027C`,
 not yet traced this way) sets SCR 0x2C/0x2D to something nonzero right
 before the jump into this region, real hardware's behavior here could
-still differ from this emulation. Next step for whoever picks this up:
-seed and run from `0x01C0`/`0x027C` themselves the same way, to see
-whether the real, current chip state ever drives SCR nonzero before
-reaching here at all.
+still differ from this emulation. Tried extending upstream: `0x01BD`, in the caller reached from
+`0x01B9`/`0x01BC` just before `0x01C0`'s call into this whole region,
+does `SCR[0x2C] |= SCR[0x23]` - a real write site this session hadn't
+traced yet, and a real candidate for SCR 0x2C arriving nonzero on the
+actual live path (unlike this note's from-0x1198 run, which necessarily
+assumed SCR starts at 0). Tried resolving it properly by seeding real
+SHM and running from the true reset vector (`pc=0`) so all SCR state
+would be a genuine derivation rather than an assumption - hit a real
+practical wall doing this: the emulator's default built-in initvals
+(only SHM was spliced with real chip data, not `internal_hardware_
+registers`) include a long hardware-settling delay loop at `0xE2A-0xE2C`
+(a straightforward countdown, confirmed - `IHR[0x65]` decrementing once
+every 3 instructions) that hadn't finished after 4000 single-stepped
+instructions. Simulating a full, faithful reset-to-associated sequence
+is a real, much bigger undertaking (would need real IHR state seeded
+too, and likely thousands-to-millions of steps) - out of scope for
+tonight. Whoever picks this up next: either seed `internal_hardware_
+registers` from a real `ihr` debugfs capture too and let a long `run`
+work through the delay loop unattended, or seed straight from `0x01BD`
+itself (SCR still assumed 0 there, but at least skips the reset-time
+bring-up entirely) to check the one specific `SCR[0x23]` question
+without the bigger simulation problem.
 
 ## Tooling produced (not yet committed into the repo)
 
