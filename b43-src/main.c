@@ -20,6 +20,7 @@
 */
 
 #include <linux/delay.h>
+#include <linux/ktime.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/if_arp.h>
@@ -4242,6 +4243,15 @@ static void b43_set_retry_limits(struct b43_wldev *dev,
 			long_retry);
 }
 
+/* notes/83: temporary diagnostic timing for b43_op_config's phases,
+ * chasing the 7.2.7-only slow drv_config calls that don't correlate
+ * with b43_mac_suspend() itself. Logs only when the whole call is
+ * slower than b43_optiming_thresh_ms (default 15ms). Remove once
+ * localized. */
+static int b43_optiming_thresh_ms = 15;
+module_param_named(optiming_thresh_ms, b43_optiming_thresh_ms, int, 0644);
+MODULE_PARM_DESC(optiming_thresh_ms, "diagnostic: log b43_op_config phase timing above this many ms (0: log every call, -1: disable)");
+
 static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
@@ -4250,9 +4260,12 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	int antenna;
 	int err = 0;
+	ktime_t __t0, __t_suspend, __t_chan, __t_txpwr, __t_antenna, __t_end;
 
+	__t0 = ktime_get();
 	mutex_lock(&wl->mutex);
 	b43_mac_suspend(dev);
+	__t_suspend = __t_chan = __t_txpwr = __t_antenna = ktime_get();
 
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL)
 		b43_set_beacon_listen_interval(dev, conf->listen_interval);
@@ -4270,6 +4283,7 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 		 * The firmware takes care of races with the TX handler.
 		 */
 		b43_switch_channel(dev, phy->channel);
+		__t_chan = __t_txpwr = __t_antenna = ktime_get();
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
@@ -4289,6 +4303,7 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 						   B43_TXPWR_IGNORE_TSSI);
 		}
 	}
+	__t_txpwr = __t_antenna = ktime_get();
 
 	/* Antennas for RX and management frame TX. */
 	antenna = B43_ANTENNA_DEFAULT;
@@ -4313,8 +4328,22 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 	}
 
 out_mac_enable:
+	__t_antenna = ktime_get();
 	b43_mac_enable(dev);
+	__t_end = ktime_get();
 	mutex_unlock(&wl->mutex);
+
+	if (b43_optiming_thresh_ms >= 0 &&
+	    ktime_ms_delta(__t_end, __t0) >= b43_optiming_thresh_ms) {
+		b43info(dev->wl,
+			"optiming: total=%lldms lock+suspend=%lldms chan=%lldms txpwr=%lldms antenna=%lldms mac_enable=%lldms\n",
+			ktime_ms_delta(__t_end, __t0),
+			ktime_ms_delta(__t_suspend, __t0),
+			ktime_ms_delta(__t_chan, __t_suspend),
+			ktime_ms_delta(__t_txpwr, __t_chan),
+			ktime_ms_delta(__t_antenna, __t_txpwr),
+			ktime_ms_delta(__t_end, __t_antenna));
+	}
 
 	return err;
 }
