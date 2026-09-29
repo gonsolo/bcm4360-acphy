@@ -1,0 +1,122 @@
+[Tue Sep 29 17:55:59 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:55:59 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:00 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:00 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:00 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:00 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:00 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:01 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:01 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:01 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:01 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:01 2026] b43-phy19: phy_ac: replayed vendor ch6 state (121 radio, 250 PHY regs, 969 table entries)
+[Tue Sep 29 17:56:01 2026] b43-phy19: phy_ac: applied first-load state 0x3f (radio 163 phy 290 tbl 3022 shm 795 cc 18 pmu 1)
+[Tue Sep 29 17:56:11 2026] net_ratelimit: 16 callbacks suppressed
+[Tue Sep 29 17:56:11 2026] b43-phy19: phy_ac: MACCTL=c4020403 IRQ reason=00004000 mask=38058264 pio=0
+[Tue Sep 29 17:56:11 2026] b43-phy19: phy_ac: DMA rx status=10004ab0/00004ac0 index=00004ab0 tx(BE) status=2000c1c0
+[Tue Sep 29 17:56:11 2026] b43-phy19: phy_ac: dma0 reason=00000000 mask=00013c00 intrcvlazy0=01000000
+[Tue Sep 29 17:56:11 2026] b43-phy19: phy_ac: macstat: 48f1 0000 0000 1774 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0197 0000 1ccf 1d04 bdd1 8495 16c3 00b1 2402 0000 0000 2402 3238 0387 582c 1b73 145e 1c9b 71d5 0003 2584 0000 4b32 0a4d 0000 0000 0000 0000 0000 da7c 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 914b 0000 0000 0168
+[Tue Sep 29 17:56:11 2026] b43-phy19: phy_ac: gpio in=00000087 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[Tue Sep 29 17:56:13 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:13 2026] b43-phy19: optiming: total=10ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:14 2026] b43-phy19: optiming: total=10ms lock+suspend=1ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:14 2026] b43-phy19: optiming: total=10ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:14 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:16 2026] net_ratelimit: 10 callbacks suppressed
+[Tue Sep 29 17:56:16 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:16 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:16 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:16 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:17 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:17 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:17 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:17 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:17 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:17 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:27 2026] net_ratelimit: 4 callbacks suppressed
+[Tue Sep 29 17:56:27 2026] b43-phy19: phy_ac: MACCTL=c4020403 IRQ reason=00004000 mask=38058264 pio=0
+[Tue Sep 29 17:56:27 2026] b43-phy19: phy_ac: DMA rx status=10004130/00004140 index=00004130 tx(BE) status=2000c900
+[Tue Sep 29 17:56:27 2026] b43-phy19: phy_ac: dma0 reason=00000000 mask=00013c00 intrcvlazy0=01000000
+[Tue Sep 29 17:56:27 2026] b43-phy19: phy_ac: macstat: 4999 0000 0000 17ad 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0198 0000 1cef 1d1b 1294 87f0 16f6 00b7 2456 0000 0000 2456 3245 0387 58a5 1b8b 1482 1cee 7384 0003 2614 0000 4c51 0a5b 0000 0000 0000 0000 0000 d9ec 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 91a6 0000 0000 0168
+[Tue Sep 29 17:56:27 2026] b43-phy19: phy_ac: gpio in=00000087 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[Tue Sep 29 17:56:28 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:28 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:28 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:28 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:28 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:32 2026] net_ratelimit: 20 callbacks suppressed
+[Tue Sep 29 17:56:32 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:32 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:32 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:32 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:42 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:42 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:42 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:42 2026] b43-phy19: phy_ac: MACCTL=c4120403 IRQ reason=00004000 mask=38058264 pio=0
+[Tue Sep 29 17:56:42 2026] b43-phy19: phy_ac: DMA rx status=100045d0/000045e0 index=000045d0 tx(BE) status=2000cf00
+[Tue Sep 29 17:56:42 2026] b43-phy19: phy_ac: dma0 reason=00000000 mask=00013c00 intrcvlazy0=01000000
+[Tue Sep 29 17:56:42 2026] b43-phy19: phy_ac: macstat: 4a3f 0000 0000 17db 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 019a 0000 1d4d 1deb cb27 8c0c 1722 00b9 249f 0000 0000 249f 3274 039c 595b 1bae 14ae 1d38 74fa 0003 268b 0000 4d4b 0a7a 0000 0000 0000 0000 0000 d975 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 9469 0000 0000 016c
+[Tue Sep 29 17:56:42 2026] b43-phy19: phy_ac: gpio in=00000087 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[Tue Sep 29 17:56:42 2026] b43-phy19: optiming: total=13ms lock+suspend=3ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:42 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:56 2026] net_ratelimit: 24 callbacks suppressed
+[Tue Sep 29 17:56:56 2026] b43-phy19: optiming: total=11ms lock+suspend=2ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:56 2026] b43-phy19: optiming: total=11ms lock+suspend=1ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:56 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:56 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:56 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:56 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:56 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:57 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:57 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:56:57 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:10 2026] net_ratelimit: 24 callbacks suppressed
+[Tue Sep 29 17:57:10 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:10 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:10 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:10 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:10 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:10 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:10 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:11 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:11 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:11 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:24 2026] net_ratelimit: 24 callbacks suppressed
+[Tue Sep 29 17:57:24 2026] b43-phy19: optiming: total=13ms lock+suspend=4ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:24 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:24 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:24 2026] b43-phy19: optiming: total=11ms lock+suspend=1ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:24 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:24 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:25 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:25 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:25 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:25 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:29 2026] net_ratelimit: 24 callbacks suppressed
+[Tue Sep 29 17:57:29 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:29 2026] b43-phy19: optiming: total=10ms lock+suspend=1ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:29 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:29 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:29 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:30 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:30 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:30 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:30 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:30 2026] b43-phy19: optiming: total=11ms lock+suspend=2ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:38 2026] net_ratelimit: 19 callbacks suppressed
+[Tue Sep 29 17:57:38 2026] b43-phy19: optiming: total=8ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:38 2026] b43-phy19: optiming: total=10ms lock+suspend=1ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:38 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:38 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:38 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:38 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:39 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:39 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:39 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:39 2026] b43-phy19: optiming: total=9ms lock+suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 17:57:44 2026] net_ratelimit: 19 callbacks suppressed
+[Tue Sep 29 17:57:44 2026] b43-phy19: phy_ac: MACCTL=c4020403 IRQ reason=00004000 mask=38058264 pio=0
+[Tue Sep 29 17:57:44 2026] b43-phy19: phy_ac: DMA rx status=100044d0/000044e0 index=000044d0 tx(BE) status=2000c4a0
+[Tue Sep 29 17:57:44 2026] b43-phy19: phy_ac: dma0 reason=00000000 mask=00013c00 intrcvlazy0=01000000
+[Tue Sep 29 17:57:44 2026] b43-phy19: phy_ac: macstat: 4ce1 0000 0000 1886 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 01b7 0000 1e41 1e7c c8c6 9a3f 17bb 00cb 25e4 0000 0000 25e4 32d7 03b6 5bae 1c21 154f 1e8b 7b55 0003 28a7 0000 5188 0ae0 0000 0000 0000 0000 0000 d759 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 9693 0000 0000 0173
+[Tue Sep 29 17:57:44 2026] b43-phy19: phy_ac: gpio in=00000087 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155

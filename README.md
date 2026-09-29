@@ -13,7 +13,7 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/85-status-2026-09-29-steady-state-scan-optiming-clean-slow-outliers-may-be-session-history-dependent.md`
+**Read `notes/86-status-2026-09-29-aged-module-still-clean-steady-state-outliers-remain-unreproduced.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
 regression writeup, `notes/78`-`81` for the channel-6 replay/A-B/
@@ -21,13 +21,14 @@ C-state threads, `notes/82`-`83` for the ftrace finding that steady-
 state scanning has slow `drv_config` outliers unrelated to
 `b43_mac_suspend`, `notes/84` for the phase-timing instrumentation that
 pins the *connect-time* slowness on `b43_mac_suspend` genuinely failing
-— `notes/85` then pointed that same instrumentation at steady-state
-scanning again and found it clean, raising the open question of whether
-the steady-state outliers depend on how long the module's been running,
-not just "is this a scan"). The numbered files in `notes/` are a
-chronological log of the whole investigation; earlier "session summary"
-checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
-`notes/85` is the most current.
+— `notes/85`-`86` then tried twice to reproduce the steady-state
+outliers on a freshly-loaded, then a deliberately-aged, module instance
+and came back clean both times, 174 samples total, so that thread is
+parked pending a real repro rather than "not yet localized"). The
+numbered files in `notes/` are a chronological log of the whole
+investigation; earlier "session summary" checkpoints (`notes/17`,
+`notes/76`) are also good wide-angle reads, but `notes/86` is the most
+current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
@@ -58,15 +59,17 @@ instrumentation, `optiming_thresh_ms` param in `main.c`):
 triggered channel switches during a fresh connect, eating ~80-90% of a
 slow `b43_op_config` call's total time — confirmed with 7/7 clean
 samples, each lining up exactly with a real `MAC suspend failed (40ms)`
-line. A *separate*, still-unlocalized phenomenon also exists during
-steady-state scanning on an already-associated link, where `drv_config`
-can take up to ~1.5s **without** any suspend failure (notes/82/83) —
-but pointing the same `optiming` instrumentation at that exact condition
-on a freshly-reloaded module found it perfectly clean (84/84 normal
-samples, notes/85), raising an open question: does the steady-state
-slowness depend on how long the module's been running/how many prior
-operations it's seen, or is it just rare and unlucky to catch? Not yet
-distinguished. notes/78 separately found a real, heavy (~1300-register)
+line. **This alone plausibly explains most day-to-day unreliability**,
+since every fresh connect/reconnect goes through this path. A
+*separate* phenomenon also exists during steady-state scanning on an
+already-associated link, where `drv_config` can take up to ~1.5s
+**without** any suspend failure (notes/82/83), but two follow-up
+attempts to reproduce it on demand (a freshly-reloaded module, then a
+deliberately "aged" one with 28 accumulated scans) both came back
+completely clean, 174/174 samples (notes/85/86) — parked pending a real
+reproduction rather than actively chased further, since it doesn't
+explain the bulk of daily-use pain the way the connect-time failure
+does. notes/78 separately found a real, heavy (~1300-register)
 vendor-state replay on every touch of channel 6 (a fixed staging channel
 every module bring-up passes through, unrelated to the AP's real
 channel — which is 11, correcting a wrong assumption in notes/78, see
@@ -74,7 +77,10 @@ notes/81) that the `ac_state_once` runtime knob suppresses, but whether
 that reduces the failure rate is still untested under the right
 conditions (notes/79/80). A newer, not-yet-understood RX-blackout
 symptom found live at the end of an earlier session (notes/77, Part 6)
-also still needs a clean re-check.
+also still needs a clean re-check. **Recommended next step**: build the
+daily-use plan's Phase 2a (automatic detect-and-reload on a stuck/failed
+connection) — it compensates for the connect-time failure rate directly
+and doesn't require resolving either open mechanism first.
 
 Not working / not attempted:
 - 5 GHz transmit (receive works, notes/53) and a from-scratch
