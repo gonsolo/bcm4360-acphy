@@ -13,23 +13,23 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/97-status-2026-09-29-fourth-bisect-boot-login-succeeds-shell-exits-instantly-debug-shell-staged.md`
-first** — it's the current entry point: four bisect boot attempts at
+**Read `notes/98-status-2026-09-29-fifth-bisect-boot-vt-switch-doesnt-work-shell-exits-clean-pivoting-back-to-graphical.md`
+first** — it's the current entry point: five bisect boot attempts at
 the same commit (`60b8d4d49281`) now, each hitting a different boot-
-environment problem, each diagnosed straight from the journal and
-fixed with no lasting harm (notes/94: `/boot`, `vfat`, no `nofail` in
-fstab, took down the whole boot; notes/95: no keyboard/mouse, the Apple
-SPI input chain was all modules - fixed, and switched to a text console
-to drop the GDM/mouse dependency entirely; notes/96: the text console
-then reached a fully healthy running system with SSH/network up but no
-login prompt anywhere, because this NixOS config disables `getty@tty1`
-by default since GDM normally owns it - fixed with a kernel-cmdline
-`systemd.wants=`; notes/97: login itself now succeeds but the shell
-exits within about a second with no journal-visible error - not yet
-root-caused, worked around by staging `systemd.debug-shell=1`, an
-unauthenticated root shell on tty9 independent of PAM/login entirely).
-notes/93 has the fuller compile-server/bisect setup context. notes/92
-concluded the timing-
+environment problem, each diagnosed and fixed or worked around with no
+lasting harm (notes/94: `/boot` `vfat` mount, took down the whole boot;
+notes/95: no keyboard/mouse, the Apple SPI input chain was all modules
+- fixed; notes/96: healthy system, no login prompt, `getty@tty1`
+disabled by this NixOS config - fixed; notes/97: login succeeds but the
+shell exits cleanly within a second, cause still unknown, staged
+`systemd.debug-shell` as a fallback; notes/98: that fallback's `tty9`
+is unreachable - `Ctrl+Alt+F9` doesn't switch VTs even with the Apple
+`fnmode` keyboard quirk fixed - so, per the user's explicit preference,
+**pivoted back to booting the real default `graphical.target`/GDM**
+instead of stacking more text-console workarounds, since the only
+confirmed blocker for it (no input) was already fixed in notes/95 but
+never actually tested under GDM). notes/93 has the fuller compile-
+server/bisect setup context. notes/92 concluded the timing-
 instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
 16/16 samples from an ordinary daily-use boot autoload; on 6.18.53
 (notes/90/91, same instrumented binary), `psctl=0ms` and `wait=0-3ms`.

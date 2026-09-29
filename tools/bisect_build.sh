@@ -28,20 +28,24 @@
 #    =m to =y, rerunning olddefconfig between passes until every one of
 #    them sticks at =y (`grep` them back out and check - don't trust
 #    the first pass).
-#    Boots to systemd.unit=multi-user.target (plain text console), not
-#    graphical - avoids depending on a working mouse/GDM entirely. Also
-#    passes systemd.wants=getty@tty1.service explicitly - this NixOS
-#    config disables getty@tty1 by default (GDM normally owns tty1),
-#    so without this override multi-user.target reaches a fully healthy
-#    running state with SSH/NetworkManager up but *no login prompt
-#    anywhere* (notes/96) - easy to mistake for a hang since nothing
-#    further gets logged, but it isn't one. Also passes
-#    systemd.debug-shell=1 - an unauthenticated root shell on tty9
-#    (Ctrl+Alt+F9), independent of PAM/login/the normal user shell -
-#    the tty1 getty login itself was observed to authenticate
-#    successfully and then have its shell exit immediately with no
-#    journal-visible error (notes/97), so this is the fallback path in
-#    case that recurs.
+#    Boots to the *real* default target (graphical.target/GDM, same as
+#    normal - no systemd.unit= override) now that notes/95's input fix
+#    is confirmed working (keyboard+trackpad correctly detected in the
+#    journal) - that was the only known reason GDM wasn't viable.
+#    Passes systemd.wants=getty@tty1.service as a fallback text login
+#    (this NixOS config disables getty@tty1 by default since GDM
+#    normally owns tty1, notes/96) and systemd.debug-shell=1 as a
+#    last-resort unauthenticated root shell on tty9 (Ctrl+Alt+F9) -
+#    on this hardware also needs hid_apple.fnmode=2 (also passed) since
+#    the default fnmode=1 sends bare F-keys as media functions, not
+#    literal Fn, though Ctrl+Alt+F9 VT-switching was not observed to
+#    work even with fnmode fixed and Fn held (notes/98) - not yet
+#    understood, tty9 access is unconfirmed, treat it as unreliable.
+#    Separately: the getty@tty1 *text* login was observed to
+#    authenticate successfully and then have its shell exit cleanly
+#    (no crash/signal/oops - just exits) within about a second, cause
+#    not yet found (notes/97/98) - if graphical.target/GDM also hits
+#    this, that's a strong clue it's not console-specific.
 #  - the SSH key + pampelmuse ~/src/linux clone from notes/93 already exist
 #  - IMPORTANT: only call this via a backgrounded Bash tool invocation
 #    (run_in_background / &), never via a detached remote nohup/screen -
@@ -101,9 +105,9 @@ INIT=$(sudo grep -oP 'init=\S+' "/boot/loader/entries/$DEFAULT_ENTRY")
 cat <<EOF | sudo tee /boot/loader/entries/nixos-bisect.conf >/dev/null
 title NixOS (bisect)
 sort-key nixos-bisect
-version bisect $COMMIT (mainline, no NixOS initrd, custom minimal config, text console)
+version bisect $COMMIT (mainline, no NixOS initrd, custom minimal config, graphical default + fallbacks)
 linux /EFI/nixos/$EFI_NAME
-options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.unit=multi-user.target systemd.wants=getty@tty1.service systemd.debug-shell=1
+options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.wants=getty@tty1.service systemd.debug-shell=1 hid_apple.fnmode=2
 machine-id 1e7ffcf2ac3d46e0855327b0012ddbee
 EOF
 sudo bootctl set-oneshot nixos-bisect.conf
