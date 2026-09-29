@@ -13,30 +13,31 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/91-status-2026-09-29-irq-ack-race-hypothesis-refuted-suspend-split-further-baselined-on-6-18-53.md`
-first** — it's the current entry point. notes/90 (a direct, controlled
-6.18.53 reference capture, using the exact same instrumented driver
-binary as every 7.2.7 capture) found `b43_mac_suspend()` completing in
-0-2ms across 38+ samples with zero failures, versus a consistent
-~80ms/many failures on 7.2.7 for the identical operation -
-**conclusively confirming this is a real, kernel-side regression**, not
-measurement noise or driver drift. notes/91 then investigated (and
-mostly refuted, on close reading of the IRQ-masking code) the leading
-hypothesis that the real interrupt handler races the suspend-ack poll,
-and split the timing further (a separate power-save wake-wait vs. the
-actual suspend-ack poll) - baselined clean on 6.18.53, the matching
-7.2.7 capture still needed after the next reboot. It links back to
-everything that built up to this (start with `notes/77` for the fuller
-kernel-regression writeup, `notes/78`-`81` for the channel-6 replay/A-B/
-C-state threads, `notes/82`-`83` for the ftrace finding on steady-state
-scanning, `notes/84` for the phase-timing instrumentation that first
-pinned connect-time slowness on `b43_mac_suspend`, `notes/85`-`86` for
-the still-parked steady-state-scanning mystery, `notes/87`-`88` for the
-auto-recovery watchdog, `notes/89` for the lock-vs-suspend split and the
-pre-staged 6.18.53 build). The numbered files in `notes/` are a
+**Read `notes/92-status-2026-09-29-conclusive-the-entire-80ms-is-the-suspend-ack-poll-nothing-left-to-split-in-driver-code.md`
+first** — it's the current entry point and the conclusive result of
+this whole timing-instrumentation thread: on 7.2.7, `psctl=0ms` and
+`wait=79-86ms` in 16/16 samples from an ordinary daily-use boot
+autoload (not even a contrived test); on 6.18.53 (notes/90/91, same
+instrumented binary), `psctl=0ms` and `wait=0-3ms`. **The entire
+regression is now isolated to one single-register poll** (waiting for
+the ucode to set `B43_IRQ_MAC_SUSPENDED` after a `MACCTL` write) -
+every other phase of the same function and its caller is proven equally
+fast on both kernels, and there is no more driver-side code left to
+split with timing instrumentation. Root cause not found, but the search
+space is now precisely bounded; `git bisect` is the well-scoped next
+step (see notes/92). It links back to everything that built up to this
+(start with `notes/77` for the fuller kernel-regression writeup,
+`notes/78`-`81` for the channel-6 replay/A-B/C-state threads, `notes/82`-
+`83` for the ftrace finding on steady-state scanning, `notes/84` for the
+phase-timing instrumentation that first pinned connect-time slowness on
+`b43_mac_suspend`, `notes/85`-`86` for the still-parked steady-state-
+scanning mystery, `notes/87`-`88` for the auto-recovery watchdog,
+`notes/89` for the lock-vs-suspend split, `notes/90` for the 6.18.53
+reference capture, `notes/91` for the refuted IRQ-race hypothesis and
+the psctl/wait split). The numbered files in `notes/` are a
 chronological log of the whole investigation; earlier "session summary"
 checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
-`notes/91` is the most current.
+`notes/92` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
@@ -53,42 +54,48 @@ kernel this project developed against):
   suspend failures, in the project's most recent clean A/B test
   (notes/76).
 
-**Current blocker, now conclusively confirmed and precisely localized:
-`b43_mac_suspend()` — a function that does nothing but write one
-register and poll another — completes in 0-2ms on kernel 6.18.53 and
-takes a consistent ~80ms (or fails outright) on kernel 7.2.7, for the
-identical driver binary, identical hardware, identical operation**
-(notes/90: a direct, controlled reference capture using the same
-instrumented build on both kernels, not just success/failure-rate
-inference). This is what makes fresh connects/reconnects on 7.2.7 fail
-~30-40% of the time (notes/76, notes/84) — not a firmware/RF/hardware
+**Current blocker, now precisely bounded (root cause itself still not
+found): `b43_mac_suspend()`'s suspend-ack poll** — the specific loop
+that does nothing but repeatedly read one register waiting for the
+ucode to set an acknowledgment bit, after an immediately-preceding,
+flush-verified register write — **completes in 0-3ms on kernel 6.18.53
+and takes a consistent ~80ms on kernel 7.2.7, for the identical driver
+binary, identical hardware, identical operation** (notes/90-92: a
+direct, controlled reference capture with the same instrumented build
+on both kernels, split down to this one specific wait — every other
+phase of the same function and its caller, including a separate power-
+save wake-wait inside the same call, is proven equally fast on both
+kernels). This is what makes fresh connects/reconnects on 7.2.7 fail
+~30-40% of the time (notes/76, notes/84, reconfirmed by an ordinary
+daily-use boot autoload in notes/92) — not a firmware/RF/hardware
 issue, and not (per notes/89) simply "2x a retry" (that ~80ms figure is
 `msleep(1)` rounding, present on both kernels equally; what differs is
 whether the wait ever *succeeds* within it). **Staying on 6.18.53 as the
 daily-use kernel is explicitly not an option** — 7.2.x has to be made
 reliable; 6.18.53 stays reference-only. Ruled out as the cause: bcma/
-mac80211/PCI-ASPM/irq/workqueue/hrtimer commits (notes/77) and CPU
-C-states/wakeup latency (notes/81). **Narrowed but not yet found**: since
-the rest of the same function's MMIO-heavy work (channel retune, TX
-power, antenna, `mac_enable`) is equally fast on both kernels, whatever
-changed looks targeted at this one wait — either the ucode's own
-response latency to a suspend request, or something specific to the
-`B43_MMIO_GEN_IRQ_REASON`/`B43_MMIO_MACCTL` register pair (notes/90
-suggests checking whether the real IRQ handler, `b43_interrupt_handler`,
-races this same register with the polling loop). A *separate*, real but
-currently un-reproducible-on-demand phenomenon also exists during
-steady-state scanning (notes/82/83/85/86, parked). notes/78 found a
-real, heavy (~1300-register) vendor-state replay on every touch of
-channel 6 (a fixed staging channel every module bring-up passes
-through, unrelated to the AP's real channel — which is 11, notes/81)
-that the `ac_state_once` runtime knob suppresses, but whether that
-reduces the failure rate is still untested under the right conditions
-(notes/79/80). A newer, not-yet-understood RX-blackout symptom found
-live at the end of an earlier session (notes/77, Part 6) also still
-needs a clean re-check. **Auto-recovery is built and working regardless**
-(`tools/b43_autorecover.sh`, notes/87/88) — a stuck connection self-heals
-within ~60-90s, so the driver is usable today even before the root
-cause above is fully nailed down.
+mac80211/PCI-ASPM/irq/workqueue/hrtimer commits (notes/77), CPU
+C-states/wakeup latency (notes/81), and a real interrupt-handler race on
+the same status register (notes/91 — the bit isn't even in the hardware
+interrupt mask). **Driver-side instrumentation has reached its limit**
+(notes/92) — there is no more source code between the write and the
+poll to split further; the remaining question (does the write itself
+arrive late, or does the ucode take longer to act on it) needs either
+bus-level tracing this project doesn't currently have, or a `git
+bisect` in `~/src/linux`, now well-scoped to a fast, unambiguous
+pass/fail test instead of a vague reliability judgment call. A
+*separate*, real but currently un-reproducible-on-demand phenomenon
+also exists during steady-state scanning (notes/82/83/85/86, parked).
+notes/78 found a real, heavy (~1300-register) vendor-state replay on
+every touch of channel 6 (a fixed staging channel every module bring-up
+passes through, unrelated to the AP's real channel — which is 11,
+notes/81) that the `ac_state_once` runtime knob suppresses, but whether
+that reduces the failure rate is still untested under the right
+conditions (notes/79/80). A newer, not-yet-understood RX-blackout
+symptom found live at the end of an earlier session (notes/77, Part 6)
+also still needs a clean re-check. **Auto-recovery is built and working
+regardless** (`tools/b43_autorecover.sh`, notes/87/88) — a stuck
+connection self-heals within ~60-90s, so the driver is usable today
+even before the root cause above is fully nailed down.
 
 Not working / not attempted:
 - 5 GHz transmit (receive works, notes/53) and a from-scratch

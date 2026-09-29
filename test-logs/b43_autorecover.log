@@ -75,3 +75,12 @@ Tue Sep 29 06:33:12 PM CEST 2026 wlp3s0b1 state=connecting (getting IP configura
 Tue Sep 29 06:43:33 PM CEST 2026 b43-autorecover start (ssid=Vodafone-2A84)
 Tue Sep 29 06:43:33 PM CEST 2026 wlp3s0b1 state=absent (1)
 Tue Sep 29 06:50:03 PM CEST 2026 b43-autorecover start (ssid=Vodafone-2A84)
+Tue Sep 29 07:06:31 PM CEST 2026 b43-autorecover start (ssid=Vodafone-2A84)
+Tue Sep 29 07:06:31 PM CEST 2026 wlp3s0b1 state=connecting (configuring) (1)
+Tue Sep 29 07:06:46 PM CEST 2026 wlp3s0b1 state=connecting (configuring) (2)
+Tue Sep 29 07:07:01 PM CEST 2026 wlp3s0b1 state=connecting (configuring) (3)
+Tue Sep 29 07:07:16 PM CEST 2026 wlp3s0b1 state=connecting (configuring) (4)
+Tue Sep 29 07:07:31 PM CEST 2026 wlp3s0b1 state=connecting (configuring) (5)
+Tue Sep 29 07:07:46 PM CEST 2026 wlp3s0b1 state=disconnected (6)
+Tue Sep 29 07:07:46 PM CEST 2026 wlp3s0b1 disconnected ~90s (SSID visible), reloading (attempt 1/6 this hour)
+b43 interface: wlan0
