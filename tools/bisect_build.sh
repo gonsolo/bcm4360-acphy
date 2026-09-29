@@ -18,6 +18,12 @@
 #                         KEYBOARD_APPLESPI, HID, HID_APPLE, HID_GENERIC,
 #                         USB_HID, USB_XHCI_HCD, USB_XHCI_PCI,
 #                         INPUT_MOUSEDEV, INPUT_LEDS, INPUT_EVDEV
+#      GPU (no accel = no cursor, no compositing of new windows/search
+#        results - kernel falls back to the generic `simpledrm` driver,
+#        which has no hardware cursor plane; GDM/gnome-shell itself
+#        still renders since that's the one static surface simpledrm
+#        *can* show - notes/99):
+#                         DRM_I915
 #    Kconfig dependency note: `make olddefconfig` does NOT auto-upgrade
 #    an existing =m to =y just because a blocking dependency later
 #    becomes satisfied - if two of these depend on each other (e.g.
