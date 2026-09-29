@@ -13,15 +13,17 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/81-status-2026-09-29-cstates-ruled-out-ap-is-ch11-not-ch6-correction.md`
+**Read `notes/83-status-2026-09-29-correction-suspend-is-not-the-bottleneck-slow-drv_config-unexplained.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
-regression writeup, `notes/78`-`80` for the channel-6 replay finding and
-two A/B tests it continues - note `notes/81` corrects a wrong assumption
-in `notes/78`, the AP is on channel 11, not 6). The numbered files in
-`notes/` are a chronological log of the whole investigation; earlier
-"session summary" checkpoints (`notes/17`, `notes/76`) are also good
-wide-angle reads, but `notes/81` is the most current.
+regression writeup, `notes/78`-`81` for the channel-6 replay/A-B/
+C-state threads, `notes/82` for the ftrace finding that most scan
+channel-switches run dramatically slower on 7.2.7 — note `notes/83`
+retracts part of `notes/82`'s explanation, `b43_mac_suspend` itself
+turns out not to be the bottleneck). The numbered files in `notes/` are
+a chronological log of the whole investigation; earlier "session
+summary" checkpoints (`notes/17`, `notes/76`) are also good wide-angle
+reads, but `notes/83` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
@@ -39,29 +41,32 @@ kernel this project developed against):
   (notes/76).
 
 **Current blocker: the exact same driver/binary is reliably reliable on
-kernel 6.18.53 and reliably unreliable (~30-40%, 5/15 in the most recent
-sampling) on kernel 7.2.7** — a confirmed, repeatable, clean-A/B-tested
-kernel-version regression (notes/76), not a firmware/RF/hardware issue.
-**Staying on 6.18.53 as the daily-use kernel is explicitly not an
-option** — 7.2.x has to be made reliable, 6.18.53 is reference-only for
-A/B testing. The specific kernel-side mechanism is not yet found despite
-an extensive targeted commit search (bcma, mac80211, PCI ASPM/power-up,
-irq/workqueue/hrtimer, and — as of notes/81 — CPU C-states/wakeup
-latency, all checked and ruled out, notes/77/81); the most concrete
-still-open lead is a scan-triggered channel-switch/MAC-suspend
-collision (notes/77). notes/78 found a real, heavy (~1300-register)
-vendor-state replay that fires on every touch of channel 6 (a fixed
-staging channel every module bring-up passes through, not — as notes/78
-first assumed — the AP's own channel, which is actually channel 11;
-corrected in notes/81) and can be suppressed with the `ac_state_once`
-runtime knob, but two different A/B attempts (notes/79, notes/80) each
-turned out to be shaped wrong to actually test whether it reduces the
-failure rate — still an open, unresolved lead, not a ruled-out one.
-Next concrete step (see the project's daily-use plan): diff mac80211's
-`drv_*` tracepoint/timing behavior between the two kernels during a
-real connect, rather than another blind reload-count A/B. A newer,
-not-yet-understood RX-blackout symptom found live at the end of an
-earlier session (notes/77, Part 6) also still needs a clean re-check.
+kernel 6.18.53 and reliably unreliable (~30-40%) on kernel 7.2.7** — a
+confirmed, repeatable, clean-A/B-tested kernel-version regression
+(notes/76), not a firmware/RF/hardware issue. **Staying on 6.18.53 as
+the daily-use kernel is explicitly not an option** — 7.2.x has to be
+made reliable; 6.18.53 stays reference-only for A/B testing. Ruled out
+so far: bcma/mac80211/PCI-ASPM/irq/workqueue/hrtimer commits (notes/77),
+CPU C-states/wakeup latency (notes/81), and `b43_mac_suspend()`'s own
+wait loop as the direct bottleneck (notes/83 — it never actually times
+out in the cases that matter, correcting a theory from notes/82).
+**Current best lead** (notes/82, ftrace on mac80211's `drv_*`
+tracepoints): a large fraction of channel-switch (`drv_config`) calls
+during scanning run 10-150x slower than normal (~9ms → tens to
+hundreds of ms, occasionally over a second) for a reason that's real,
+reproducible, and still unlocalized — somewhere inside
+`b43_phy_ac_op_switch_channel`/`b43_mac_enable`'s call chain, not in
+`b43_mac_suspend` itself. notes/78 separately found a real, heavy
+(~1300-register) vendor-state replay on every touch of channel 6 (a
+fixed staging channel every module bring-up passes through, unrelated
+to the AP's real channel — which is 11, correcting a wrong assumption
+in notes/78, see notes/81) that the `ac_state_once` runtime knob
+suppresses, but whether that actually reduces the failure rate is still
+untested under the right conditions (notes/79/80). Next concrete step:
+add fine-grained internal timestamps inside the channel-switch call
+chain to localize the slow-path function (notes/83). A newer, not-yet-
+understood RX-blackout symptom found live at the end of an earlier
+session (notes/77, Part 6) also still needs a clean re-check.
 
 Not working / not attempted:
 - 5 GHz transmit (receive works, notes/53) and a from-scratch

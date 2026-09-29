@@ -1,0 +1,214 @@
+# tracer: nop
+#
+# entries-in-buffer/entries-written: 202/202   #P:4
+#
+#                                _-----=> irqs-off/BH-disabled
+#                               / _----=> need-resched
+#                              | / _---=> hardirq/softirq
+#                              || / _--=> preempt-depth
+#                              ||| / _-=> migrate-disable
+#                              |||| /     delay
+#           TASK-PID     CPU#  |||||  TIMESTAMP  FUNCTION
+#              | |         |   |||||     |         |
+      irq/18-b43-14247   [000] b..1.  3544.081105: drv_return_void: phy17
+   kworker/u16:0-4175    [003] .....  3544.184159: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2427.000 MHz,width:0,center: 2427.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [003] .....  3544.193183: drv_return_int: phy17 - 0
+   kworker/u16:1-5355    [001] .....  3544.255075: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:1-5355    [001] .....  3544.264134: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3544.265070: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3544.357907: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3544.473142: drv_return_void: phy17
+   kworker/u16:0-4175    [003] .....  3544.576080: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2432.000 MHz,width:0,center: 2432.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [003] .....  3544.585187: drv_return_int: phy17 - 0
+   kworker/u16:0-4175    [001] .....  3544.647143: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [001] .....  3544.656102: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3544.658708: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3544.865718: drv_return_void: phy17
+   kworker/u16:0-4175    [003] .....  3544.968060: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2437.000 MHz,width:0,center: 2437.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [003] .....  3544.985164: drv_return_int: phy17 - 0
+   kworker/u16:0-4175    [001] .....  3545.047086: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [001] .....  3545.057192: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3545.058428: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3545.169117: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3545.227525: drv_return_void: phy17
+   kworker/u16:1-5355    [000] .....  3545.368080: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2442.000 MHz,width:0,center: 2442.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:1-5355    [000] .....  3545.377105: drv_return_int: phy17 - 0
+   kworker/u16:0-4175    [001] .....  3545.439146: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [001] .....  3545.448203: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3545.449257: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3545.657460: drv_return_void: phy17
+   kworker/u16:1-5355    [001] .....  3545.760170: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2447.000 MHz,width:0,center: 2447.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:1-5355    [001] .....  3545.769182: drv_return_int: phy17 - 0
+   kworker/u16:0-4175    [003] .....  3545.831085: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [003] .....  3545.840090: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3545.841242: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3546.048902: drv_return_void: phy17
+  wpa_supplicant-945     [000] .....  3546.072355: drv_sw_scan_start: phy0,  vif:wlp0s20u1(2), addr:00:c0:ca:b0:22:a0
+  wpa_supplicant-945     [000] .....  3546.072358: drv_return_void: phy0
+  wpa_supplicant-945     [000] .....  3546.072471: drv_return_void: phy0
+  wpa_supplicant-945     [000] .....  3546.072474: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:1-5355    [002] b..2.  3546.072922: drv_return_void: phy0
+  wpa_supplicant-945     [002] .....  3546.125658: drv_return_int: phy0 - 0
+   kworker/u16:1-5355    [001] .....  3546.125701: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2412.000 MHz,width:0,center: 2412.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [002] .....  3546.152173: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2452.000 MHz,width:0,center: 2452.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [002] .....  3546.161189: drv_return_int: phy17 - 0
+   kworker/u16:1-5355    [001] .....  3546.179045: drv_return_int: phy0 - 0
+   kworker/u16:5-8371    [000] .....  3546.223119: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:5-8371    [000] .....  3546.232162: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3546.233306: drv_return_void: phy17
+   kworker/u16:1-5355    [001] .....  3546.241149: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:1-5355    [001] .....  3546.295167: drv_return_int: phy0 - 0
+   kworker/u16:5-8371    [000] b..2.  3546.307531: drv_return_void: phy0
+      irq/18-b43-14247   [000] b..1.  3546.311580: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3546.370764: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3546.443246: drv_return_void: phy17
+   kworker/u16:0-4175    [002] .....  3546.544160: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2457.000 MHz,width:0,center: 2457.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [002] .....  3546.553107: drv_return_int: phy17 - 0
+   kworker/u16:1-5355    [001] .....  3546.600157: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2417.000 MHz,width:0,center: 2417.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [000] .....  3546.615089: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [000] .....  3546.624181: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3546.625189: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3546.877199: drv_return_void: phy17
+   kworker/u16:2-13765   [003] .....  3546.936043: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [003] .....  3546.945108: drv_return_int: phy17 - 0
+   kworker/u16:0-4175    [002] .....  3547.007074: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [002] .....  3547.016224: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3547.087844: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3547.210077: drv_return_void: phy17
+   kworker/u16:1-5355    [002] .....  3547.300354: drv_return_int: phy0 - 0
+   kworker/u16:1-5355    [002] .....  3547.328145: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2467.000 MHz,width:0,center: 2467.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [000] b..2.  3547.331664: drv_return_void: phy0
+   kworker/u16:1-5355    [001] .....  3547.337190: drv_return_int: phy17 - 0
+   kworker/u16:1-5355    [001] .....  3547.362075: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:5-8371    [002] .....  3547.399068: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:5-8371    [002] .....  3547.408155: drv_return_int: phy17 - 0
+      irq/18-b43-14247   [000] b..1.  3547.412474: drv_return_void: phy17
+   kworker/u16:1-5355    [002] .....  3547.416602: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3547.472302: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3547.617090: drv_return_void: phy17
+   kworker/u16:2-13765   [001] b..2.  3547.624345: drv_return_void: phy0
+   kworker/u16:1-5355    [001] .....  3547.720027: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2472.000 MHz,width:0,center: 2472.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [003] .....  3547.728109: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2422.000 MHz,width:0,center: 2422.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:1-5355    [001] .....  3547.729100: drv_return_int: phy17 - 0
+   kworker/u16:2-13765   [003] .....  3547.778986: drv_return_int: phy0 - 0
+   kworker/u16:2-13765   [003] .....  3547.795199: drv_config: phy17 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:0,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [003] .....  3547.804205: drv_return_int: phy17 - 0
+   kworker/u16:2-13765   [003] .....  3547.804216: drv_return_void: phy17
+   kworker/u16:2-13765   [003] .....  3547.804218: drv_sw_scan_complete: phy17 vif:wlp3s0b1(2)
+   kworker/u16:2-13765   [003] .....  3547.804228: drv_return_void: phy17
+  wpa_supplicant-945     [000] .....  3547.804751: drv_return_int: phy17 - 0
+  wpa_supplicant-945     [000] .....  3547.804756: drv_return_int: phy17 - -2
+  wpa_supplicant-945     [000] .....  3547.804781: drv_return_int: phy17 - -2
+      irq/18-b43-14247   [000] b..1.  3547.805287: drv_return_void: phy17
+   kworker/u16:2-13765   [002] b..2.  3547.809463: drv_return_void: phy0
+   kworker/u16:2-13765   [002] .....  3547.840097: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [000] .....  3547.892774: drv_return_int: phy0 - 0
+   kworker/u16:0-4175    [002] b..2.  3548.096541: drv_return_void: phy0
+   kworker/u16:0-4175    [003] .....  3548.200142: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2427.000 MHz,width:0,center: 2427.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [002] .....  3548.254698: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3548.298397: drv_return_void: phy17
+   kworker/u16:2-13765   [001] .....  3548.316164: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3548.387984: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3548.790092: drv_return_void: phy17
+  wpa_supplicant-945     [000] .....  3549.046958: drv_return_void: phy17
+  wpa_supplicant-945     [000] .....  3549.047114: drv_return_int: phy17 - 0
+  wpa_supplicant-945     [000] .....  3549.047116: drv_return_int: phy17 - -2
+  wpa_supplicant-945     [000] .....  3549.047137: drv_return_int: phy17 - -2
+      irq/18-b43-14247   [000] b..1.  3549.054750: drv_return_void: phy17
+   kworker/u16:2-13765   [000] .....  3549.229487: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3549.259570: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3549.320873: drv_return_void: phy17
+   kworker/u16:2-13765   [000] b..2.  3549.432684: drv_return_void: phy0
+   kworker/u16:5-8371    [000] .....  3549.536111: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2432.000 MHz,width:0,center: 2432.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:5-8371    [000] .....  3549.589090: drv_return_int: phy0 - 0
+   kworker/u16:2-13765   [002] .....  3549.651069: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [002] .....  3549.700917: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3549.898712: drv_return_void: phy17
+   kworker/u16:2-13765   [000] b..2.  3549.904375: drv_return_void: phy0
+   kworker/u16:5-8371    [000] .....  3550.008169: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2437.000 MHz,width:0,center: 2437.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:5-8371    [000] .....  3550.060411: drv_return_int: phy0 - 0
+   kworker/u16:2-13765   [000] .....  3550.122148: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [000] .....  3550.175399: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3550.280733: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3550.350918: drv_return_void: phy17
+   kworker/u16:5-8371    [000] b..2.  3550.376611: drv_return_void: phy0
+      irq/18-b43-14247   [000] b..1.  3550.403368: drv_return_void: phy17
+   kworker/u16:0-4175    [002] .....  3550.480109: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2442.000 MHz,width:0,center: 2442.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [002] .....  3551.204293: drv_return_int: phy0 - 0
+   kworker/u16:2-13765   [000] b..2.  3551.235613: drv_return_void: phy0
+   kworker/u16:2-13765   [000] .....  3551.266109: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3551.305148: drv_return_void: phy17
+   kworker/u16:2-13765   [000] .....  3551.318517: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3551.370800: drv_return_void: phy17
+   kworker/u16:0-4175    [001] b..2.  3551.520649: drv_return_void: phy0
+   kworker/u16:0-4175    [000] .....  3551.624125: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2447.000 MHz,width:0,center: 2447.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3551.635973: drv_return_void: phy17
+   kworker/u16:0-4175    [000] .....  3551.677104: drv_return_int: phy0 - 0
+   kworker/u16:0-4175    [000] .....  3551.739143: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [000] .....  3551.791516: drv_return_int: phy0 - 0
+   kworker/u16:2-13765   [002] b..2.  3551.992405: drv_return_void: phy0
+  NetworkManager-789     [003] .....  3552.000331: drv_return_void: phy17
+   kworker/u16:2-13765   [002] .....  3552.096100: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2452.000 MHz,width:0,center: 2452.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [002] .....  3552.148328: drv_return_int: phy0 - 0
+   kworker/u16:5-8371    [001] .....  3552.210084: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3552.229704: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3552.330812: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3552.392791: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3552.713777: drv_return_void: phy17
+   kworker/u16:5-8371    [001] .....  3553.133976: drv_return_int: phy0 - 0
+   kworker/u16:5-8371    [000] b..2.  3553.336360: drv_return_void: phy0
+      irq/18-b43-14247   [000] b..1.  3553.418147: drv_return_void: phy17
+   kworker/u16:2-13765   [000] .....  3553.440112: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2457.000 MHz,width:0,center: 2457.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [000] .....  3553.492599: drv_return_int: phy0 - 0
+   kworker/u16:0-4175    [001] .....  3553.554124: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [001] .....  3553.607607: drv_return_int: phy0 - 0
+   kworker/u16:0-4175    [002] b..2.  3553.808600: drv_return_void: phy0
+   kworker/u16:0-4175    [001] .....  3553.912071: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [002] .....  3553.966074: drv_return_int: phy0 - 0
+   kworker/u16:0-4175    [002] b..2.  3553.997492: drv_return_void: phy0
+   kworker/u16:0-4175    [000] .....  3554.028154: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [000] .....  3554.081135: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3554.185581: drv_return_void: phy17
+   kworker/u16:5-8371    [000] b..2.  3554.288531: drv_return_void: phy0
+   kworker/u16:2-13765   [001] .....  3554.392161: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2467.000 MHz,width:0,center: 2467.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3554.446583: drv_return_void: phy17
+   kworker/u16:2-13765   [000] .....  3555.110498: drv_return_int: phy0 - 0
+   kworker/u16:0-4175    [002] b..2.  3555.141618: drv_return_void: phy0
+   kworker/u16:0-4175    [002] .....  3555.172131: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3555.209562: drv_return_void: phy17
+   kworker/u16:0-4175    [001] .....  3555.225203: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3555.305690: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3555.409828: drv_return_void: phy17
+   kworker/u16:0-4175    [002] b..2.  3555.432649: drv_return_void: phy0
+      irq/18-b43-14247   [000] b..1.  3555.469146: drv_return_void: phy17
+   kworker/u16:2-13765   [000] .....  3555.536160: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(2472.000 MHz,width:0,center: 2472.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [000] .....  3555.589405: drv_return_int: phy0 - 0
+   kworker/u16:2-13765   [000] .....  3555.651125: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [000] .....  3555.704188: drv_return_int: phy0 - 0
+   kworker/u16:2-13765   [002] b..2.  3555.913405: drv_return_void: phy0
+   kworker/u16:2-13765   [002] .....  3556.016081: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(5180.000 MHz,width:0,center: 5180.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:2-13765   [002] .....  3556.068367: drv_return_int: phy0 - 0
+   kworker/u16:1-5355    [003] .....  3556.130078: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3556.233418: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3556.460857: drv_return_void: phy17
+   kworker/u16:1-5355    [000] .....  3557.190455: drv_return_int: phy0 - 0
+   kworker/u16:1-5355    [000] b..2.  3557.392695: drv_return_void: phy0
+   kworker/u16:0-4175    [003] .....  3557.496104: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(5200.000 MHz,width:0,center: 5200.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3557.527528: drv_return_void: phy17
+   kworker/u16:0-4175    [003] .....  3557.551396: drv_return_int: phy0 - 0
+   kworker/u16:0-4175    [002] .....  3557.613131: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:0-4175    [002] .....  3557.666036: drv_return_int: phy0 - 0
+   kworker/u16:0-4175    [002] b..2.  3557.872558: drv_return_void: phy0
+   kworker/u16:0-4175    [001] .....  3557.976081: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(5220.000 MHz,width:0,center: 5220.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+  NetworkManager-789     [001] .....  3558.000294: drv_return_void: phy17
+   kworker/u16:0-4175    [002] .....  3558.029352: drv_return_int: phy0 - 0
+   kworker/u16:1-5355    [000] .....  3558.091164: drv_config: phy0 radio_idx:-1 ch:0x42 chandef(2462.000 MHz,width:1,center: 2462.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+   kworker/u16:1-5355    [000] .....  3558.144199: drv_return_int: phy0 - 0
+      irq/18-b43-14247   [000] b..1.  3558.216829: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3558.281770: drv_return_void: phy17
+   kworker/u16:2-13765   [000] b..2.  3558.352661: drv_return_void: phy0
+   kworker/u16:0-4175    [003] .....  3558.456148: drv_config: phy0 radio_idx:-1 ch:0x40 chandef(5240.000 MHz,width:0,center: 5240.000/0 MHz, punct:0x0, npca:0, npca_punct:0x0)
+      irq/18-b43-14247   [000] b..1.  3558.479944: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3558.549606: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3558.987462: drv_return_void: phy17
+      irq/18-b43-14247   [000] b..1.  3559.052092: drv_return_void: phy17
