@@ -13,19 +13,21 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/84-status-2026-09-29-optiming-instrumentation-confirms-suspend-is-the-connect-time-bottleneck.md`
+**Read `notes/85-status-2026-09-29-steady-state-scan-optiming-clean-slow-outliers-may-be-session-history-dependent.md`
 first** — it's the current entry point and links back to everything else
 that still matters (start with `notes/77` for the fuller kernel-
 regression writeup, `notes/78`-`81` for the channel-6 replay/A-B/
-C-state threads, `notes/82`-`83` for the ftrace finding and its
-correction that `b43_mac_suspend` isn't the bottleneck during steady-
-state scanning — `notes/84` adds real phase-timing instrumentation and
-shows `b43_mac_suspend` genuinely *is* the bottleneck during
-fresh-reload/connect, a different condition from `notes/83`'s). The
-numbered files in `notes/` are a chronological log of the whole
-investigation; earlier "session summary" checkpoints (`notes/17`,
-`notes/76`) are also good wide-angle reads, but `notes/84` is the most
-current.
+C-state threads, `notes/82`-`83` for the ftrace finding that steady-
+state scanning has slow `drv_config` outliers unrelated to
+`b43_mac_suspend`, `notes/84` for the phase-timing instrumentation that
+pins the *connect-time* slowness on `b43_mac_suspend` genuinely failing
+— `notes/85` then pointed that same instrumentation at steady-state
+scanning again and found it clean, raising the open question of whether
+the steady-state outliers depend on how long the module's been running,
+not just "is this a scan"). The numbered files in `notes/` are a
+chronological log of the whole investigation; earlier "session summary"
+checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
+`notes/85` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay
@@ -58,19 +60,21 @@ slow `b43_op_config` call's total time — confirmed with 7/7 clean
 samples, each lining up exactly with a real `MAC suspend failed (40ms)`
 line. A *separate*, still-unlocalized phenomenon also exists during
 steady-state scanning on an already-associated link, where `drv_config`
-can take up to ~1.5s **without** any suspend failure (notes/82/83) — the
-`optiming` instrumentation hasn't been pointed at that condition yet.
-notes/78 separately found a real, heavy (~1300-register) vendor-state
-replay on every touch of channel 6 (a fixed staging channel every
-module bring-up passes through, unrelated to the AP's real channel —
-which is 11, correcting a wrong assumption in notes/78, see notes/81)
-that the `ac_state_once` runtime knob suppresses, but whether that
-reduces the failure rate is still untested under the right conditions
-(notes/79/80). Next concrete step: point the `optiming` instrumentation
-at the steady-state-scanning condition, and split its `lock+suspend`
-bucket into mutex-wait vs. the suspend call itself (notes/84). A newer,
-not-yet-understood RX-blackout symptom found live at the end of an
-earlier session (notes/77, Part 6) also still needs a clean re-check.
+can take up to ~1.5s **without** any suspend failure (notes/82/83) —
+but pointing the same `optiming` instrumentation at that exact condition
+on a freshly-reloaded module found it perfectly clean (84/84 normal
+samples, notes/85), raising an open question: does the steady-state
+slowness depend on how long the module's been running/how many prior
+operations it's seen, or is it just rare and unlucky to catch? Not yet
+distinguished. notes/78 separately found a real, heavy (~1300-register)
+vendor-state replay on every touch of channel 6 (a fixed staging channel
+every module bring-up passes through, unrelated to the AP's real
+channel — which is 11, correcting a wrong assumption in notes/78, see
+notes/81) that the `ac_state_once` runtime knob suppresses, but whether
+that reduces the failure rate is still untested under the right
+conditions (notes/79/80). A newer, not-yet-understood RX-blackout
+symptom found live at the end of an earlier session (notes/77, Part 6)
+also still needs a clean re-check.
 
 Not working / not attempted:
 - 5 GHz transmit (receive works, notes/53) and a from-scratch
