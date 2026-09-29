@@ -3151,17 +3151,27 @@ static void b43_mac_suspend_diag(struct b43_wldev *dev)
 	dump_stack();
 }
 
+/* notes/83/91: temporary diagnostic timing for b43_op_config's phases
+ * and b43_mac_suspend()'s own sub-phases, chasing the 7.2.7-only slow
+ * suspend waits. Logs only when the relevant call is slower than
+ * b43_optiming_thresh_ms (default 15ms). Remove once localized. */
+static int b43_optiming_thresh_ms = 15;
+module_param_named(optiming_thresh_ms, b43_optiming_thresh_ms, int, 0644);
+MODULE_PARM_DESC(optiming_thresh_ms, "diagnostic: log b43_op_config/b43_mac_suspend phase timing above this many ms (0: log every call, -1: disable)");
+
 /* https://bcm-specs.sipsolutions.net/SuspendMAC */
 void b43_mac_suspend(struct b43_wldev *dev)
 {
 	int i;
 	u32 tmp;
+	ktime_t __t0 = ktime_get(), __t_psctl, __t_end;
 
 	might_sleep();
 	B43_WARN_ON(dev->mac_suspended < 0);
 
 	if (dev->mac_suspended == 0) {
 		b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
+		__t_psctl = ktime_get();
 		b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_ENABLED, 0);
 		/* force pci to flush the write */
 		b43_read32(dev, B43_MMIO_MACCTL);
@@ -3190,6 +3200,15 @@ void b43_mac_suspend(struct b43_wldev *dev)
 	}
 out:
 	dev->mac_suspended++;
+	__t_end = ktime_get();
+	if (b43_optiming_thresh_ms >= 0 &&
+	    ktime_ms_delta(__t_end, __t0) >= b43_optiming_thresh_ms) {
+		b43info(dev->wl,
+			"suspendtiming: total=%lldms psctl=%lldms wait=%lldms\n",
+			ktime_ms_delta(__t_end, __t0),
+			ktime_ms_delta(__t_psctl, __t0),
+			ktime_ms_delta(__t_end, __t_psctl));
+	}
 }
 
 /* https://bcm-v4.sipsolutions.net/802.11/PHY/N/MacPhyClkSet */
@@ -4242,15 +4261,6 @@ static void b43_set_retry_limits(struct b43_wldev *dev,
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_LRLIMIT,
 			long_retry);
 }
-
-/* notes/83: temporary diagnostic timing for b43_op_config's phases,
- * chasing the 7.2.7-only slow drv_config calls that don't correlate
- * with b43_mac_suspend() itself. Logs only when the whole call is
- * slower than b43_optiming_thresh_ms (default 15ms). Remove once
- * localized. */
-static int b43_optiming_thresh_ms = 15;
-module_param_named(optiming_thresh_ms, b43_optiming_thresh_ms, int, 0644);
-MODULE_PARM_DESC(optiming_thresh_ms, "diagnostic: log b43_op_config phase timing above this many ms (0: log every call, -1: disable)");
 
 static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 {

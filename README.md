@@ -13,25 +13,30 @@ of anyone getting: real hardware, real reception, real association.
 
 ## Status (2026-09-29)
 
-**Read `notes/90-status-2026-09-29-6-18-53-reference-capture-suspend-is-genuinely-near-instant-regression-confirmed-kernel-side.md`
-first** — it's the current entry point: a direct, controlled 6.18.53
-reference capture, using the exact same instrumented driver binary as
-every 7.2.7 capture, found `b43_mac_suspend()` completing in 0-2ms
-across 38+ samples with zero failures, versus a consistent ~80ms/many
-failures on 7.2.7 for the identical operation - **conclusively
-confirming this is a real, kernel-side regression**, not measurement
-noise or driver drift. It links back to everything that built up to
-this (start with `notes/77` for the fuller kernel-regression writeup,
-`notes/78`-`81` for the channel-6 replay/A-B/C-state threads, `notes/82`-
-`83` for the ftrace finding on steady-state scanning, `notes/84` for the
-phase-timing instrumentation that first pinned connect-time slowness on
-`b43_mac_suspend`, `notes/85`-`86` for the still-parked steady-state-
-scanning mystery, `notes/87`-`88` for the auto-recovery watchdog,
-`notes/89` for the lock-vs-suspend split and the pre-staged 6.18.53
-build this capture used). The numbered files in `notes/` are a
+**Read `notes/91-status-2026-09-29-irq-ack-race-hypothesis-refuted-suspend-split-further-baselined-on-6-18-53.md`
+first** — it's the current entry point. notes/90 (a direct, controlled
+6.18.53 reference capture, using the exact same instrumented driver
+binary as every 7.2.7 capture) found `b43_mac_suspend()` completing in
+0-2ms across 38+ samples with zero failures, versus a consistent
+~80ms/many failures on 7.2.7 for the identical operation -
+**conclusively confirming this is a real, kernel-side regression**, not
+measurement noise or driver drift. notes/91 then investigated (and
+mostly refuted, on close reading of the IRQ-masking code) the leading
+hypothesis that the real interrupt handler races the suspend-ack poll,
+and split the timing further (a separate power-save wake-wait vs. the
+actual suspend-ack poll) - baselined clean on 6.18.53, the matching
+7.2.7 capture still needed after the next reboot. It links back to
+everything that built up to this (start with `notes/77` for the fuller
+kernel-regression writeup, `notes/78`-`81` for the channel-6 replay/A-B/
+C-state threads, `notes/82`-`83` for the ftrace finding on steady-state
+scanning, `notes/84` for the phase-timing instrumentation that first
+pinned connect-time slowness on `b43_mac_suspend`, `notes/85`-`86` for
+the still-parked steady-state-scanning mystery, `notes/87`-`88` for the
+auto-recovery watchdog, `notes/89` for the lock-vs-suspend split and the
+pre-staged 6.18.53 build). The numbered files in `notes/` are a
 chronological log of the whole investigation; earlier "session summary"
 checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
-`notes/90` is the most current.
+`notes/91` is the most current.
 
 **The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
 long since resolved** — it turned out to be several distinct SHM/POR-replay

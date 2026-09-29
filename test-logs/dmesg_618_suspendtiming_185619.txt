@@ -1,0 +1,249 @@
+[Tue Sep 29 18:55:46 2026] net_ratelimit: 6 callbacks suppressed
+[Tue Sep 29 18:55:46 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:46 2026] b43-phy5: optiming: total=9ms lock=0ms suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 40460143 00000000 00000000 00000000
+[Tue Sep 29 18:55:46 2026] b43-phy5: optiming: total=8ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 40480103 00000000 00000001 00000000
+[Tue Sep 29 18:55:46 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:46 2026] b43-phy5: optiming: total=9ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 404a8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 404c8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:46 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[Tue Sep 29 18:55:46 2026] b43-phy5: optiming: total=9ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 404e0103 00000000 00000001 00000000
+[Tue Sep 29 18:55:46 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:46 2026] b43-phy5: optiming: total=8ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 40508103 00000000 00010001 00000000
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 40520143 00000000 00000002 00000000
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 40540103 00000000 00000001 00000000
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:46 2026] b43-phy5 debug: AC txstatus 40568103 00000000 00010001 00000000
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: AC txstatus 40588103 00000000 00010001 00000000
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: AC txstatus 405a0103 00000000 00000001 00000000
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: AC txstatus 405c8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: AC txstatus 405e8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: AC txstatus 40600103 00000000 00000001 00000000
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: AC txstatus 40628103 00000000 00010001 00000000
+[Tue Sep 29 18:55:47 2026] b43-phy5 debug: AC txstatus 40648103 00000000 00010001 00000000
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: AC txstatus 40660103 00000000 00000001 00000000
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: AC txstatus 40688103 00000000 00010002 00000000
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: AC txstatus 406a8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: AC txstatus 406c0103 00000000 00000001 00000000
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: AC txstatus 406e8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: AC txstatus 40700103 00000000 00000007 00000000
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: AC txstatus 40720103 00000000 00000001 00000000
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:48 2026] b43-phy5 debug: AC txstatus 40748103 00000000 00010001 00000000
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: AC txstatus 40768103 00000000 00010001 00000000
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: AC txstatus 40780103 00000000 00000001 00000000
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: AC txstatus 407a8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: AC txstatus 407c8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: AC txstatus 407e0103 00000000 00000001 00000000
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: AC txstatus 40808103 00000000 00010001 00000000
+[Tue Sep 29 18:55:49 2026] b43-phy5 debug: AC txstatus 40828103 00000000 00010001 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 40840103 00000000 00000001 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 40868103 00000000 00010001 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 40888103 00000000 00010001 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 408a0103 00000000 00000001 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 408c8103 00000000 00010003 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 408e0103 00000000 00000007 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 40900103 00000000 00000001 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 40928103 00000000 00010001 00000000
+[Tue Sep 29 18:55:50 2026] b43-phy5 debug: AC txstatus 40948103 00000000 00010001 00000000
+[Tue Sep 29 18:55:51 2026] b43-phy5 debug: AC txstatus 202e8103 00000000 00010001 00000000
+[Tue Sep 29 18:55:52 2026] net_ratelimit: 46 callbacks suppressed
+[Tue Sep 29 18:55:52 2026] b43-phy5: phy_ac: MACCTL=c4020403 IRQ reason=00004000 mask=38058a64 pio=0
+[Tue Sep 29 18:55:52 2026] b43-phy5: phy_ac: DMA rx status=1000e2c0/0000e2d0 index=0000e2b0 tx(BE) status=2000a300
+[Tue Sep 29 18:55:52 2026] b43-phy5: phy_ac: dma0 reason=00000000 mask=00013c00 intrcvlazy0=01000000
+[Tue Sep 29 18:55:52 2026] b43-phy5: phy_ac: macstat: 009d 0000 0000 0015 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0009 0000 009d 007c 9193 05e8 000b 000a 0035 0000 0000 0035 0171 0001 016c 005b 0076 0069 0151 0000 006f 0000 00e1 002c 0000 0000 0000 0000 0000 ff91 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 048b 0000 0000 0005
+[Tue Sep 29 18:55:52 2026] b43-phy5: phy_ac: gpio in=00000087 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[Tue Sep 29 18:55:53 2026] b43-phy5 debug: AC txstatus 20308103 00000000 00010002 00000000
+[Tue Sep 29 18:55:55 2026] b43-phy5 debug: AC txstatus 20328103 00000000 00010001 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:00 2026] b43-phy5: optiming: total=8ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[Tue Sep 29 18:56:00 2026] b43-phy5: optiming: total=8ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 40960143 00000000 00000000 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 40980103 00000000 00000001 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5: suspendtiming: total=3ms psctl=0ms wait=3ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:00 2026] b43-phy5: optiming: total=13ms lock=0ms suspend=4ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 409a8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 409c0103 00000000 00000007 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[Tue Sep 29 18:56:00 2026] b43-phy5: optiming: total=9ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 409e0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:00 2026] b43-phy5: optiming: total=8ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 40a08103 00000000 00010001 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 40a28103 00000000 00010001 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 40a40103 00000000 00000001 00000000
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:00 2026] b43-phy5 debug: AC txstatus 40a68103 00000000 00010001 00000000
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: AC txstatus 40a88103 00000000 00010001 00000000
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: AC txstatus 40aa0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: AC txstatus 40ac8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: AC txstatus 40ae8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: AC txstatus 40b00103 00000000 00000001 00000000
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: AC txstatus 40b28103 00000000 00010001 00000000
+[Tue Sep 29 18:56:01 2026] b43-phy5 debug: AC txstatus 40b48103 00000000 00010001 00000000
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: AC txstatus 40b60103 00000000 00000001 00000000
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: AC txstatus 40b88103 00000000 00010001 00000000
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: AC txstatus 40ba0103 00000000 00000007 00000000
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: AC txstatus 40bc0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: AC txstatus 40be8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: AC txstatus 40c08103 00000000 00010001 00000000
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: AC txstatus 40c20103 00000000 00000001 00000000
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:02 2026] b43-phy5 debug: AC txstatus 40c48103 00000000 00010001 00000000
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: AC txstatus 40c68103 00000000 00010001 00000000
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: AC txstatus 40c80103 00000000 00000001 00000000
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: AC txstatus 40ca8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: AC txstatus 40cc8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: AC txstatus 40ce0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: AC txstatus 40d08103 00000000 00010001 00000000
+[Tue Sep 29 18:56:03 2026] b43-phy5 debug: AC txstatus 40d28103 00000000 00010001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40d40103 00000000 00000001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40d68103 00000000 00010001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40d88103 00000000 00010001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40da0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40dc8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40de8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40e00103 00000000 00000001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40e28103 00000000 00010001 00000000
+[Tue Sep 29 18:56:04 2026] b43-phy5 debug: AC txstatus 40e48103 00000000 00010001 00000000
+[Tue Sep 29 18:56:05 2026] b43-phy5 debug: AC txstatus 20348103 00000000 00010001 00000000
+[Tue Sep 29 18:56:08 2026] net_ratelimit: 46 callbacks suppressed
+[Tue Sep 29 18:56:08 2026] b43-phy5: phy_ac: MACCTL=c4020403 IRQ reason=00004000 mask=38058a64 pio=0
+[Tue Sep 29 18:56:08 2026] b43-phy5: phy_ac: DMA rx status=1000e630/0000e640 index=0000e630 tx(BE) status=2000a360
+[Tue Sep 29 18:56:08 2026] b43-phy5: phy_ac: dma0 reason=00000000 mask=00013c00 intrcvlazy0=01000000
+[Tue Sep 29 18:56:08 2026] b43-phy5: phy_ac: macstat: 00d9 0000 0000 001a 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0013 0000 0114 0100 0e45 0a84 000c 000e 0050 0000 0000 0050 01be 0011 02a9 00ac 00e3 00d2 02e0 0000 00f0 0000 01eb 003b 0000 0000 0000 0000 0000 ff10 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 096f 0000 0000 0012
+[Tue Sep 29 18:56:08 2026] b43-phy5: phy_ac: gpio in=00000087 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[Tue Sep 29 18:56:08 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:08 2026] b43-phy5: optiming: total=9ms lock=0ms suspend=0ms chan=9ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:08 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: phy_ac: switch_channel(1) -> 2412 MHz
+[Tue Sep 29 18:56:08 2026] b43-phy5: optiming: total=8ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: AC txstatus 40e60143 00000000 00000000 00000000
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: AC txstatus 40e80103 00000000 00000001 00000000
+[Tue Sep 29 18:56:08 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: AC txstatus 40ea8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: AC txstatus 40ec8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: phy_ac: switch_channel(2) -> 2417 MHz
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: AC txstatus 40ee0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:08 2026] b43-phy5 debug: AC txstatus 40f08103 00000000 00010001 00000000
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: AC txstatus 40f28103 00000000 00010001 00000000
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: phy_ac: switch_channel(3) -> 2422 MHz
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: AC txstatus 40f40103 00000000 00000001 00000000
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: AC txstatus 40f68103 00000000 00010001 00000000
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: AC txstatus 40f88103 00000000 00010001 00000000
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: phy_ac: switch_channel(4) -> 2427 MHz
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: AC txstatus 40fa0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: AC txstatus 40fc8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: AC txstatus 40fe8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: phy_ac: switch_channel(5) -> 2432 MHz
+[Tue Sep 29 18:56:09 2026] b43-phy5 debug: AC txstatus 40000103 00000000 00000001 00000000
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: AC txstatus 40028103 00000000 00010001 00000000
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: AC txstatus 40048103 00000000 00010001 00000000
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: phy_ac: switch_channel(6) -> 2437 MHz
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: AC txstatus 40060103 00000000 00000001 00000000
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: AC txstatus 40088103 00000000 00010001 00000000
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: AC txstatus 400a8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: phy_ac: switch_channel(7) -> 2442 MHz
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: AC txstatus 400c0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:10 2026] b43-phy5 debug: AC txstatus 400e8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 40108103 00000000 00010001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: phy_ac: switch_channel(8) -> 2447 MHz
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 40120103 00000000 00000001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 40148103 00000000 00010001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 40168103 00000000 00010001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: phy_ac: switch_channel(9) -> 2452 MHz
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 40180103 00000000 00000001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 401a8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 20368103 00000000 00010001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 401c8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: phy_ac: switch_channel(10) -> 2457 MHz
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 401e0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:11 2026] b43-phy5 debug: AC txstatus 40208103 00000000 00010001 00000000
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: AC txstatus 40228103 00000000 00010001 00000000
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: AC txstatus 40240103 00000000 00000001 00000000
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: AC txstatus 40268103 00000000 00010001 00000000
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: AC txstatus 40288103 00000000 00010001 00000000
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: phy_ac: switch_channel(12) -> 2467 MHz
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: AC txstatus 402a0103 00000000 00000001 00000000
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: AC txstatus 402c8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:12 2026] b43-phy5 debug: AC txstatus 402e8103 00000000 00010001 00000000
+[Tue Sep 29 18:56:13 2026] net_ratelimit: 47 callbacks suppressed
+[Tue Sep 29 18:56:13 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:13 2026] b43-phy5 debug: phy_ac: switch_channel(13) -> 2472 MHz
+[Tue Sep 29 18:56:13 2026] b43-phy5: optiming: total=9ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:13 2026] b43-phy5 debug: AC txstatus 40300103 00000000 00000001 00000000
+[Tue Sep 29 18:56:13 2026] b43-phy5: suspendtiming: total=0ms psctl=0ms wait=0ms
+[Tue Sep 29 18:56:13 2026] b43-phy5 debug: phy_ac: switch_channel(11) -> 2462 MHz
+[Tue Sep 29 18:56:13 2026] b43-phy5: optiming: total=8ms lock=0ms suspend=0ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[Tue Sep 29 18:56:13 2026] b43-phy5 debug: AC txstatus 40328103 00000000 00010001 00000000
+[Tue Sep 29 18:56:13 2026] b43-phy5 debug: AC txstatus 40348103 00000000 00010001 00000000
