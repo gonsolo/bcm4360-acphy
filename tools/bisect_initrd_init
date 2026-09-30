@@ -5,16 +5,48 @@
 # builtin - notes/94/95/99), then switches to the real root and execs
 # the real init (read from the init= kernel cmdline parameter, same as
 # the boot entry already sets).
+#
+# Every step is also appended (and sync'd) to /var/log/bisect-initrd.log
+# on the real root, so a panic/hang in here leaves a trace that survives
+# the reboot - the last line names the step that died (notes/103).
 /bin/busybox mount -t proc none /proc
 /bin/busybox mount -t sysfs none /sys
 /bin/busybox mount -t devtmpfs none /dev
 
 echo "initrd: mounting real root" > /dev/kmsg
-/bin/busybox mount -t ext4 /dev/sda3 /newroot
+# The block device can show up asynchronously (or only once modprobe -a
+# has run), so retry instead of assuming /dev/sda3 is there yet. A failed
+# mount used to fall through to switch_root into an empty /newroot -> init
+# exec fails -> "Attempted to kill init" panic with no clue why (notes/103).
+n=0
+until /bin/busybox mount -t ext4 /dev/sda3 /newroot 2>/dev/kmsg; do
+	n=$((n+1))
+	echo "initrd: mount /dev/sda3 failed (try $n)" > /dev/kmsg
+	if [ $n -eq 5 ]; then
+		# storage driver may be a module: load everything, then keep trying
+		KV=$(/bin/busybox uname -r)
+		/bin/busybox modprobe -a $(/bin/busybox find /lib/modules/$KV -name "*.ko" | /bin/busybox sed -e "s#.*/##" -e "s/\.ko\$//" | /bin/busybox grep -v "^b43") 2>/dev/kmsg
+	fi
+	if [ $n -ge 20 ]; then
+		echo "initrd: giving up; dropping to shell. /dev:" > /dev/kmsg
+		/bin/busybox ls /dev > /dev/kmsg
+		exec /bin/busybox sh
+	fi
+	/bin/busybox sleep 1
+done
+
+LOG=/newroot/var/log/bisect-initrd.log
+log() {
+	echo "initrd: $*" > /dev/kmsg
+	echo "$(/bin/busybox uptime) $*" >> $LOG
+	/bin/busybox sync
+}
+log "=== boot $(/bin/busybox uname -r) cmdline: $(/bin/busybox cat /proc/cmdline)"
 
 REALINIT=$(/bin/busybox sed -n 's/.*\binit=\(\S*\).*/\1/p' /proc/cmdline)
 [ -n "$REALINIT" ] || REALINIT=/sbin/init
 SYSTEM=$(/bin/busybox dirname "$REALINIT")
+log "realinit=$REALINIT system=$SYSTEM"
 
 # Point the kernel's firmware search path at this same system closure's
 # consolidated firmware dir *before* loading any modules - not after
@@ -25,23 +57,34 @@ SYSTEM=$(/bin/busybox dirname "$REALINIT")
 # identical across generations, so this doesn't need /run/current-system
 # to exist yet - we're still in the initrd's own mount namespace here,
 # so the path needs the /newroot prefix.
-FWLINK=$(/bin/busybox chroot /newroot /bin/busybox readlink -f "$SYSTEM/firmware" 2>/dev/null)
+# (no chroot: the NixOS root has no /bin/busybox, the first attempt at this
+# silently resolved nothing - notes/103. The link target is already absolute
+# and already ends in lib/firmware.)
+FWLINK=$(/bin/busybox readlink "/newroot$SYSTEM/firmware" 2>/dev/null)
 FWPATH="/newroot$FWLINK"
-if [ -n "$FWPATH" ] && [ -d "$FWPATH" ]; then
+if [ -n "$FWLINK" ] && [ -d "$FWPATH" ]; then
 	echo "$FWPATH" > /sys/module/firmware_class/parameters/path
-	echo "initrd: firmware path -> $FWPATH" > /dev/kmsg
+	log "firmware path -> $FWPATH"
 else
-	echo "initrd: WARNING no firmware path resolved from $SYSTEM/firmware" > /dev/kmsg
+	log "WARNING no firmware path resolved from $SYSTEM/firmware"
 fi
 
 KVER=$(/bin/busybox uname -r)
-echo "initrd: kernel $KVER, loading modules..." > /dev/kmsg
+log "kernel $KVER, loading modules..."
 
-MODS=$(/bin/busybox find /lib/modules/$KVER -name '*.ko' | /bin/busybox sed -e 's#.*/##' -e 's/\.ko$//')
+# Skip the in-tree b43: it binds the BCM4360 and fails ("UNSUPPORTED PHY",
+# -95) and would then block insmod of our own b43.ko (same module name).
+MODS=$(/bin/busybox find /lib/modules/$KVER -name '*.ko' | /bin/busybox sed -e 's#.*/##' -e 's/\.ko$//' | /bin/busybox grep -v '^b43')
 /bin/busybox modprobe -a $MODS 2>/dev/kmsg
+log "modprobe -a done (rc=$?)"
 
 /bin/busybox sleep 1
 /bin/busybox mdev -s
+log "mdev done"
+# Modules loaded so far used the /newroot-prefixed path; after switch_root
+# that prefix is gone, so hand the kernel the real path for everything
+# that requests firmware later (b43 via load.sh, hot-plugged USB).
+[ -n "$FWLINK" ] && echo "$FWLINK" > /sys/module/firmware_class/parameters/path
 
 # NixOS's own real initrd sets up /run/current-system (and
 # /run/booted-system) *before* handing off to systemd - our custom init
@@ -55,6 +98,11 @@ MODS=$(/bin/busybox find /lib/modules/$KVER -name '*.ko' | /bin/busybox sed -e '
 /bin/busybox ln -sfn "$SYSTEM" /newroot/run/current-system
 /bin/busybox ln -sfn "$SYSTEM" /newroot/run/booted-system
 
-echo "initrd: switch_root -> $REALINIT (system=$SYSTEM)" > /dev/kmsg
+if [ ! -e "/newroot$REALINIT" ]; then
+	log "FATAL: /newroot$REALINIT missing; dropping to shell"
+	/bin/busybox ls -la /newroot > /dev/kmsg
+	exec /bin/busybox sh
+fi
+log "switch_root -> $REALINIT (system=$SYSTEM)"
 
 exec /bin/busybox switch_root /newroot "$REALINIT"

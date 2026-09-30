@@ -51,6 +51,10 @@
 #    (run_in_background / &), never via a detached remote nohup/screen -
 #    pampelmuse's logind kills those the moment the SSH session closes
 #    (notes/93).
+# The laptop reaches pampelmuse over Wi-Fi that can drop or roam mid-build:
+# retry connection failures (exit 255) instead of aborting the whole pipeline.
+ssh() { local i rc; for i in 1 2 3 4 5 6 7 8; do command ssh -o ConnectTimeout=10 "$@" && return 0; rc=$?; [ $rc -ne 255 ] && return $rc; sleep 8; done; return 255; }
+scp() { local i rc; for i in 1 2 3 4 5 6 7 8; do command scp -o ConnectTimeout=10 "$@" && return 0; rc=$?; [ $rc -ne 255 ] && return $rc; sleep 8; done; return 255; }
 set -eu
 KEY=~/.ssh/id_ed25519_builder
 REMOTE=gonsolo@192.168.0.236
@@ -65,6 +69,11 @@ echo "=== bisect_build: $COMMIT ==="
 echo "--- syncing checkout + config to pampelmuse ---"
 ssh -i "$KEY" "$REMOTE" "cd ~/src/linux && git checkout -f $COMMIT" >/dev/null
 scp -i "$KEY" "$LOCAL_LINUX/.config" "$REMOTE:~/src/linux/.config" >/dev/null
+# Optional config overrides for experiments (notes/103), e.g. EXTRA_CONFIG="CONFIG_KVM=n"
+if [ -n "${EXTRA_CONFIG:-}" ]; then
+	for opt in $EXTRA_CONFIG; do ssh -i "$KEY" "$REMOTE" "echo $opt >> ~/src/linux/.config"; done
+	echo "extra config: $EXTRA_CONFIG"
+fi
 ssh -i "$KEY" "$REMOTE" "cd ~/src/linux && yes '' | make olddefconfig" >/dev/null 2>&1
 
 echo "--- building bzImage + modules (-j18) ---"
@@ -111,19 +120,21 @@ rm "$STAGE/pkg.tar.xz"
 ls -la "$STAGE"
 
 echo "--- staging boot entry (default entry untouched, one-shot only) ---"
+# /boot is small (511M) and every candidate is ~25M: drop the earlier, already-tested ones
+sudo rm -f /boot/EFI/nixos/bisect-*
 EFI_KERNEL="bisect-$COMMIT-bzImage.efi"
 EFI_INITRD="bisect-$COMMIT-initrd.img"
 sudo cp "$STAGE/bzImage" "/boot/EFI/nixos/$EFI_KERNEL"
 sudo cp "$STAGE/initrd.img" "/boot/EFI/nixos/$EFI_INITRD"
 DEFAULT_ENTRY=$(sudo awk '/^default /{print $2}' /boot/loader/loader.conf)
-INIT=$(sudo grep -oP 'init=\S+' "/boot/loader/entries/$DEFAULT_ENTRY")
+INIT="init=$(readlink -f /run/current-system)/init"  # the running generation, not a stale default entry (notes/103)
 cat <<EOF | sudo tee /boot/loader/entries/nixos-bisect.conf >/dev/null
 title NixOS (bisect)
 sort-key nixos-bisect
 version bisect $COMMIT (mainline, generic modprobe-everything initrd, graphical default)
 linux /EFI/nixos/$EFI_KERNEL
 initrd /EFI/nixos/$EFI_INITRD
-options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=4 lsm=landlock,yama,bpf systemd.wants=getty@tty1.service systemd.debug-shell=1 hid_apple.fnmode=2
+options $INIT root=/dev/sda3 rootfstype=ext4 loglevel=7 panic=0 lsm=landlock,yama,bpf systemd.wants=getty@tty1.service systemd.debug-shell=1 hid_apple.fnmode=2
 machine-id 1e7ffcf2ac3d46e0855327b0012ddbee
 EOF
 sudo bootctl set-oneshot nixos-bisect.conf
@@ -139,6 +150,7 @@ if [ "$(basename "$(readlink -f /sys/bus/pci/devices/$DEV/driver 2>/dev/null)" 2
 		echo "$DEV" | sudo tee /sys/bus/pci/devices/$DEV/driver/unbind
 	echo "$DEV" | sudo tee /sys/bus/pci/drivers_probe
 fi
+sudo rmmod b43 2>/dev/null || true
 sudo insmod b43.ko verbose=3
 sleep 1
 echo "b43 interface: $(ls /sys/class/net | grep -E '^wl')"

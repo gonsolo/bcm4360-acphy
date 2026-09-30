@@ -1,0 +1,55 @@
+=== Arm cpus1: N=5 extra_params='' Wed Sep 30 09:28:51 PM CEST 2026 ===
+--- attempt 1/5 ---
+command failed: No such device (-19)
+Cannot find device "wlp3s0b1"
+command failed: No such device (-19)
+Error: Device 'wlp3s0b1' not found.
+Error: device 'wlp3s0b1' not found for connection 'b43-test'.
+PHY TX errors during connect: 0
+Device "wlp3s0b1" does not exist.
+[  362.654698] wlp3s0b1: deauthenticating from 8c:6a:8d:9e:2a:88 by local choice (Reason: 3=DEAUTH_LEAVING)
+attempt 1: state= suspend_failures=0
+--- attempt 2/5 ---
+command failed: No such device (-19)
+Cannot find device "wlp3s0b1"
+command failed: No such device (-19)
+Error: Device 'wlp3s0b1' not found.
+Error: device 'wlp3s0b1' not found for connection 'b43-test'.
+PHY TX errors during connect: 0
+Device "wlp3s0b1" does not exist.
+attempt 2: state= suspend_failures=0
+--- attempt 3/5 ---
+command failed: No such device (-19)
+Cannot find device "wlp3s0b1"
+command failed: No such device (-19)
+Error: Device 'wlp3s0b1' not found.
+Error: device 'wlp3s0b1' not found for connection 'b43-test'.
+PHY TX errors during connect: 0
+Device "wlp3s0b1" does not exist.
+attempt 3: state= suspend_failures=0
+--- attempt 4/5 ---
+command failed: No such device (-19)
+Cannot find device "wlp3s0b1"
+command failed: No such device (-19)
+Error: Device 'wlp3s0b1' not found.
+Error: device 'wlp3s0b1' not found for connection 'b43-test'.
+PHY TX errors during connect: 0
+Device "wlp3s0b1" does not exist.
+attempt 4: state= suspend_failures=0
+--- attempt 5/5 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 9
+wlp3s0b1:disconnected:
+[  454.757937] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[  454.965931] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[  455.173917] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 5: state=disconnected suspend_failures=12
+=== Arm cpus1 done: 0/5 connected, Wed Sep 30 09:30:37 PM CEST 2026 ===
