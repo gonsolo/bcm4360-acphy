@@ -1,0 +1,111 @@
+=== Arm passive: N=8 extra_params='ac_passive_scan=1' Wed Sep 30 10:21:17 PM CEST 2026 ===
+--- attempt 1/8 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 11
+wlp3s0b1:disconnected:
+[ 3540.072699] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 3540.280686] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 3540.488674] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 1: state=disconnected suspend_failures=7 recovered=0
+--- attempt 2/8 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/113)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 3567.996762] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=23)
+[ 3567.997250] wlp3s0b1: associated
+[ 3568.078665] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 2: state=connected suspend_failures=0 recovered=0
+--- attempt 3/8 ---
+command failed: No such device (-19)
+Cannot find device "wlp3s0b1"
+command failed: No such device (-19)
+Error: Device 'wlp3s0b1' not found.
+Error: device 'wlp3s0b1' not found for connection 'b43-test'.
+PHY TX errors during connect: 0
+Device "wlp3s0b1" does not exist.
+[ 3571.471458] wlp3s0b1: deauthenticating from 8c:6a:8d:9e:2a:88 by local choice (Reason: 3=DEAUTH_LEAVING)
+attempt 3: state= suspend_failures=0 recovered=0
+--- attempt 4/8 ---
+command failed: No such device (-19)
+Cannot find device "wlp3s0b1"
+command failed: No such device (-19)
+Error: Device 'wlp3s0b1' not found.
+Error: device 'wlp3s0b1' not found for connection 'b43-test'.
+PHY TX errors during connect: 0
+Device "wlp3s0b1" does not exist.
+attempt 4: state= suspend_failures=0 recovered=0
+--- attempt 5/8 ---
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/116)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 3619.600617] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=15)
+[ 3619.601098] wlp3s0b1: associated
+[ 3619.687031] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 5: state=connected suspend_failures=3 recovered=0
+--- attempt 6/8 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 5
+wlp3s0b1:disconnected:
+[ 3654.076584] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 3654.284575] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 3654.492566] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 6: state=disconnected suspend_failures=11 recovered=0
+--- attempt 7/8 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 6
+wlp3s0b1:disconnected:
+[ 3696.979027] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 3697.187033] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 3697.394945] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 7: state=disconnected suspend_failures=12 recovered=0
+--- attempt 8/8 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 6
+wlp3s0b1:disconnected:
+[ 3738.353520] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 3738.561537] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 3738.769438] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 8: state=disconnected suspend_failures=11 recovered=0
+=== Arm passive done: 2/8 connected, Wed Sep 30 10:25:23 PM CEST 2026 ===

@@ -3505,12 +3505,57 @@ static void b43_ac_fifo_init(struct b43_wldev *dev)
 		total, b43_read16(dev, 0x540), b43_read16(dev, 0x530));
 }
 
+/* notes/103: stock bcma has no PMU PLL/resource setup for the BCM4352/4360
+ * (b43-ac-wip patch 0007), so the chip keeps whatever the firmware/previous
+ * owner left. Read-only dump at every init, to see whether it differs
+ * between a good and a bad init (notes/57: each re-init is good or bad). */
+static unsigned int b43_ac_pmu_maxres;
+module_param_named(ac_pmu_maxres, b43_ac_pmu_maxres, uint, 0444);
+MODULE_PARM_DESC(ac_pmu_maxres, "AC-PHY test: write this PMU max resource mask at init (0: leave, stock wl reads 0x7ff)");
+
+static void b43_ac_pmu_dump(struct b43_wldev *dev, const char *when)
+{
+#ifdef CONFIG_B43_BCMA
+	struct bcma_drv_cc *cc;
+	u32 pll[6];
+	int i;
+
+	if (dev->dev->bus_type != B43_BUS_BCMA)
+		return;
+	cc = &dev->dev->bdev->bus->drv_cc;
+	for (i = 0; i < 6; i++)
+		pll[i] = bcma_chipco_pll_read(cc, i);
+	b43info(dev->wl,
+		"AC PMU %s: pll0-5 %08x %08x %08x %08x %08x %08x stat=%08x cap=%08x minres=%08x maxres=%08x\n",
+		when, pll[0], pll[1], pll[2], pll[3], pll[4], pll[5],
+		bcma_read32(cc->core, BCMA_CC_PMU_STAT),
+		bcma_read32(cc->core, BCMA_CC_PMU_CAP),
+		bcma_read32(cc->core, BCMA_CC_PMU_MINRES_MSK),
+		bcma_read32(cc->core, BCMA_CC_PMU_MAXRES_MSK));
+#endif
+}
+
 static int b43_chip_init(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	int err;
 	u32 macctl;
 	u16 value16;
+
+	if (phy->type == B43_PHYTYPE_AC) {
+		b43_ac_pmu_dump(dev, "at chip_init");
+#ifdef CONFIG_B43_BCMA
+		/* Live PMU of a stock-driver BCM4360 reads max_res_mask 0x7ff
+		 * (b43-ac-wip patch 0007); ours stays at 0x1ff. Test switch. */
+		if (b43_ac_pmu_maxres && dev->dev->bus_type == B43_BUS_BCMA) {
+			struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
+
+			bcma_write32(cc->core, BCMA_CC_PMU_MAXRES_MSK,
+				     b43_ac_pmu_maxres);
+			b43_ac_pmu_dump(dev, "after maxres write");
+		}
+#endif
+	}
 
 	/* Initialize the MAC control */
 	macctl = B43_MACCTL_IHR_ENABLED;

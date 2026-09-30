@@ -1,0 +1,50 @@
+=== Arm crs120: N=3 extra_params='ac_crs_thr=120' Wed Sep 30 10:31:36 PM CEST 2026 ===
+--- attempt 1/3 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 6
+wlp3s0b1:disconnected:
+[ 4152.355387] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 4152.563258] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 4152.771271] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 1: state=disconnected suspend_failures=7 recovered=0
+--- attempt 2/3 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 6
+wlp3s0b1:disconnected:
+[ 4195.522475] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 4195.730480] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 4195.938450] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 2: state=disconnected suspend_failures=9 recovered=0
+--- attempt 3/3 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 7
+wlp3s0b1:disconnected:
+[ 4231.969645] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 4232.177571] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 4232.385532] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 3: state=disconnected suspend_failures=13 recovered=0
+=== Arm crs120 done: 0/3 connected, Wed Sep 30 10:33:45 PM CEST 2026 ===

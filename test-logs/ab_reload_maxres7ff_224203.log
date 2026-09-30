@@ -1,0 +1,107 @@
+=== Arm maxres7ff: N=6 extra_params='ac_pmu_maxres=0x7ff' Wed Sep 30 10:42:03 PM CEST 2026 ===
+--- attempt 1/6 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 11
+wlp3s0b1:disconnected:
+[ 4787.938665] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 4788.146673] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 4788.354604] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 1: state=disconnected suspend_failures=8 recovered=0
+  PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000001ff
+--- attempt 2/6 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/182)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 4811.514431] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=18)
+[ 4811.514762] wlp3s0b1: associated
+[ 4811.596106] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 2: state=connected suspend_failures=5 recovered=0
+  PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000007ff
+--- attempt 3/6 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 9
+wlp3s0b1:disconnected:
+[ 4849.528805] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 4849.736801] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 4849.944808] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 3: state=disconnected suspend_failures=11 recovered=0
+  PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000007ff
+--- attempt 4/6 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/188)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 4875.613447] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=12)
+[ 4875.613778] wlp3s0b1: associated
+[ 4875.697062] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 4: state=connected suspend_failures=2 recovered=0
+  PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000007ff
+--- attempt 5/6 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.
+PHY TX errors during connect: 8
+wlp3s0b1:disconnected:
+[ 4908.687020] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 2/3)
+[ 4908.895033] wlp3s0b1: send auth to 8c:6a:8d:9e:2a:88 (try 3/3)
+[ 4909.103013] wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out
+attempt 5: state=disconnected suspend_failures=14 recovered=0
+  PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000007ff
+--- attempt 6/6 ---
+Error: Device 'wlan0' not found.
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+Cannot find device "wlan0"
+command failed: No such device (-19)
+command failed: No such device (-19)
+command failed: Device or resource busy (-16)
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/194)
+PHY TX errors during connect: 0
+wlp3s0b1:connected:b43-test
+    inet 192.168.0.119/24 brd 192.168.0.255 scope global dynamic noprefixroute wlp3s0b1
+[ 4941.253501] wlp3s0b1: RX AssocResp from 8c:6a:8d:9e:2a:88 (capab=0x1411 status=0 aid=15)
+[ 4941.253830] wlp3s0b1: associated
+[ 4941.334026] wlp3s0b1: Limiting TX power to 20 (20 - 0) dBm as advertised by 8c:6a:8d:9e:2a:88
+attempt 6: state=connected suspend_failures=6 recovered=0
+  PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000007ff
+=== Arm maxres7ff done: 3/6 connected, Wed Sep 30 10:45:16 PM CEST 2026 ===
