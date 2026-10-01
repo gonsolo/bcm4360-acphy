@@ -16,3 +16,9 @@ Our MacBookAir6,1 BCM4360 (raw words in `/sys/kernel/debug/b43ac/sprom`):
 - External PA gain index 0, same in both bands; no PAPD cap.
 
 Nothing in the driver consumes these yet; next is deciding where femctrl matters (per-band FEM control).
+
+## Warning: do not read PHY/radio debugfs on 5 GHz
+
+A script that put b43 in monitor mode on ch116 and walked `ac_diff.sh phy` / `radio` through the
+debugfs files hung the whole machine (needed a hard reboot, empty log). Reading PHY/radio registers
+through debugfs on 5 GHz is unsafe; compare against wl's state offline instead.
