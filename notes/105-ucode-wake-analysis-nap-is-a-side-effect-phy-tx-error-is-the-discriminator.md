@@ -58,3 +58,18 @@ tempsense, per-channel TX tables; and Alessio's answer (email sent 2026-10-01).
 - Open: what differs between the mac80211-driven TX of the connect flow (managed interface, ACK
   requested, TX status, scan suppression) and the injected frames. The failure needs the managed
   flow, not just any TX.
+
+## Same day, last: scan-health validation, TX header, TX core mask
+- `tools/scan_health_validate.sh` (24 valid inits; the run was interrupted): PHY TX errors during
+  the 2 x rescan phase right after load were 0 in 23 of 24 inits, including every init that then
+  failed to connect with 8-16 errors during the connect attempt. A scan does NOT predict the outcome;
+  failures start with the unicast auth frames of the connect attempt. A reload-until-clean loop
+  must therefore judge an init by a real connect attempt, not by a scan.
+- Our AC TX header (xmit.c b43_generate_txhdr_ac, format copied from wl) differs from Alessio's
+  approach (stock generic txhdr with phy_ctl1 filled for AC). Ours demonstrably gets frames to the
+  AP, so no change there.
+- TX core mask `ac_txcore`: default 1 (core 0), SROM says txchain 6. `ac_txcore=6`: 1/8; `ac_txcore=7`:
+  2/8, failing attempts unchanged: not the cause.
+- Process note: running tests in the background while doing other work makes the laptop lose its
+  connection (every b43 reload restarts wpa_supplicant on NixOS and drops the USB stick too). Run
+  one thing at a time.
