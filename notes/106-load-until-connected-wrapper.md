@@ -29,3 +29,16 @@ disturbed while working); first real test = next boot after the service change.
 - 43 tries, 9 judged clean (~21 % per try, the same as the plain base rate). With 6 tries the give-up
   chance is ~24 % (3 of 12 runs gave up); default raised to 12 tries (~6 %). Worst case ~12 x 55 s.
 - Every successful run was still connected 40 s after the wrapper exited.
+
+## IMPORTANT when enabling it: do NOT keep Type=oneshot
+`b43-ac-load.service` is `Type = "oneshot"` with `Before=multi-user.target` (systemctl show), so the
+graphical login waits for it; with the retry loop inside it, boot could stall up to ~12 min (typically
+3-4 min). Use a non-blocking unit instead:
+
+    systemd.services.b43-ac-load.serviceConfig = {
+      Type = "simple";          # started immediately, login does not wait for the retries
+      ExecStart = "/home/gonsolo/bcm4360-acphy/tools/b43_load_until_connected.sh ac_replay=1 dma32=1 ac_por=63 nohwcrypt=1";
+    };   # drop RemainAfterExit; ideally also after = [ "NetworkManager.service" ];
+
+The USB-stick wlan keeps working throughout, but blinks at every b43 reload (wpa_supplicant restart),
+about once a minute while retries last.
