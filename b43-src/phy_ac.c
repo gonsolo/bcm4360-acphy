@@ -163,6 +163,23 @@ static int b43_ac_dbg_cc_show(struct seq_file *s, void *unused)
 			   sp->fem.ghz5.tssipos, sp->fem.ghz5.extpa_gain,
 			   sp->fem.ghz5.pdet_range, sp->fem.ghz5.tr_iso,
 			   sp->fem.ghz5.antswlut);
+		/* Stock bcma has no SROM rev 11 extractor, so the lines above
+		 * are rev 8 offsets applied to a rev 11 image. Decode the rev 11
+		 * words here (offsets: Alessio Ferri's patch 0001, notes/112). */
+		if (sp->revision == 11) {
+#define SP11(o) (bcma_read16(cc->core, BCMA_CC_SPROM + (o)) & 0xffff)
+			u16 txrx = SP11(0xa8), f1 = SP11(0xaa), f2 = SP11(0xac);
+
+			seq_printf(s, "sprom11 ant_avail a %x bg %x txchain %x rxchain %x antswitch %x\n",
+				   SP11(0xa0) >> 8, SP11(0xa0) & 0xff,
+				   txrx & 0xf, (txrx >> 4) & 0xf, txrx >> 8);
+			seq_printf(s, "sprom11 femctrl %u | 2g tssipos %u epagain %u pdgain %u tworange %u papdcap %u | 5g tssipos %u epagain %u pdgain %u tworange %u papdcap %u gainctrlsph %u\n",
+				   f1 >> 11, f1 & 1, (f1 >> 1) & 7, (f1 >> 4) & 0x1f,
+				   (f1 >> 9) & 1, (f1 >> 10) & 1,
+				   f2 & 1, (f2 >> 1) & 7, (f2 >> 4) & 0x1f,
+				   (f2 >> 9) & 1, (f2 >> 10) & 1, f2 >> 11);
+#undef SP11
+		}
 	}
 	return 0;
 }
