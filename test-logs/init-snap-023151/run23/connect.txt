@@ -1,0 +1,2 @@
+Error: Connection activation failed: The Wi-Fi network could not be found
+Hint: use 'journalctl -xe NM_CONNECTION=cbf3c74c-18e3-4255-9449-8bab8f678aac + NM_DEVICE=wlp3s0b1' to get more details.

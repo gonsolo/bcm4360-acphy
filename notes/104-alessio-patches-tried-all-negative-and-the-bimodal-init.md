@@ -37,3 +37,24 @@ Only the read-only PMU dump (`b43_ac_pmu_dump()`) and the test switch
 - Send Alessio the wl trace + the facts above (his PHY decode is 99.7 % on the
   cold bring-up; ours replays captured state).
 - PSM PC of the halted ucode vs the d11emu disassembly (notes/12, 66).
+
+## Later the same day (2026-10-01): cold boot, snapshots, more negatives
+- Real cold boot (powered off overnight): first autoload bad (12 suspend failures in the
+  first minute), 2/8 fresh reloads connected: same rate as warm. Chip state left over from
+  earlier boots is not the factor (notes/60 already recorded a 24 h cold boot failing too).
+- `PSM_PHY_HDR` (0x492) paired with the PHY force clock as the stock driver does
+  (b43-ac-wip bd6d687, `ac_psm_hdr`): 1/8, no change (reverted).
+- `tools/init_snapshot_test.sh`: 50 fresh inits, snapshot after load (PHY/radio/MAC/SHM) and
+  after the connect attempt, label by outcome. Outcomes: 9 good (connected, <=2 failures,
+  18 %), 8 connected with 3-7 failures, the rest never connected. No static PHY/radio
+  register separates good from bad right after load (only timers/counters, unique per run).
+  The post-connect radio snapshots separate them, but that only shows which channel/state
+  the PHY is in (connected vs scanning): circular, not a cause.
+- Correction: `b43info()` is rate-limited (`net_ratelimit()`), so "replayed vendor ch6
+  state" lines go missing under heavy debug logging. Do not count them; the replay does run
+  on every switch to channel 6. NetworkManager/wpa_supplicant also cycle the interface
+  (Adding/Removing Interface, software_rfkill, switch_channel(1) re-inits) several times
+  right after load.
+- d11-emu treats NAP as a no-op (no wake semantics), so it cannot say what wakes the PSM.
+- Standing picture: the failure is a runtime event (ucode in NAP at PC 0x000F, TX posted,
+  no timely wake - notes/60), not a difference in init state.

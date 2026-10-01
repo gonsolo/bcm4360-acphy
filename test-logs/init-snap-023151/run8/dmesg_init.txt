@@ -1,0 +1,8 @@
+[ 2047.522541] b43-phy38: AC PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000001ff
+[ 2047.696761] b43-phy38: AC FIFO init: total 0x600, 0x540=0004 0x530=0297
+[ 2049.738692] b43-phy39: AC PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000001ff
+[ 2049.912651] b43-phy39: AC FIFO init: total 0x600, 0x540=0004 0x530=0297
+[ 2049.962477] b43-phy39: AC PMU at chip_init: pll0-5 00000000 00000000 00000c31 0000100e 06060c03 00000606 stat=0000003e cap=10a22b11 minres=0000013b maxres=000001ff
+[ 2050.137187] b43-phy39: AC FIFO init: total 0x600, 0x540=0004 0x530=0297
+[ 2050.957528] b43-phy39: phy_ac: replayed vendor ch6 state (121 radio, 250 PHY regs, 969 table entries)
+[ 2050.964054] b43-phy39: phy_ac: applied first-load state 0x3f (radio 163 phy 290 tbl 3022 shm 795 cc 18 pmu 1)
