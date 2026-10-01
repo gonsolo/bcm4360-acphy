@@ -30,3 +30,9 @@ ac_5ghz=1, connect to the 5 GHz BSSID (ch116 DFS), then 2.4 GHz on the same init
 6/6 inits failed on both bands = bad inits, so 5 GHz itself is untested (P ~ 24% at the usual 79% failure rate). The wrapper then failed
 12/12 on its first restart and connected on the second (18 bad in a row, ~1.4%): possible that ac_5ghz scans leave the chip worse; not established.
 Stopped: a clean 5 GHz test needs a good init plus a 5 GHz TX chain setup that the replay does not load (see Alessio's code).
+
+## 5 GHz receive check (ac_5ghz=1, monitor mode, rx_packets over 8 s)
+freq 2462 (AP ch11): 32 frames | freq 5580 (AP ch116, signal 77 as seen by the stick): 0 frames | freq 5180: 0.
+Normal scans with ac_5ghz=1 also find no 5 GHz BSS (only the three 2.4 GHz SSIDs), though the band and 38 channels are advertised.
+So 5 GHz RX gets no frames at all with our replay; notes/53 only verified register read-back, not reception. Reception is independent of
+the TX-side init failure (2.4 GHz receives on a bad init). Candidates: per-band FEM/antenna-switch control, RX gain/LNA setup, AGC.
