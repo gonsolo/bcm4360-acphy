@@ -1141,6 +1141,42 @@ static void b43_phy_ac_set_farrow(struct b43_wldev *dev, unsigned int channel)
 	b43_phy_write(dev, 0x1601, b43_phy_read(dev, 0x601));
 }
 
+/* Test (notes/111): replay one wl 20 MHz channel-116 switch, op for op. */
+static bool b43_ac_win116;
+module_param_named(ac_win116, b43_ac_win116, bool, 0644);
+MODULE_PARM_DESC(ac_win116, "AC-PHY test: on 5 GHz channel 116 replay wl's whole channel-switch write sequence");
+#include "phy_ac_win116.h"
+
+static void b43_phy_ac_replay_win116(struct b43_wldev *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(b43_ac_win116_ops); i++) {
+		switch (b43_ac_win116_ops[i].t) {
+		case 0:
+			b43_phy_write(dev, b43_ac_win116_ops[i].a, b43_ac_win116_ops[i].v);
+			break;
+		case 1:
+			b43_radio_write(dev, b43_ac_win116_ops[i].a, b43_ac_win116_ops[i].v);
+			break;
+		case 2:
+			b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_win116_ops[i].a);
+			b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, b43_ac_win116_ops[i].b);
+			if (b43_ac_win116_ops[i].w == 32)
+				b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2,
+					      b43_ac_win116_ops[i].v >> 16);
+			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
+				      b43_ac_win116_ops[i].v & 0xffff);
+			break;
+		case 3:
+			udelay(min_t(u32, b43_ac_win116_ops[i].v, 2000));
+			break;
+		}
+	}
+	b43info(dev->wl, "phy_ac: replayed wl's channel-116 switch (%zu ops)\n",
+		ARRAY_SIZE(b43_ac_win116_ops));
+}
+
 static void b43_phy_ac_tune(struct b43_wldev *dev,
 			    const struct b43_radio_2069_chan *e,
 			    unsigned int channel)
@@ -1245,6 +1281,9 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	 * this table was never shown to apply to. */
 	if (b43_ac_farrow && !(is_5ghz && b43_ac_5g_80))
 		b43_phy_ac_set_farrow(dev, new_channel);
+
+	if (is_5ghz && new_channel == 116 && b43_ac_win116)
+		b43_phy_ac_replay_win116(dev);
 
 	b43_phy_ac_resetcca(dev);
 

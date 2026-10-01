@@ -44,3 +44,9 @@ the TX-side init failure (2.4 GHz receives on a bad init). Candidates: per-band 
   (tables 0x21, 0x40/0x60 (128 words each), 0x44/45/64/65, 0x07, 0x0b, 0x0c) plus per-core regs 0x6d4-0x6ee / 0x8d4-0x8ee. We write none of these.
 - The wl trace contains 20 MHz switches to ch116 (Farrow 0x19b=0x74, 6 occurrences), so a targeted test is possible without new captures:
   extract the ch116 window from traces/decoded-firstload-5g/seq.txt, replay it on switch to 116, count RX frames in monitor mode (expect ~80 per 8 s).
+
+## Test: replay wl's ch116 20 MHz switch (ac_win116=1; tools/gen_switch_window.py, b43-src/phy_ac_win116.h, tools/rx5g_test.sh)
+Window = wl trace lines 357161-360447 (797 ops: 247 PHY, 80 radio, 453 table, 17 delays; SHM/MMIO not replayed). Replayed after our own switch
+to 5580 MHz (log: "replayed wl's channel-116 switch (797 ops)"). Monitor-mode rx over 8 s: 2462 MHz 96 frames, 5580 MHz **0 frames**. Negative.
+So the missing piece is not in this part of the switch. Remaining candidates: core PHY-bandwidth/clock (IOCTL stays 20 MHz while por5g leaves PHY in 80 MHz mode),
+the SHM/MMIO side of wl's switch, the AGC/gain sweep + calibration engine runs that wl does after the tune, per-band FEM control.
