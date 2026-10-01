@@ -202,6 +202,42 @@ static const struct file_operations b43_ac_dbg_cc_fops = {
 	.write		= b43_ac_dbg_cc_write,
 };
 
+/* Raw SPROM words, straight from the ChipCommon SPROM shadow (0x800..0xbff).
+ * Read-only; for sharing with other AC-PHY reverse engineers (notes/105). */
+static int b43_ac_dbg_sprom_show(struct seq_file *s, void *unused)
+{
+	struct b43_wldev *dev = b43_ac_dbg_dev;
+	struct bcma_drv_cc *cc;
+	unsigned int i;
+
+	if (!dev || dev->dev->bus_type != B43_BUS_BCMA)
+		return -ENODEV;
+	cc = &dev->dev->bdev->bus->drv_cc;
+	mutex_lock(&dev->wl->mutex);
+	for (i = 0; i < 0x200; i++) {
+		if ((i % 8) == 0)
+			seq_printf(s, "%sword[%03x]:", i ? "\n" : "", i);
+		seq_printf(s, " %04x",
+			   bcma_read16(cc->core, BCMA_CC_SPROM + 2 * i) & 0xffff);
+	}
+	seq_putc(s, '\n');
+	mutex_unlock(&dev->wl->mutex);
+	return 0;
+}
+
+static int b43_ac_dbg_sprom_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, b43_ac_dbg_sprom_show, NULL);
+}
+
+static const struct file_operations b43_ac_dbg_sprom_fops = {
+	.owner		= THIS_MODULE,
+	.open		= b43_ac_dbg_sprom_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static u16 b43_ac_dump_lo, b43_ac_dump_hi = 0x1fff;
 
 static int b43_ac_dbg_phydump_show(struct seq_file *s, void *unused)
@@ -323,6 +359,8 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("cc", 0600, b43_ac_dbg_dir, NULL,
 				    &b43_ac_dbg_cc_fops);
+		debugfs_create_file("sprom", 0400, b43_ac_dbg_dir, NULL,
+				    &b43_ac_dbg_sprom_fops);
 	}
 
 	return 0;

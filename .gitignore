@@ -37,3 +37,6 @@ b43-src/modules.order
 # boot (notes/93, tools/bisect_build.sh) - transient, regenerated per
 # bisect step, never worth committing.
 /bisect-boot/
+
+# Data package for Alessio Ferri (SROM dump, wl traces) - assembled by hand, not for the repo.
+/for-alessio/
