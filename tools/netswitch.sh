@@ -27,7 +27,6 @@ status() {
 			continue
 		fi
 		gw=$(gw_of "$i"); [ -z "$gw" ] && gw=$(ip -4 route show default | awk '{print $3; exit}')
-| awk '{print $3; exit}')
 		if [ -n "$(ip -4 addr show "$i" 2>/dev/null | grep inet)" ] && [ -n "$gw" ]; then
 			printf "== ping via %s -> %s: " "$i" "$gw"
 			ping -I "$i" -c 3 -W 2 "$gw" 2>/dev/null | awk -F'/' '/rtt/{print "ok, avg " $5 " ms"} /packet loss/{l=$0} END{if (!seen) print l}' | head -1
