@@ -23,3 +23,4 @@ flag=1 | ext-IHR read=0x0020 | TXE_PHYCTL=0x0044 | PHYCTL1/2=0 | L-SIG=0/0 | HT-
 - TXE_PHYCTL bits[1:0] = 0 here (0x45 had bit 0 set), so the ucode's address computation (0x0C64-66) takes the other branch: the ext-IHR read is a
   different register than "mode 3, offset 7" in notes/13 - which explains 0x0020 vs 0x2000 without a different error.
 - Conclusion: the record says "PHY reported a TX error" (already known, TXE_STATUS bit 10). It carries no information on the cause. Branch closed.
+- near router (signal 100/77 vs 60/39): 2/10 fresh inits connected, same as the ~21% baseline -> signal strength ruled out (test-logs/ab_reload_near_router_*.log)
