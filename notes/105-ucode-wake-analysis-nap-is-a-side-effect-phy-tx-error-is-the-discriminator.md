@@ -35,3 +35,26 @@ unchanged. What differs between a PHY that can transmit and one that cannot is n
 static register we snapshot after load, nor in the MAC-side items Alessio's patches cover.
 Open: the TX power/gain path (TX IQ/LO calibration never worked in this port, notes/16-22),
 tempsense, per-channel TX tables; and Alessio's answer (email sent 2026-10-01).
+
+## Same day, later: TX power control off, mid-connect snapshots, fixed-channel TX test
+- `ac_txpctl_off` (clear PHY 0x70[15:13] after each channel switch; our driver has no TX power
+  control of its own, recalc/adjust_txpower are stubs): 2/8, 8-16 PHY TX errors in the failing
+  attempts, 0 in the two connected: no change (reverted). PHY 0x70 reads 0xe500 after connect in
+  every connected run and in the non-connected runs that left a readable snapshot, so the loop
+  being enabled does not separate them either.
+- `tools/init_snapshot_test2.sh` (snapshot 15 s INTO the connect attempt, 40 inits): 8 connected /
+  32 not, and "PHY TX errors during connect" separates them exactly (0 vs 5-15). The ~48 PHY
+  registers that separate the groups (0x019b/0x01a2 Farrow ratio, 0x0371-0x0376, 0x0602-0x0607
+  family, 0x0840, 0x0990, 0x0029/0x002a) mostly encode the CHANNEL: connected runs sit on the
+  AP's channel, failing ones are hopping through scan channels at the snapshot time. Confounded.
+- `tools/init_txtest.sh` (fixed-channel, no scan, no association: reload, park on ch11, inject 20
+  directed probe requests with tools/inject_probe.pl at 6 Mbit/s, count AP responses and dmesg
+  PHY TX errors): over 40 inits only 2 had a PHY TX error and none had a MAC suspend failure;
+  AP responses ranged from 0 to 13 of 20. So TX from a monitor-mode injection at a fixed OFDM
+  rate does not reproduce the connect-flow failure (5-15 PHY TX errors per attempt). Manual 1 vs
+  6 Mbit/s runs also gave only 1-2 errors each: not a simple CCK-vs-OFDM split.
+- The ucode macstat counters (SHM 0xE0/0xE6/0xFE) do not update right after a fresh load
+  (synced periodically), so they cannot label a fresh init.
+- Open: what differs between the mac80211-driven TX of the connect flow (managed interface, ACK
+  requested, TX status, scan suppression) and the injected frames. The failure needs the managed
+  flow, not just any TX.

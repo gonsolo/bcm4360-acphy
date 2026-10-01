@@ -1,0 +1,1 @@
+counters before: a=0 e=0 t=1 after: 0 0 1

@@ -1,0 +1,4 @@
+state=connecting (configuring)
+	type managed
+txerr_so_far=6
+suspend_fail_so_far=5

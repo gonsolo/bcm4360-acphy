@@ -1,0 +1,5 @@
+state=connected
+	type managed
+	channel 11 (2462 MHz), width: 20 MHz (no HT), center1: 2462 MHz
+txerr_so_far=0
+suspend_fail_so_far=0
