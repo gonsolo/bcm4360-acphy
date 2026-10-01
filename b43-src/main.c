@@ -1398,6 +1398,10 @@ void b43_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 }
 
+static bool b43_ac_txs_sum;
+module_param_named(ac_txs_sum, b43_ac_txs_sum, bool, 0644);
+MODULE_PARM_DESC(ac_txs_sum, "AC-PHY: old (wrong) TX attempt count, summing the constant byte in bits 16-23 (notes/110)");
+
 static void handle_irq_transmit_status(struct b43_wldev *dev)
 {
 	u32 v0, v1;
@@ -1428,8 +1432,17 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
 			stat.pm_indicated = !!(v0 & 0x0008);
 			stat.supp_reason = (v0 & 0x00f0) >> 4;
 			stat.acked = !!(v0 & 0x8000);
-			n = (v2 & 0xff) + ((v2 >> 16) & 0xff) +
-			    (v3 & 0xff) + ((v3 >> 16) & 0xff);
+			/* notes/110: the attempt count is the LOW BYTE of word 2 only. Bits 16-23 hold a
+			 * constant 1 on every acknowledged frame (0 on suppressed ones), not a second
+			 * attempt counter: summing it made every frame look like it needed a retry, so
+			 * minstrel saw ~50 % failures at every rate and TX stayed at 1-6 Mbit/s
+			 * (1.2 "retries" per frame regardless of rate or TX power). ac_txs_sum=1 restores
+			 * the old sum for comparison. */
+			if (b43_ac_txs_sum)
+				n = (v2 & 0xff) + ((v2 >> 16) & 0xff) +
+				    (v3 & 0xff) + ((v3 >> 16) & 0xff);
+			else
+				n = v2 & 0xff;
 			stat.frame_count = min(n, 15u);
 			b43dbg(dev->wl, "AC txstatus %08x %08x %08x %08x\n",
 			       v0, v1, v2, v3);
