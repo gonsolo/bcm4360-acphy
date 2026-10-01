@@ -1,0 +1,53 @@
+try 1: 5GHz failed
+try 1: 2.4GHz also failed -> bad init
+try 2: 5GHz failed
+try 2: 2.4GHz also failed -> bad init
+try 3: 5GHz failed
+try 3: 2.4GHz also failed -> bad init
+try 4: 5GHz failed
+try 4: 2.4GHz also failed -> bad init
+try 5: 5GHz failed
+try 5: 2.4GHz also failed -> bad init
+try 6: 5GHz failed
+try 6: 2.4GHz also failed -> bad init
+[10998.876194] b43-phy45: phy_ac: RCCAL step 1: 000b
+[10998.877007] b43-phy45: phy_ac: RCCAL step 2: 01eb
+[10998.879309] b43-phy45: phy_ac: wrote 23 PHY tables
+[10998.879390] b43-phy45: phy_ac: first-init registers done
+[10998.879392] b43-phy45: phy_ac: init (core_rev 42, radio24=1, chip 4360, board 0117, radio_on 1)
+[10998.888455] b43-phy45: intrcvlazy0 was 01000000
+[10998.888498] b43-phy45: DMA: 64-bit engine, index registers hold bus addresses
+[10998.888563] b43-phy45: DMA tx0: ctl=00000801 ring=80000000:7530a000
+[10998.888587] b43-phy45: DMA tx1: ctl=00000801 ring=80000000:74c68000
+[10998.888609] b43-phy45: DMA tx2: ctl=00000801 ring=80000000:74590000
+[10998.888630] b43-phy45: DMA tx3: ctl=00000801 ring=80000000:74592000
+[10998.888651] b43-phy45: DMA tx4: ctl=00000801 ring=80000000:74586000
+[10998.889161] b43-phy45: DMA rx0: ctl=0000084d ring=80000000:744fa000
+[10998.898507] b43-phy45: phy_ac: MACCTL=c4020403 IRQ reason=00000000 mask=38058264 pio=0
+[10998.898526] b43-phy45: phy_ac: DMA rx status=1000a000/0000a010 index=0000b000 tx(BE) status=20008000
+[10998.898538] b43-phy45: phy_ac: dma0 reason=00000000 mask=00013c00 intrcvlazy0=01000000
+[10998.898706] b43-phy45: phy_ac: macstat: 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
+[10998.898723] b43-phy45: phy_ac: gpio in=00002007 out=00000006 outen=000000a7 control=00000000 ioctrl=00002155
+[10999.063308] b43-phy45 ERROR: MAC suspend failed (40ms)
+[10999.063335] b43-phy45: suspendtiming: total=79ms psctl=0ms wait=79ms
+[10999.072397] b43-phy45: optiming: total=88ms lock=0ms suspend=79ms chan=8ms txpwr=0ms antenna=0ms mac_enable=0ms
+[10999.214315] b43-phy45 ERROR: MAC suspend failed (40ms)
+[10999.214342] b43-phy45: suspendtiming: total=79ms psctl=0ms wait=79ms
+[11002.950274] b43_mac_suspend_diag: 42 callbacks suppressed
+[11002.950378] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[11002.950663]  b43_mac_suspend+0x367/0x380 [b43]
+[11002.950721]  b43_op_config+0x4e/0x560 [b43]
+[11002.951377]  cfg80211_wiphy_work+0xb8/0x160 [cfg80211]
+[11003.167376] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[11003.167657]  b43_mac_suspend+0x367/0x380 [b43]
+[11003.167716]  b43_op_config+0x4e/0x560 [b43]
+[11003.168374]  cfg80211_wiphy_work+0xb8/0x160 [cfg80211]
+[11003.383398] Workqueue: events_unbound cfg80211_wiphy_work [cfg80211]
+[11003.383667]  b43_mac_suspend+0x367/0x380 [b43]
+[11003.383726]  b43_op_config+0x4e/0x560 [b43]
+[11003.384382]  cfg80211_wiphy_work+0xb8/0x160 [cfg80211]
+[11004.030171] b43-phy45 ERROR: MAC suspend failed (40ms)
+[11004.030182] b43-phy45: suspendtiming: total=80ms psctl=0ms wait=80ms
+[11004.037269] b43-phy45: phy_ac: applied 5 GHz first-load state
+[11004.046200] b43-phy45: optiming: total=96ms lock=0ms suspend=80ms chan=15ms txpwr=0ms antenna=0ms mac_enable=0ms
+done

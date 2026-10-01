@@ -24,3 +24,9 @@ flag=1 | ext-IHR read=0x0020 | TXE_PHYCTL=0x0044 | PHYCTL1/2=0 | L-SIG=0/0 | HT-
   different register than "mode 3, offset 7" in notes/13 - which explains 0x0020 vs 0x2000 without a different error.
 - Conclusion: the record says "PHY reported a TX error" (already known, TXE_STATUS bit 10). It carries no information on the cause. Branch closed.
 - near router (signal 100/77 vs 60/39): 2/10 fresh inits connected, same as the ~21% baseline -> signal strength ruled out (test-logs/ab_reload_near_router_*.log)
+
+## 5 GHz association attempt (tools/test_5ghz_connect.sh, test-logs/5ghz-connect-1.log)
+ac_5ghz=1, connect to the 5 GHz BSSID (ch116 DFS), then 2.4 GHz on the same init to tell a bad init from a 5 GHz problem.
+6/6 inits failed on both bands = bad inits, so 5 GHz itself is untested (P ~ 24% at the usual 79% failure rate). The wrapper then failed
+12/12 on its first restart and connected on the second (18 bad in a row, ~1.4%): possible that ac_5ghz scans leave the chip worse; not established.
+Stopped: a clean 5 GHz test needs a good init plus a 5 GHz TX chain setup that the replay does not load (see Alessio's code).
