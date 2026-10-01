@@ -20,6 +20,7 @@ LOAD=${B43_LOAD:-$P/tools/b43_boot.sh}
 RMMOD=${B43_RMMOD:-rmmod}
 NMCLI=${B43_NMCLI:-nmcli}
 DMESG=${B43_DMESG:-dmesg}
+KMSG=${B43_KMSG:-/dev/kmsg}
 SLEEP=${B43_SLEEP:-sleep}
 TRIES=${B43_TRIES:-6}
 WAIT=${B43_WAIT:-70}
@@ -34,11 +35,14 @@ MAX_SUSP=${B43_MAX_SUSP:-8}
 # Early verdict "bad": phy >= MAX_ERRS, or auth >= MAX_AUTH, or susp >= MAX_SUSP. A few suspend failures
 # alone are normal for an init that goes on to connect. At the end of the window, an init that tried and
 # failed (any evidence) but did not connect is bad too; one with no evidence at all is kept.
-cnt() { $DMESG 2>/dev/null | grep -cE "$1"; }
+# Count only lines after this try's start marker: the kernel ring buffer rotates, so totals taken before the
+# load are unreliable (negative deltas seen live).
+cnt() { $DMESG 2>/dev/null | awk -v m="b43_load_until_connected: try $try start" 'index($0,m){n=0;next} {l[n++]=$0} END{for(i=0;i<n;i++)print l[i]}' | grep -cE "$1"; }
 log() { echo "b43_load_until_connected: $*"; }
 
 for try in $(seq 1 "$TRIES"); do
-	bphy=$(cnt "PHY transmission error"); bsusp=$(cnt "MAC suspend failed"); bauth=$(cnt "authentication with .* timed out")
+	echo "b43_load_until_connected: try $try start" > "$KMSG" 2>/dev/null
+	phy=0; susp=0; auth=0
 	if ! $LOAD "$@"; then
 		log "try $try/$TRIES: load failed"
 		verdict=bad
@@ -70,8 +74,8 @@ for try in $(seq 1 "$TRIES"); do
 				$SLEEP "$POLL"
 				continue
 			fi
-			phy=$(( $(cnt "PHY transmission error") - bphy )); susp=$(( $(cnt "MAC suspend failed") - bsusp ))
-			auth=$(( $(cnt "authentication with .* timed out") - bauth ))
+			phy=$(cnt "PHY transmission error"); susp=$(cnt "MAC suspend failed")
+			auth=$(cnt "authentication with .* timed out")
 			if [ "$phy" -ge "$MAX_ERRS" ] || [ "$auth" -ge "$MAX_AUTH" ] || [ "$susp" -ge "$MAX_SUSP" ]; then
 				verdict=bad
 				break
@@ -86,7 +90,7 @@ for try in $(seq 1 "$TRIES"); do
 		exit 0
 	fi
 	if [ "$try" -lt "$TRIES" ]; then
-		log "try $try/$TRIES: bad init, reloading (evidence since load: phy=$(( $(cnt "PHY transmission error") - bphy )) susp=$(( $(cnt "MAC suspend failed") - bsusp )) auth=$(( $(cnt "authentication with .* timed out") - bauth )))"
+		log "try $try/$TRIES: bad init, reloading (evidence since load: phy=$phy susp=$susp auth=$auth)"
 		$RMMOD b43
 		$SLEEP 2
 	fi

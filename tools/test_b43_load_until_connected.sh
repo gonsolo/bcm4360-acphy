@@ -33,22 +33,23 @@ fi
 EOS
 	cat > "$T/dmesg" <<EOS
 #!/usr/bin/env bash
-# cumulative error lines: 3 per "bad" try so far
-bad=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^bad\$")
-badauth=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^badauth\$")
+# like the real ring buffer: a start marker per try, then only that try's evidence lines (older tries have rotated out)
+echo "b43_load_until_connected: try \$(cat $T/try) start"
+bad=\$(sed -n \$(cat $T/try)p $T/outcomes | grep -c "^bad\$")
+badauth=\$(sed -n \$(cat $T/try)p $T/outcomes | grep -c "^badauth\$")
 for i in \$(seq 1 \$(( bad * 3 ))); do echo "b43-phy0 ERROR: PHY transmission error"; done
-midok=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^midok\$")
-badmild=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^badmild\$")
+midok=\$(sed -n \$(cat $T/try)p $T/outcomes | grep -c "^midok\$")
+badmild=\$(sed -n \$(cat $T/try)p $T/outcomes | grep -c "^badmild\$")
 for i in \$(seq 1 \$(( midok * 4 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
 for i in \$(seq 1 \$(( badmild * 1 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
 for i in \$(seq 1 \$badmild); do echo "wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out"; done
-badsusp=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^badsusp\$")
+badsusp=\$(sed -n \$(cat $T/try)p $T/outcomes | grep -c "^badsusp\$")
 for i in \$(seq 1 \$(( badauth * 3 ))); do echo "wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out"; done
 for i in \$(seq 1 \$(( badsusp * 3 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
 EOS
 	chmod +x "$T"/load "$T"/rmmod "$T"/nmcli "$T"/dmesg
 	B43_LOAD="$T/load" B43_RMMOD="$T/rmmod" B43_NMCLI="$T/nmcli" B43_DMESG="$T/dmesg" \
-		B43_SLEEP=true B43_TRIES=6 B43_WAIT=30 B43_SETTLE=1 B43_POLL=2 B43_MAX_ERRS=3 bash "$SUT" > "$T/out" 2>&1
+		B43_KMSG=/dev/null B43_SLEEP=true B43_TRIES=6 B43_WAIT=30 B43_SETTLE=1 B43_POLL=2 B43_MAX_ERRS=3 bash "$SUT" > "$T/out" 2>&1
 	local ex=$?
 	local gl gr; gl=$(wc -l < "$T/loads"); gr=$(wc -l < "$T/rmmods")
 	local gc nf; gc=$(grep -c "device connect" "$T/nmcli_calls"); nf=$(head -n "$gl" "$T/outcomes" | grep -c "^loadfail\$")
