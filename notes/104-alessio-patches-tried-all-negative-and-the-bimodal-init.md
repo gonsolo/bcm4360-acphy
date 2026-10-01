@@ -58,3 +58,15 @@ Only the read-only PMU dump (`b43_ac_pmu_dump()`) and the test switch
 - d11-emu treats NAP as a no-op (no wake semantics), so it cannot say what wakes the PSM.
 - Standing picture: the failure is a runtime event (ucode in NAP at PC 0x000F, TX posted,
   no timely wake - notes/60), not a difference in init state.
+
+## Mining our wl raw-MMIO trace (traces/wl-tx-20260926-194512.trace), same day
+The trace (ftrace of wl's osl_readl/osl_writel with addresses and values) shows the
+802.11 core window at 0x...c24c4000; the DMA TX pointer at core offset 0x244 is written
+with ring-address+index (0x1148010, 0x1148030, ...) when wl posts a TX frame.
+- Around a TX post wl does exactly ONE MMIO access: the pointer write. Nothing extra
+  (no wake kick) happens at TX-post time, so there is nothing to copy there.
+- wl's MACCTL writes (0x120): 0x44020403 / 0x44020402 during MAC suspend/enable windows,
+  then back to 0x40020403 (AWAKE cleared) between them; HWPS (0x02000000) only in some
+  phases (0x46020403). We force AWAKE on permanently (b43_power_saving_ctl_bits FIXME).
+- Releasing AWAKE after each suspend/enable window like wl (`ac_awake_release` test
+  switch, reverted): 2/8 connected, 10-16 failures in the failing attempts: no change.
