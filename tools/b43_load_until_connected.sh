@@ -3,9 +3,10 @@
 # inits can transmit; in the others every TX ends in a "PHY transmission error" and the connect
 # never completes. A scan does NOT reveal a bad init (notes/105), the first connect attempt does.
 #
-# Per try: load (tools/b43_boot.sh), then watch up to B43_WAIT seconds:
+# Per try: load (tools/b43_boot.sh), start a connect, then watch up to B43_WAIT (45) seconds:
 #   - wlp3s0b1 reports "connected"                         -> done, clean init
-#   - >= B43_MAX_ERRS new "PHY transmission error" lines    -> bad init, unload and try again
+#   - >= B43_MAX_ERRS new "PHY transmission error" / "authentication ... timed out" lines
+#                                                           -> bad init, unload and try again
 #   - neither (no connect attempt happened / out of range)  -> nothing to judge, keep this init
 # After B43_TRIES bad tries it leaves the last one loaded and exits 1.
 #
@@ -21,11 +22,13 @@ NMCLI=${B43_NMCLI:-nmcli}
 DMESG=${B43_DMESG:-dmesg}
 SLEEP=${B43_SLEEP:-sleep}
 TRIES=${B43_TRIES:-6}
-WAIT=${B43_WAIT:-30}
+WAIT=${B43_WAIT:-45}
 POLL=${B43_POLL:-2}
 MAX_ERRS=${B43_MAX_ERRS:-3}
 
-errs() { $DMESG 2>/dev/null | grep -c "PHY transmission error"; }
+# Evidence of a bad init: PHY TX errors and MAC suspend failures (both rate-limited in dmesg) and mac80211
+# auth timeouts (not, but only one per ~17 s).
+errs() { $DMESG 2>/dev/null | grep -cE "PHY transmission error|MAC suspend failed|authentication with .* timed out"; }
 log() { echo "b43_load_until_connected: $*"; }
 
 for try in $(seq 1 "$TRIES"); do
@@ -36,7 +39,14 @@ for try in $(seq 1 "$TRIES"); do
 	else
 		verdict=quiet
 		waited=0
+		tried=0
 		while [ "$waited" -lt "$WAIT" ]; do
+			# NM autoconnect does not reliably pick up the b43 interface (a profile can be active on one
+			# device only), so start the attempt ourselves once the renamed interface exists.
+			if [ "$tried" = 0 ] && $NMCLI -t -f DEVICE device 2>/dev/null | grep -q "^$IF"; then
+				$NMCLI --wait 0 device connect "$IF" >/dev/null 2>&1
+				tried=1
+			fi
 			state=$($NMCLI -t -f DEVICE,STATE device 2>/dev/null | grep "^$IF:" | cut -d: -f2)
 			if [ "$state" = connected ]; then
 				log "try $try/$TRIES: connected, clean init"
