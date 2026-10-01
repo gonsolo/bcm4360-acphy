@@ -21,3 +21,12 @@ symptom, not fixed here.
 
 Method note: the `verbose` module parameter is writable at runtime (echo 3 > /sys/module/b43/parameters/
 verbose) and makes the driver log the raw `AC txstatus` words; tabulating them is how the bug showed up.
+
+## Receive side checked the same way (no further bookkeeping error found)
+Debug logging on for a 12 MB download: the RX path logged nothing abnormal (only the 3267 `AC txstatus`
+records of the TCP ACK frames we sent); netdev counters 0 errors/0 drops; beacon loss 0. mac80211 shows
+`rx drop misc` 4106 of 46919 packets (~9 %): duplicates of frames the AP retransmitted because our
+firmware-generated ACK did not reach it (the PHY TX error on SIFS-timed responses, notes/07/12) - an
+airtime cost and a reason the AP stays at 24 Mbit/s towards us, i.e. a root-cause symptom, not a counting
+bug. Remaining speed ceiling: legacy rates only (no HT/802.11n: the AC TX header format for HT cannot be
+derived from the MMIO traces, the frame data goes by DMA), so ~25-30 Mbit/s TCP at best.
