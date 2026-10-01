@@ -22,7 +22,8 @@ NMCLI=${B43_NMCLI:-nmcli}
 DMESG=${B43_DMESG:-dmesg}
 SLEEP=${B43_SLEEP:-sleep}
 TRIES=${B43_TRIES:-6}
-WAIT=${B43_WAIT:-45}
+WAIT=${B43_WAIT:-70}
+SETTLE=${B43_SETTLE:-25}
 POLL=${B43_POLL:-2}
 MAX_ERRS=${B43_MAX_ERRS:-3}
 MAX_AUTH=${B43_MAX_AUTH:-2}
@@ -55,8 +56,19 @@ for try in $(seq 1 "$TRIES"); do
 			fi
 			state=$($NMCLI -t -f DEVICE,STATE device 2>/dev/null | grep "^$IF:" | cut -d: -f2)
 			if [ "$state" = connected ]; then
-				log "try $try/$TRIES: connected, clean init"
-				exit 0
+				# NixOS restarts wpa_supplicant a few seconds after the interface appears and that drops a
+				# fresh link (notes/106): "connected" only counts once it has held for SETTLE seconds.
+				$SLEEP "$SETTLE"
+				state=$($NMCLI -t -f DEVICE,STATE device 2>/dev/null | grep "^$IF:" | cut -d: -f2)
+				if [ "$state" = connected ]; then
+					log "try $try/$TRIES: connected and held ${SETTLE}s, clean init"
+					exit 0
+				fi
+				log "try $try/$TRIES: link dropped after connecting (supplicant restart?), reconnecting"
+				$NMCLI --wait 0 device connect "$IF" >/dev/null 2>&1
+				waited=$(( waited + SETTLE ))
+				$SLEEP "$POLL"
+				continue
 			fi
 			phy=$(( $(cnt "PHY transmission error") - bphy )); susp=$(( $(cnt "MAC suspend failed") - bsusp ))
 			auth=$(( $(cnt "authentication with .* timed out") - bauth ))

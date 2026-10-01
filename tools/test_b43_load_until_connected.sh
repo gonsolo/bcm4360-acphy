@@ -23,6 +23,12 @@ EOS
 	cat > "$T/nmcli" <<EOS
 #!/usr/bin/env bash
 echo "\$*" >> $T/nmcli_calls
+if [ "\$(sed -n \$(cat $T/try)p $T/outcomes)" = blip ]; then
+	# link drops once right after the first "connected" (NixOS restarts wpa_supplicant), then holds
+	case "\$*" in *DEVICE,STATE*) n=\$(( \$(cat $T/stq 2>/dev/null || echo 0) + 1 )); echo \$n > $T/stq
+		[ \$(( n % 3 )) -eq 2 ] && echo "wlp3s0b1:disconnected" || echo "wlp3s0b1:connected";; *) echo "wlp3s0b1:x";; esac
+	exit 0
+fi
 [ "\$(sed -n \$(cat $T/try)p $T/outcomes)" = ok ] || [ "\$(sed -n \$(cat $T/try)p $T/outcomes)" = midok ] && echo "wlp3s0b1:connected" || echo "wlp3s0b1:disconnected"
 EOS
 	cat > "$T/dmesg" <<EOS
@@ -42,7 +48,7 @@ for i in \$(seq 1 \$(( badsusp * 3 ))); do echo "b43-phy0 ERROR: MAC suspend fai
 EOS
 	chmod +x "$T"/load "$T"/rmmod "$T"/nmcli "$T"/dmesg
 	B43_LOAD="$T/load" B43_RMMOD="$T/rmmod" B43_NMCLI="$T/nmcli" B43_DMESG="$T/dmesg" \
-		B43_SLEEP=true B43_TRIES=6 B43_WAIT=6 B43_POLL=2 B43_MAX_ERRS=3 bash "$SUT" > "$T/out" 2>&1
+		B43_SLEEP=true B43_TRIES=6 B43_WAIT=30 B43_SETTLE=1 B43_POLL=2 B43_MAX_ERRS=3 bash "$SUT" > "$T/out" 2>&1
 	local ex=$?
 	local gl gr; gl=$(wc -l < "$T/loads"); gr=$(wc -l < "$T/rmmods")
 	local gc nf; gc=$(grep -c "device connect" "$T/nmcli_calls"); nf=$(head -n "$gl" "$T/outcomes" | grep -c "^loadfail\$")
@@ -63,4 +69,7 @@ grep -q "auth=3" "$T/out" || { echo "FAIL evidence_is_logged: no auth=3 in outpu
 run suspend_failures_count  2 1 0 badsusp ok
 run mild_failure_not_connected 2 1 0 badmild ok
 run few_suspend_failures_then_connects 1 0 0 midok
+: > "$T/stq"
+run link_drops_then_holds    1 0 0 blip
+grep -q "dropped" "$T/out" || { echo "FAIL link_drop_logged: no dropped in output"; fail=1; }
 exit $fail
