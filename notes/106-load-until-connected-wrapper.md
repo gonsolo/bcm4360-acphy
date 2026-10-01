@@ -42,3 +42,12 @@ graphical login waits for it; with the retry loop inside it, boot could stall up
 
 The USB-stick wlan keeps working throughout, but blinks at every b43 reload (wpa_supplicant restart),
 about once a minute while retries last.
+
+## Enabled (2026-10-01) and first boot test
+`b43-ac-load.service` now runs the wrapper (`Type = "simple"`, `after = NetworkManager.service`, via
+/etc/nixos/configuration.nix; backup at /etc/nixos/configuration.nix.bak-before-b43-wrapper; undo = restore it
+and `nixos-rebuild switch`). First reboot (kernel 7.2.7): service 11:44:29-11:45:21 (52 s), try 1 rejected
+(susp=8 auth=0), try 2 connected and held 25 s, Result=success; b43 and the stick both connected, graphical
+login not delayed. One boot is one sample of a ~21 %-per-try process (mean ~4 tries). Stick behaviour: every
+b43 (re)load restarts the shared wpa_supplicant via a NixOS udev rule, which disconnects the stick too (seen
+in the journal: ~20 s drop at 11:36).
