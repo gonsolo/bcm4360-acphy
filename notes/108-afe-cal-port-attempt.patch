@@ -1,0 +1,202 @@
+diff --git a/b43-src/phy_ac.c b/b43-src/phy_ac.c
+index 95edee4..226b457 100644
+--- a/b43-src/phy_ac.c
++++ b/b43-src/phy_ac.c
+@@ -1158,6 +1158,186 @@ static void b43_phy_ac_tune(struct b43_wldev *dev,
+ 	b43_radio_2069_vcocal(dev);
+ }
+ 
++/*
++ * notes/108: port of Alessio Ferri's RX AFE calibration (b43-ac-wip src/phy_ac.c,
++ * rxcal_afe_iter/rxcal_afe_calibrate/rxcal_afe_finalize_gain_luts, derived from bus traces of the stock
++ * driver). The PHY has a hardware calibration engine: write a command to PHY reg 0x0380, wait for its
++ * busy bit (0x8000) to clear, copy the result words between AC table 0x0c offsets. The results feed the
++ * LO-feedthrough compensation tables 0x42/0x62/0x82 used by TX. We replay wl's captured results from
++ * another session; this measures them for THIS init. His finalize adds the results to 5 GHz base values;
++ * for 2.4 GHz we instead shift the replayed LOFT tables by (new - replayed) result, per byte.
++ * Every register it touches is saved and restored. Experiment, default off: ac_afe_cal=1.
++ */
++static bool b43_ac_afe_cal;
++module_param_named(ac_afe_cal, b43_ac_afe_cal, bool, 0644);
++MODULE_PARM_DESC(ac_afe_cal, "AC-PHY test: run the RX AFE calibration engine after the ch6 replay (notes/108)");
++
++#define AFE_TBL		0x000c
++#define AFE_GATE	0x019e	/* B43_PHY_AC_REG_TBL_WRITE_GATE */
++#define AFE_GATE_LOCK	0x0002
++
++static u16 b43_ac_afe_res[6][2];	/* results stored at table 0x0c offsets 0x40,0x43,0x48,0x4b,0x50,0x53 */
++
++static void b43_ac_tbl_read16(struct b43_wldev *dev, u16 id, u16 off, unsigned int n, u16 *out)
++{
++	unsigned int i;
++
++	if (!(b43_phy_read(dev, AFE_GATE) & AFE_GATE_LOCK))
++		b43_phy_maskset(dev, AFE_GATE, (u16)~AFE_GATE_LOCK, AFE_GATE_LOCK);
++	b43_phy_write(dev, B43_PHY_AC_TABLE_ID, id);
++	b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, off);
++	for (i = 0; i < n; i++)
++		out[i] = b43_phy_read(dev, B43_PHY_AC_TABLE_DATA1);
++}
++
++static void b43_ac_tbl_write16(struct b43_wldev *dev, u16 id, u16 off, unsigned int n, const u16 *v)
++{
++	unsigned int i;
++
++	b43_phy_maskset(dev, AFE_GATE, (u16)~AFE_GATE_LOCK, AFE_GATE_LOCK);
++	b43_phy_write(dev, B43_PHY_AC_TABLE_ID, id);
++	b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, off);
++	for (i = 0; i < n; i++)
++		b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1, v[i]);
++	b43_phy_maskset(dev, AFE_GATE, (u16)~AFE_GATE_LOCK, 0);
++}
++
++/* The vendor's per-core gain ladder pair (his "ladder B"), table 0x0c offsets 0x00.. (core 0) / 0x20.. */
++static const u16 b43_ac_ladder_b_c0[18] = { 0x0100, 0x0200, 0x0300, 0x0500, 0x0700, 0x0a00, 0x0f00,
++	0x0f01, 0x0f02, 0x0f03, 0x0f04, 0x0f05, 0x0f06, 0x0f07, 0x1507, 0x1e07, 0x2a07, 0x3c07 };
++static const u16 b43_ac_ladder_b_c1[18] = { 0x0100, 0x0200, 0x0300, 0x0500, 0x0700, 0x0a00, 0x0f00,
++	0x1500, 0x1e00, 0x2a00, 0x3c00, 0x3c01, 0x3c02, 0x3c03, 0x3c04, 0x3c05, 0x3c06, 0x3c07 };
++
++static void b43_ac_afe_ladder_b(struct b43_wldev *dev)
++{
++	unsigned int i;
++
++	for (i = 0; i < 18; i++) {
++		b43_ac_tbl_write16(dev, AFE_TBL, 0x00 + i, 1, &b43_ac_ladder_b_c0[i]);
++		b43_ac_tbl_write16(dev, AFE_TBL, 0x20 + i, 1, &b43_ac_ladder_b_c1[i]);
++	}
++}
++
++/* One calibration-engine iteration (his rxcal_afe_iter); 20 MHz: bw_step = 0. */
++static void b43_ac_afe_iter(struct b43_wldev *dev, u16 cmd, u16 core_off, const u16 *pre,
++			    unsigned int n_pre, u16 rd_off, unsigned int rw_len, u16 wr_off)
++{
++	static const u16 zero;
++	static const u16 wanted[6] = { 0x40, 0x43, 0x48, 0x4b, 0x50, 0x53 };
++	unsigned int i, tries;
++	u16 result[2] = { 0, 0 };
++
++	b43_phy_write(dev, 0x0381, 0x7976);
++	for (i = 0; i < n_pre; i++)
++		b43_ac_tbl_write16(dev, AFE_TBL, pre[i], 1, &zero);
++	b43_phy_write(dev, 0x0383, 0x003d);
++	b43_phy_write(dev, 0x0380, cmd);
++	for (tries = 0; tries < 20000; tries++) {
++		if (!(b43_phy_read(dev, 0x0380) & 0x8000))
++			break;
++		udelay(1);
++	}
++	if (tries == 20000)
++		b43err(dev->wl, "AC-PHY: RX AFE cal busy timeout (0x0380 stuck, cmd=0x%04x)\n", cmd);
++	b43_radio_read(dev, 0x0144 + core_off);
++	b43_ac_tbl_read16(dev, AFE_TBL, rd_off, rw_len, result);
++	b43_phy_maskset(dev, AFE_GATE, (u16)~AFE_GATE_LOCK, 0);	/* manual unlock, as the vendor */
++	b43_ac_tbl_write16(dev, AFE_TBL, wr_off, rw_len, result);
++	for (i = 0; i < ARRAY_SIZE(wanted); i++)
++		if (wanted[i] == wr_off) {
++			b43_ac_afe_res[i][0] = result[0];
++			b43_ac_afe_res[i][1] = rw_len > 1 ? result[1] : 0;
++		}
++}
++
++static void b43_ac_afe_core(struct b43_wldev *dev, u16 c, u16 off)
++{
++	/* c = command high byte base per core (0x8_ / 0x9_ / 0xa_), off = core register offset */
++	/* Per core k = 0,1,2 the vendor script (his rxcal_afe_calibrate) is the same six iterations with the
++	 * command high nibble 0x8/0x9/0xa, pre-clear and write offsets shifted by 8*k and read offsets by 7*k. */
++	const unsigned int k = (c - 0x80) >> 4;
++	const u16 d = 8 * k, r = 7 * k;
++	const u16 pa[2] = { (u16)(0x0043 + d), (u16)(0x0044 + d) };
++	const u16 pb[1] = { (u16)(0x0043 + d) };
++	const u16 hi = (u16)(c << 8);
++
++	b43_ac_afe_iter(dev, (u16)(hi | 0x0434), off, pa, 2, (u16)(0x0085 + r), 1, (u16)(0x0045 + d));
++	b43_ac_afe_iter(dev, (u16)(hi | 0x0334), off, pb, 1, (u16)(0x0084 + r), 1, (u16)(0x0044 + d));
++	b43_ac_afe_iter(dev, (u16)(hi | 0x0084), off, NULL, 0, (u16)(0x0080 + r), 2, (u16)(0x0040 + d));
++	b43_ac_afe_iter(dev, (u16)(hi | 0x0267), off, NULL, 0, (u16)(0x0083 + r), 1, (u16)(0x0043 + d));
++	b43_ac_afe_iter(dev, (u16)(hi | 0x0056), off, NULL, 0, (u16)(0x0080 + r), 2, (u16)(0x0040 + d));
++	b43_ac_afe_iter(dev, (u16)(hi | 0x0234), off, NULL, 0, (u16)(0x0083 + r), 1, (u16)(0x0043 + d));
++}
++
++static void b43_phy_ac_afe_cal_run(struct b43_wldev *dev)
++{
++	static const u16 save_regs[] = { 0x0140, 0x02ed, 0x02f1, 0x02f5, 0x02f9, 0x06d4, 0x08d4, 0x0ad4,
++					 0x0381, 0x0382, 0x0383, 0x0460 };
++	u16 saved[ARRAY_SIZE(save_regs)], lad0[18], lad1[18], old_lo[3], new_lo[3];
++	static const u16 lo_off[3] = { 0x0043, 0x004b, 0x0053 };
++	static const u16 loft_tbl[3] = { 0x0042, 0x0062, 0x0082 };
++	unsigned int i, core;
++
++	for (i = 0; i < ARRAY_SIZE(save_regs); i++)
++		saved[i] = b43_phy_read(dev, save_regs[i]);
++	b43_ac_tbl_read16(dev, AFE_TBL, 0x00, 18, lad0);
++	b43_ac_tbl_read16(dev, AFE_TBL, 0x20, 18, lad1);
++	for (core = 0; core < 3; core++)
++		b43_ac_tbl_read16(dev, AFE_TBL, lo_off[core], 1, &old_lo[core]);
++	b43_phy_maskset(dev, AFE_GATE, (u16)~AFE_GATE_LOCK, 0);
++	memset(b43_ac_afe_res, 0, sizeof(b43_ac_afe_res));
++
++	/* the vendor runs the engine inside a window opened by forcing the PHY clock + 0x0382 = 0x8a09 */
++	b43_phy_force_clock(dev, true);
++	b43_phy_write(dev, 0x0382, 0x8a09);
++	/* arm the RX gate like the vendor: classifier = WAITED only, ADC not held, clip detectors off */
++	b43_phy_write(dev, 0x0140, 0x0df4);
++	b43_phy_mask(dev, 0x02ed, (u16)~0x0010);
++	b43_phy_mask(dev, 0x02f1, (u16)~0x0010);
++	b43_phy_mask(dev, 0x02f5, (u16)~0x0010);
++	b43_phy_mask(dev, 0x02f9, (u16)~0x0010);
++	for (core = 0; core < 3; core++)
++		b43_phy_set(dev, 0x06d4 + core * 0x200, 0x4000);
++
++	b43_ac_afe_core(dev, 0x80, 0x0000);
++	b43_ac_afe_ladder_b(dev);	/* vendor: ladder B after core 0, kept for cores 1 and 2 (hot path) */
++	b43_ac_afe_core(dev, 0x90, 0x0200);
++	b43_ac_afe_core(dev, 0xa0, 0x0400);
++
++	/* fresh LO results per core (his lo[core] = afe_res[2 * core + 1]) */
++	for (core = 0; core < 3; core++) {
++		new_lo[core] = b43_ac_afe_res[2 * core + 1][0];
++		b43_ac_tbl_write16(dev, AFE_TBL, lo_off[core], 1, &new_lo[core]);
++	}
++	/* shift the replayed LOFT tables by (new - replayed), per byte */
++	for (core = 0; core < 3; core++) {
++		u8 dh = (u8)((new_lo[core] >> 8) - (old_lo[core] >> 8));
++		u8 dl = (u8)(new_lo[core] - old_lo[core]);
++
++		if (!dh && !dl)
++			continue;
++		for (i = 0; i < 0x80; i++) {
++			u16 e;
++
++			b43_ac_tbl_read16(dev, loft_tbl[core], i, 1, &e);
++			b43_phy_maskset(dev, AFE_GATE, (u16)~AFE_GATE_LOCK, 0);
++			e = (u16)((((e >> 8) + dh) & 0xff) << 8 | ((e + dl) & 0xff));
++			b43_ac_tbl_write16(dev, loft_tbl[core], i, 1, &e);
++		}
++	}
++	/* restore the replayed gain ladders and every register the calibration touched */
++	for (i = 0; i < 18; i++) {
++		b43_ac_tbl_write16(dev, AFE_TBL, 0x00 + i, 1, &lad0[i]);
++		b43_ac_tbl_write16(dev, AFE_TBL, 0x20 + i, 1, &lad1[i]);
++	}
++	for (i = 0; i < ARRAY_SIZE(save_regs); i++)
++		b43_phy_write(dev, save_regs[i], saved[i]);
++	b43_phy_force_clock(dev, false);
++	b43_phy_ac_resetcca(dev);
++	pr_info("b43: AFE cal LO old %04x/%04x/%04x new %04x/%04x/%04x\n",
++		old_lo[0], old_lo[1], old_lo[2], new_lo[0], new_lo[1], new_lo[2]);
++}
++
+ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
+ 					unsigned int new_channel)
+ {
+@@ -1757,6 +1937,10 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
+ 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
+ 	}
+ 
++	/* notes/108: measure the AFE/LO state of this init right after wl's ch6 state was applied */
++	if (b43_ac_afe_cal && new_channel == 6 && !is_5ghz)
++		b43_phy_ac_afe_cal_run(dev);
++
+ 	return 0;
+ }
+ 
