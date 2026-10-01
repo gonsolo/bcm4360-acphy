@@ -16,3 +16,16 @@ instead of `tools/b43_boot.sh` with the same params (`ac_replay=1 dma32=1 ac_por
 `nixos-rebuild switch`. Each reload restarts wpa_supplicant on NixOS, so do it at boot. Expected cost:
 ~4 tries on average, <= ~3 min worst case. Untested on the real hardware (the USB-stick wlan must not be
 disturbed while working); first real test = next boot after the service change.
+
+## Live results (2026-10-01, three batches of 4 runs with the final logic, USB stick guarded)
+- Evidence per rejected init is logged (`phy= susp= auth=`); in production `phy` is always 0 (the driver
+  masks the PHY TX error IRQ below verbose=3), so decisions rest on suspend failures and mac80211 auth
+  timeouts. Typical bad init: auth=2 (two failed auth rounds, ~17 s apart) plus 4-9 suspend failures.
+- Fixes found live (each test-first): the wrapper starts the connect itself (NM autoconnect does not
+  reliably pick up the b43 interface); "connected" must hold 25 s because NixOS restarts wpa_supplicant a
+  few seconds after the interface appears and drops a fresh link (success then re-checked 40 s later in
+  all live runs); evidence is counted after a per-try kmsg marker (the dmesg ring buffer rotates, totals
+  gave negative deltas).
+- 43 tries, 9 judged clean (~21 % per try, the same as the plain base rate). With 6 tries the give-up
+  chance is ~24 % (3 of 12 runs gave up); default raised to 12 tries (~6 %). Worst case ~12 x 55 s.
+- Every successful run was still connected 40 s after the wrapper exited.

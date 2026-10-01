@@ -8,7 +8,7 @@
 #   - >= B43_MAX_ERRS new "PHY transmission error" / "authentication ... timed out" lines
 #                                                           -> bad init, unload and try again
 #   - neither (no connect attempt happened / out of range)  -> nothing to judge, keep this init
-# After B43_TRIES bad tries it leaves the last one loaded and exits 1.
+# After B43_TRIES (12) bad tries it leaves the last one loaded and exits 1.
 #
 # Every unload/load restarts wpa_supplicant on NixOS (other wlan links blink); run at boot, not mid-work.
 # usage: tools/b43_load_until_connected.sh [b43 module params...]   (the b43-ac-load.service params)
@@ -22,7 +22,7 @@ NMCLI=${B43_NMCLI:-nmcli}
 DMESG=${B43_DMESG:-dmesg}
 KMSG=${B43_KMSG:-/dev/kmsg}
 SLEEP=${B43_SLEEP:-sleep}
-TRIES=${B43_TRIES:-6}
+TRIES=${B43_TRIES:-12}
 WAIT=${B43_WAIT:-70}
 SETTLE=${B43_SETTLE:-25}
 POLL=${B43_POLL:-2}
