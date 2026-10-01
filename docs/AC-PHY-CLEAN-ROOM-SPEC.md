@@ -382,11 +382,40 @@ correct by direct SHM readback during testing.
 ### 4.3 TX status completion / lifetime
 
 Each completed (or given-up) TX produces a completion record read back
-through the existing generic b43 TX-status IRQ mechanism, decoding a
-32-bit-per-frame legacy-format status word that already exists in b43 for
-other PHY generations: cookie (matches §4.1's field), a frame/attempt
-count, a 4-bit "suppress reason" code, and an ACKed flag. One
-suppress-reason value is critical to get right:
+from the TX-status FIFO (core MMIO 0x170/0x174, plus 0x178/0x17c on this
+core generation: **four** 32-bit words per frame, not the two of older
+cores; the host pops a record by reading all four, then the "valid" bit of
+word 0 tells whether another is queued).
+
+*Record layout (verified against raw words of real frames, 2026-10):*
+
+| word | bits | meaning |
+|---|---|---|
+| 0 | 0 | record valid |
+| 0 | 2 / 3 | intermediate status / power-management bit was set |
+| 0 | 4-7 | suppress reason (see below) |
+| 0 | 15 (0x8000) | frame was ACKed |
+| 0 | 16-31 | cookie (matches §4.1's field) |
+| 1 | 0-15 / 16-23 | 802.11 sequence number / PHY status byte |
+| 2 | **0-7** | **number of transmission attempts of this frame** (1 = sent once) |
+| 2 | 16-23 | a constant `1` on every ACKed frame, `0` on suppressed/unACKed ones; **not** an attempt counter (meaning unknown, perhaps "ACKs received") |
+| 3 | all | 0 in every record observed |
+
+Example raw records: `20288103 00000000 00010002 00000000` (ACKed, 2 attempts),
+`202a8103 00000000 00010001 00000000` (ACKed, 1 attempt),
+`40240103 00000000 00000001 00000000` (scan probe, suppressed, not ACKed).
+
+**Pitfall that cost ~16x throughput:** taking the attempt count as the *sum*
+of the byte fields of words 2 and 3 adds the constant `1` of bits 16-23, so
+every ACKed frame is reported with one retry. mac80211's rate control then
+sees ~50 % failure at every rate and parks TX at the lowest rates
+(observed: 1-6 Mbit/s, "expected throughput 0.64 Mbit/s", upload ~1 Mbit/s,
+about 1.2 "retries" per frame independent of rate and TX power). With the
+attempt count taken from bits 0-7 of word 2 only, TX runs at 54 Mbit/s and
+upload reaches ~18 Mbit/s on the same link. A cheap way to see the raw
+words: enable the driver's debug level at run time and tabulate them.
+
+One suppress-reason value is critical to get right:
 
 **Frame lifetime (suppress reason = "LIFE").** The firmware maintains,
 per queued frame, a deadline computed as (current TSF time) + (a
@@ -573,6 +602,11 @@ while the reference capture happened to be on one specific channel.
 
 ## 9. Open items (not covered by this spec)
 
+- **Why most inits cannot transmit (§10.1).** Unknown. The state is set at init, invisible in every register we
+  can snapshot, and independent of everything listed in §10.6. Prime suspect: run-time calibration state that the
+  replay of another session's results cannot reproduce (§10.5). Waiting for the independent port's 2.4 GHz support.
+- **Firmware-generated ACKs** still fail at a low rate on a clean init (§10.7).
+
 - **5 GHz beyond one untested mode.** An alternate bring-up path exists
   for 5 GHz that keeps `wl`'s own captured 80 MHz-wide PHY/synthesizer
   state instead of retuning per-channel; it was implemented experimentally
@@ -599,3 +633,100 @@ while the reference capture happened to be on one specific channel.
   cost of any associated 802.11 station doing periodic background scans,
   not a driver defect) - included here only so an implementer doesn't
   waste time chasing it as a bug.
+
+## 10. Run-time behaviour, failure modes and what has been ruled out (added 2026-10-01)
+
+Everything above describes how to set the chip up. This section records what happens at run time on a
+MacBookAir6,1 (BCM4360, PCI 14e4:43a0, chip rev 3, core rev 42, radio 2069 rev 4, AC-PHY rev 1), measured
+with the bring-up of §2-§8 (wl's state replayed). Notes numbers refer to `notes/`.
+
+### 10.1 Per-init reliability: most fresh inits cannot transmit
+- About **21 % of fresh inits** (a module load, or any core re-init) can transmit; measured over 43 tries
+  and 118 connect attempts. In the others every transmission ends in a PHY transmission error: the PHY holds
+  carrier sense (`phydebug` 0x5 = CRS|TXF, 0x45 with more activity), the ucode sits mid-TX and **never
+  answers a MAC-suspend request**, authentication frames never get acknowledged, the connect times out.
+- The state is decided at init and **persists** until the next init: a clean init stays clean for hours; a
+  bad one stays bad. It is not temperature, uptime or cold-versus-warm boot (all tested).
+- A connect succeeds exactly when the PHY completes its frames without a TX error: 26 of 28 connected
+  attempts had zero PHY TX errors, 83 of 90 failed attempts had many (median 11).
+- A scan **does not reveal** a bad init (23 of 24 bad inits showed zero errors during the scan phase);
+  the unicast frames of the first connect attempt do. A usable detector: two mac80211 authentication
+  timeouts, or >= 8 MAC suspend failures, within ~45 s of the first connect (the PHY TX-error interrupt is
+  masked below the driver's debug verbosity, so it is invisible in production logs).
+- No static register difference between good and bad inits was found: snapshots of PHY, radio, MAC, SHM
+  right after load, 50 inits (notes/104, 105).
+- Workaround that exists today: reload until an init connects and holds ~25 s (`tools/b43_load_until_connected.sh`).
+
+### 10.2 What the ucode does when idle (PSM program counter at MMIO 0x154, low 13 bits)
+- Its scheduler loop is at ucode addresses 0x0000-0x0014; the last instruction, **0x000F, is `NAP`** (sleep
+  until a hardware event). Before napping it tests SHM words 0x30/0x31 (HOSTF2/HOSTF3, byte offsets 0x60/0x62)
+  and two scratch registers (SCR 0x2C/0x2D, not host-visible). If either hostflag word is non-zero it skips the
+  NAP. `wl` writes **HOSTF2 = 0x8c05, HOSTF3 = 0xb051**; b43 never wrote them, so the ucode napped after every
+  TX post and woke only on its ~1-2.5 s tick (notes/60, 62). Writing them removes the NAP completely
+  (0 of 3882 PC samples at 0x000F) but does **not** make a bad init transmit: the ucode is then awake and busy
+  in its TX subroutines, waiting for the PHY to finish a frame.
+- A second NAP at 0x0F2E belongs to a timer-computation routine (notes/69). The d11-emu emulator treats NAP as
+  a no-op, so it cannot show what wakes the PSM.
+
+### 10.3 MAC suspend / wake handshake
+- `wl` raises the MACCTL AWAKE bit (0x04000000) around every MAC suspend/enable window and drops it again
+  afterwards: MACCTL reads 0x44020403 during a window and 0x40020403 between (also 0x44120402 etc. with other
+  mode bits). b43 forces AWAKE on; releasing it like `wl` changed nothing. Before requesting the suspend the
+  host must wait until the ucode state word (SHM UCODESTAT) is not "sleep" (a value of 2 means active).
+- The suspend request is clearing MACCTL ENABLED (0x1); the ack is IRQ-reason bit 0 (MAC_SUSPENDED), which is
+  not in the interrupt mask and cannot be consumed by the interrupt handler. On a clean init it arrives within
+  0-3 ms; on a bad init never (the 40 ms poll times out; waiting 250 ms or retrying changes nothing).
+- A TX post to the DMA engine is **a single MMIO write**: the TX engine pointer (core offset 0x244 for the
+  queue used by management frames) gets ring base + index x 16 (descriptors are 16 bytes). `wl` does nothing
+  else around it (raw trace, notes/104).
+
+### 10.4 Facts about this board that are easy to get wrong
+- PMU (ChipCommon): PLL control words pllctl2 = 0x0c31, pllctl3 = 0x100e (already programmed at attach),
+  min_res_mask 0x13b, max_res_mask 0x1ff (routers show 0x7ff; forcing 0x7ff changed nothing). MAC clock
+  fraction: the initvals leave 0x66662 (160 MHz), `wl` writes 0x6614b (160.5 MHz); changing it had no effect.
+- Radio PLL lock: radio 0x090b bit 0x100 reads 1 when locked; it is still 0 right after a channel switch and
+  locks ~30 us later, in every init, good or bad. Waiting for it changes nothing.
+- SROM: rev 11 image, board type 0x0117, board rev 0x1204, boardflags 0x1001 / 0x1040, `txchain` 6, 512-byte
+  image at ChipCommon +0x800 (the 0x400-byte shadow aliases it from word 0x100). The OEM TX header's core mask
+  does not need to follow `txchain`: masks 1, 6 and 7 behave the same.
+- TX FIFO geometry (42 blocks, FIFOs 0-5 + template FIFO) is the same as in the independent b43-ac-wip port.
+- DMA descriptor rings need **no** 64 KB alignment on this board: connected and failed attempts both occurred
+  with unaligned and aligned rings (12 attempts, notes/109), although the other port allocates 64 KB rings.
+- Access to the object memory address register needs no read-back; the MAC set up before the PHY changes nothing
+  (notes/104).
+- mac80211 rate masks must contain at least one of the AP's basic rates; APs that mark only CCK rates as basic
+  reject OFDM-only masks with EINVAL, which is not a driver problem.
+
+### 10.5 The PHY calibration engine (partially understood)
+- PHY reg 0x0380 takes a command word and its bit 15 stays set while the engine runs; PHY 0x0381/0x0383 are set
+  to 0x7976 (20 MHz) and 0x003d first. The engine only runs inside a window opened by forcing the PHY clock
+  (core IOCTL FGC) and writing PHY 0x0382 = 0x8a09. Results are copied between AC table 0x0c offsets (0x40-0x55
+  per core, +8 per core on writes, +7 on reads); they feed the TX LO-feedthrough compensation tables 0x42 / 0x62 /
+  0x82 (128 entries per core).
+- Run alone, the engine returns zeros: the radio loopback and tone setup of the RX IQ calibration must precede it.
+  Gain ladders sit in table 0x0c (offsets 0x00.. and 0x20..); per-core TX gain words in table 7 (offsets 0x100/0x103/
+  0x106 + core) and the digital multiplier `bbmult` in table 0x0c (offsets 0x63/0x67/0x6b, mirrored at 0x73/..);
+  changing `bbmult` 0x3f -> 0x78 did not change the retry rate (notes/108, 110).
+- Not implemented here: any of the calibration algorithms themselves (RX IQ, RX AFE, TX IQ/LO, idle TSSI), TX
+  power control (PHY 0x70 bits 15-13 are enabled by the replay; switching them off changed nothing), tempsense,
+  the noise-driven CRS threshold (low byte of PHY 0x0321, 0x0324 ... 0x0336; forcing it to 68 and 120 changed
+  nothing), and the periodic watchdog. The independent b43-ac-wip port has all of these for 5 GHz.
+
+### 10.6 Ruled out as the cause of bad inits (each tested, notes/103-110)
+Kernel version and commit (the git bisect ended on a no-op change), CPU-bug mitigations, kernel config, cpuidle,
+DMA placement and alignment, CPU count, ASPM, IOMMU (none), PMU settings, MAC clock fraction, MAC-before-PHY
+ordering, object-address read-back, PHY clock/PSM_PHY_HDR pairing, TX core mask, TX power control, CRS threshold,
+suspend retry/longer waits, passive scanning, cold start, PLL lock wait, the AFE calibration alone.
+
+### 10.7 Performance once a good init is up
+With the TX-status fix of §4.3: TX 54 Mbit/s, upload ~18 Mbit/s, download ~10 Mbit/s at -70 dBm on 2.4 GHz; mac80211
+reports ~9 % duplicate frames from the AP, i.e. some of the firmware-generated ACKs still do not reach it
+(the same PHY TX error, on SIFS-timed responses). Legacy rates only.
+
+### 10.8 How complete is this spec? (author's estimate, 2026-10-01; the denominator is a judgment)
+Roughly 70 % of what a 2.4 GHz legacy-rate station needs; roughly 25-30 % of the chip as a vendor would document
+it. By area: identification/attach ~90 %; bring-up ~60 %; 2.4 GHz channel tuning at 20 MHz ~65 %; TX descriptor and
+status ~70 %; RX descriptor and status ~70 %; calibrations ~15 %; TX power control, tempsense, watchdog ~10 %;
+5 GHz, 40/80 MHz and HT/VHT rates ~10-15 %; power management, suspend/resume, coexistence ~5 %; the ucode's full
+event model ~15 %. The least-known areas (calibration and TX-power machinery) are exactly where the per-init
+failure of §10.1 most plausibly lives.
