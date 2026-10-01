@@ -23,7 +23,7 @@ EOS
 	cat > "$T/nmcli" <<EOS
 #!/usr/bin/env bash
 echo "\$*" >> $T/nmcli_calls
-[ "\$(sed -n \$(cat $T/try)p $T/outcomes)" = ok ] && echo "wlp3s0b1:connected" || echo "wlp3s0b1:disconnected"
+[ "\$(sed -n \$(cat $T/try)p $T/outcomes)" = ok ] || [ "\$(sed -n \$(cat $T/try)p $T/outcomes)" = midok ] && echo "wlp3s0b1:connected" || echo "wlp3s0b1:disconnected"
 EOS
 	cat > "$T/dmesg" <<EOS
 #!/usr/bin/env bash
@@ -31,6 +31,11 @@ EOS
 bad=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^bad\$")
 badauth=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^badauth\$")
 for i in \$(seq 1 \$(( bad * 3 ))); do echo "b43-phy0 ERROR: PHY transmission error"; done
+midok=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^midok\$")
+badmild=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^badmild\$")
+for i in \$(seq 1 \$(( midok * 4 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
+for i in \$(seq 1 \$(( badmild * 1 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
+for i in \$(seq 1 \$badmild); do echo "wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out"; done
 badsusp=\$(head -n \$(cat $T/try) $T/outcomes | grep -c "^badsusp\$")
 for i in \$(seq 1 \$(( badauth * 3 ))); do echo "wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out"; done
 for i in \$(seq 1 \$(( badsusp * 3 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
@@ -54,5 +59,8 @@ run all_bad_gives_up        6 5 1 bad bad bad bad bad bad
 run quiet_is_not_a_failure  1 0 0 quiet
 run load_failure_retries    3 2 0 loadfail bad ok
 run auth_timeouts_count     2 1 0 badauth ok
+grep -q "auth=3" "$T/out" || { echo "FAIL evidence_is_logged: no auth=3 in output"; sed "s/^/    /" "$T/out"; fail=1; }
 run suspend_failures_count  2 1 0 badsusp ok
+run mild_failure_not_connected 2 1 0 badmild ok
+run few_suspend_failures_then_connects 1 0 0 midok
 exit $fail

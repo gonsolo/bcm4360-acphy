@@ -25,19 +25,25 @@ TRIES=${B43_TRIES:-6}
 WAIT=${B43_WAIT:-45}
 POLL=${B43_POLL:-2}
 MAX_ERRS=${B43_MAX_ERRS:-3}
+MAX_AUTH=${B43_MAX_AUTH:-2}
+MAX_SUSP=${B43_MAX_SUSP:-8}
 
-# Evidence of a bad init: PHY TX errors and MAC suspend failures (both rate-limited in dmesg) and mac80211
-# auth timeouts (not, but only one per ~17 s).
-errs() { $DMESG 2>/dev/null | grep -cE "PHY transmission error|MAC suspend failed|authentication with .* timed out"; }
+# Evidence of a bad init (deltas since this try's load): PHY TX errors (only logged with verbose=3, so
+# usually 0 in production), MAC suspend failures and mac80211 auth timeouts (one per ~17 s).
+# Early verdict "bad": phy >= MAX_ERRS, or auth >= MAX_AUTH, or susp >= MAX_SUSP. A few suspend failures
+# alone are normal for an init that goes on to connect. At the end of the window, an init that tried and
+# failed (any evidence) but did not connect is bad too; one with no evidence at all is kept.
+cnt() { $DMESG 2>/dev/null | grep -cE "$1"; }
 log() { echo "b43_load_until_connected: $*"; }
 
 for try in $(seq 1 "$TRIES"); do
-	base=$(errs)
+	bphy=$(cnt "PHY transmission error"); bsusp=$(cnt "MAC suspend failed"); bauth=$(cnt "authentication with .* timed out")
 	if ! $LOAD "$@"; then
 		log "try $try/$TRIES: load failed"
 		verdict=bad
 	else
 		verdict=quiet
+		phy=0; susp=0; auth=0
 		waited=0
 		tried=0
 		while [ "$waited" -lt "$WAIT" ]; do
@@ -52,20 +58,23 @@ for try in $(seq 1 "$TRIES"); do
 				log "try $try/$TRIES: connected, clean init"
 				exit 0
 			fi
-			if [ $(( $(errs) - base )) -ge "$MAX_ERRS" ]; then
+			phy=$(( $(cnt "PHY transmission error") - bphy )); susp=$(( $(cnt "MAC suspend failed") - bsusp ))
+			auth=$(( $(cnt "authentication with .* timed out") - bauth ))
+			if [ "$phy" -ge "$MAX_ERRS" ] || [ "$auth" -ge "$MAX_AUTH" ] || [ "$susp" -ge "$MAX_SUSP" ]; then
 				verdict=bad
 				break
 			fi
 			$SLEEP "$POLL"
 			waited=$(( waited + POLL ))
 		done
+		[ "$verdict" = quiet ] && [ $(( phy + susp + auth )) -ge 1 ] && verdict=bad
 	fi
 	if [ "$verdict" = quiet ]; then
 		log "try $try/$TRIES: no connect attempt and no TX errors; keeping this init"
 		exit 0
 	fi
 	if [ "$try" -lt "$TRIES" ]; then
-		log "try $try/$TRIES: bad init (TX errors), reloading"
+		log "try $try/$TRIES: bad init, reloading (evidence since load: phy=$(( $(cnt "PHY transmission error") - bphy )) susp=$(( $(cnt "MAC suspend failed") - bsusp )) auth=$(( $(cnt "authentication with .* timed out") - bauth )))"
 		$RMMOD b43
 		$SLEEP 2
 	fi

@@ -1,0 +1,14 @@
+=== live run 1 09:58:59
+b43_load_until_connected: try 1/6: connected, clean init
+exit: 0  state after 15 s: wlp3s0b1:connected
+=== live run 2 09:59:24
+b43_load_until_connected: try 1/6: bad init, reloading (evidence since load: phy=0 susp=2 auth=1)
+b43_load_until_connected: try 2/6: bad init, reloading (evidence since load: phy=0 susp=5 auth=1)
+b43_load_until_connected: try 3/6: bad init, reloading (evidence since load: phy=0 susp=4 auth=2)
+b43_load_until_connected: try 4/6: bad init, reloading (evidence since load: phy=0 susp=4 auth=0)
+b43_load_until_connected: try 5/6: bad init, reloading (evidence since load: phy=0 susp=3 auth=0)
+b43_load_until_connected: gave up after 6 bad inits; leaving the last one loaded
+exit: 1  state after 15 s: wlp3s0b1:disconnected
+=== live run 3 10:00:39
+b43_load_until_connected: try 1/6: connected, clean init
+exit: 0  state after 15 s: wlp3s0b1:connected
