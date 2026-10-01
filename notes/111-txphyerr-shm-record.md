@@ -36,3 +36,11 @@ freq 2462 (AP ch11): 32 frames | freq 5580 (AP ch116, signal 77 as seen by the s
 Normal scans with ac_5ghz=1 also find no 5 GHz BSS (only the three 2.4 GHz SSIDs), though the band and 38 channels are advertised.
 So 5 GHz RX gets no frames at all with our replay; notes/53 only verified register read-back, not reception. Reception is independent of
 the TX-side init failure (2.4 GHz receives on a bad init). Candidates: per-band FEM/antenna-switch control, RX gain/LNA setup, AGC.
+
+## Why 5 GHz RX is dead: our 5 GHz state is a hybrid (offline reading of phy_ac.c + the wl 5 GHz trace)
+- b43_phy_ac_apply_por5g() writes wl's *80 MHz ch112* first-load state (phy_ac_por5g.h, 4464 lines); the 20 MHz path then only re-tunes the radio
+  tune regs, BW1A, the Farrow resampler (+resetcca/rfseq). The core's PHY bandwidth (IOCTL) stays 20 MHz. PHY regs/tables stay in 80 MHz mode.
+- wl itself, in a 20 MHz scan switch (e.g. window ending at the 19b=0x69.. writes), does ~2570 PHY writes, ~360 SHM writes and ~360 table writes
+  (tables 0x21, 0x40/0x60 (128 words each), 0x44/45/64/65, 0x07, 0x0b, 0x0c) plus per-core regs 0x6d4-0x6ee / 0x8d4-0x8ee. We write none of these.
+- The wl trace contains 20 MHz switches to ch116 (Farrow 0x19b=0x74, 6 occurrences), so a targeted test is possible without new captures:
+  extract the ch116 window from traces/decoded-firstload-5g/seq.txt, replay it on switch to 116, count RX frames in monitor mode (expect ~80 per 8 s).
