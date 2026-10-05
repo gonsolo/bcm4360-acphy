@@ -17,11 +17,13 @@ stdenv.mkDerivation {
   nativeBuildInputs = kernel.moduleBuildDependencies;
   hardeningDisable = [ "pic" "format" ];
 
-  makeFlags = kernel.makeFlags ++ [
-    "KDIR=${kernel.dev}/lib/modules/${kernel.modDirVersion}/build"
-    "INSTALL_MOD_PATH=$(out)"
-  ];
-  buildFlags = [ "all" ];
+  # Direct kernel-build call; kernel.makeFlags (O=$(buildRoot), --eval=...) breaks make here (empty variable name).
+  dontConfigure = true;
+  buildPhase = ''
+    runHook preBuild
+    make -C ${kernel.dev}/lib/modules/${kernel.modDirVersion}/build M=$PWD modules
+    runHook postBuild
+  '';
   installPhase = ''
     runHook preInstall
     install -D b43.ko $out/lib/modules/${kernel.modDirVersion}/extra/b43.ko
