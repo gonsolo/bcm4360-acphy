@@ -26,7 +26,11 @@ for _ in $(seq 50); do
 done
 [ -e /sys/bus/bcma/devices/bcma0:1 ] || { echo "bcma0:1 never appeared"; exit 1; }
 
-insmod "$PROJ/b43-src/b43.ko" "$@" || exit 1
+# One module per kernel (vermagic): prefer b43-src-builds/b43-<uname -r>.ko, fall back to the
+# in-tree build output (built for the kernel it was last made against).
+KO="$PROJ/b43-src-builds/b43-$(uname -r).ko"
+[ -e "$KO" ] || KO="$PROJ/b43-src/b43.ko"
+insmod "$KO" "$@" || exit 1
 
 # Firmware loads asynchronously; the netdev only registers once it has.
 for _ in $(seq 100); do
