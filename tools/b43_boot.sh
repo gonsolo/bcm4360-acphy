@@ -29,14 +29,12 @@ done
 # One module per kernel (vermagic). Prefer the Nix-built one (boot.extraModulePackages installs it
 # under extra/, notes/115), else the hand build b43-src-builds/b43-<uname -r>.ko, else the in-tree
 # build output (built for the kernel it was last made against).
-KO=$(modinfo -n b43 2>/dev/null)
-case "$KO" in
-*/extra/*) ;;
-*)
+KO=/run/booted-system/kernel-modules/lib/modules/$(uname -r)/extra/b43.ko   # modinfo -n would pick the in-tree module
+if [ ! -e "$KO" ]; then
 	KO="$PROJ/b43-src-builds/b43-$(uname -r).ko"
 	[ -e "$KO" ] || KO="$PROJ/b43-src/b43.ko"
-	;;
-esac
+fi
+echo "b43_boot: loading $KO"
 insmod "$KO" "$@" || exit 1
 
 # Firmware loads asynchronously; the netdev only registers once it has.

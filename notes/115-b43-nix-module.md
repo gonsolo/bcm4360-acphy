@@ -13,8 +13,10 @@ Gotcha: passing `kernel.makeFlags` to make fails with `make: *** empty variable 
 Wiring (needs the user, /etc/nixos): `sudo tools/install_b43_module.sh` adds
 `boot.extraModulePackages = [ (config.boot.kernelPackages.callPackage <repo>/nix/b43-ac.nix { }) ];`
 after the `boot.kernelPackages` line (backup, `--remove`, `nixos-rebuild boot`).
-`tools/b43_boot.sh` then loads `modinfo -n b43` when it is under extra/, else the hand-built per-kernel module.
+`tools/b43_boot.sh` then loads `/run/booted-system/kernel-modules/lib/modules/<ver>/extra/b43.ko` (not `modinfo -n b43`, which returns the in-tree module even with extra/ installed) and logs the path; else falls back to the hand-built per-kernel module.
 After this, `nixos-rebuild switch --upgrade` rebuilds the module for the new kernel automatically; no
 more `ConditionKernelVersion` pin needed (see notes/114, already dropped).
 Remaining caveat: the module is built from the working tree, so uncommitted edits to b43-src are included
 only after a rebuild; a build failure on a new kernel (API change) fails the whole rebuild loudly, which is intended.
+
+Verified 2026-10-05: booted 7.2.9 with the module installed; b43_boot logs the extra/ path and the card connects (4th init).
