@@ -26,10 +26,17 @@ for _ in $(seq 50); do
 done
 [ -e /sys/bus/bcma/devices/bcma0:1 ] || { echo "bcma0:1 never appeared"; exit 1; }
 
-# One module per kernel (vermagic): prefer b43-src-builds/b43-<uname -r>.ko, fall back to the
-# in-tree build output (built for the kernel it was last made against).
-KO="$PROJ/b43-src-builds/b43-$(uname -r).ko"
-[ -e "$KO" ] || KO="$PROJ/b43-src/b43.ko"
+# One module per kernel (vermagic). Prefer the Nix-built one (boot.extraModulePackages installs it
+# under extra/, notes/115), else the hand build b43-src-builds/b43-<uname -r>.ko, else the in-tree
+# build output (built for the kernel it was last made against).
+KO=$(modinfo -n b43 2>/dev/null)
+case "$KO" in
+*/extra/*) ;;
+*)
+	KO="$PROJ/b43-src-builds/b43-$(uname -r).ko"
+	[ -e "$KO" ] || KO="$PROJ/b43-src/b43.ko"
+	;;
+esac
 insmod "$KO" "$@" || exit 1
 
 # Firmware loads asynchronously; the netdev only registers once it has.

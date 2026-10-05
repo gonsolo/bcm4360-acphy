@@ -14,6 +14,10 @@ stdenv.mkDerivation {
     filter = path: type: type == "regular" && builtins.match ".*\\.[ch]|.*/Makefile" path != null;
   };
 
+  # Tiny compile: build here, not on the remote builder (which would need the whole kernel closure copied over).
+  preferLocalBuild = true;
+  allowSubstitutes = false;
+
   nativeBuildInputs = kernel.moduleBuildDependencies;
   hardeningDisable = [ "pic" "format" ];
 
