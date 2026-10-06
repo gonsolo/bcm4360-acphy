@@ -20,6 +20,7 @@ for i in $(seq 1 "$N"); do
 	cat $DBG/phydump > "$R/phy.txt" 2>/dev/null
 	$P/tools/radiodump.sh > "$R/radio.txt" 2>/dev/null
 	cat $DBG/macdump > "$R/mac.txt" 2>/dev/null
+	cat $DBG/tbldump > "$R/tbl.txt" 2>/dev/null
 	$P/tools/full_snapshot > "$R/shm_ihr.txt" 2>/dev/null
 	dmesg | grep -E "AC PMU|AC FIFO|replayed|first-load" > "$R/dmesg_init.txt"
 	$IW dev $IF set channel 1
@@ -32,6 +33,7 @@ for i in $(seq 1 "$N"); do
 	cat $DBG/phydump > "$R/phy_after.txt" 2>/dev/null
 	$P/tools/radiodump.sh > "$R/radio_after.txt" 2>/dev/null
 	cat $DBG/macdump > "$R/mac_after.txt" 2>/dev/null
+	cat $DBG/tbldump > "$R/tbl_after.txt" 2>/dev/null
 	fails=$(dmesg | grep -c "MAC suspend failed")
 	state=$(nmcli -t -f DEVICE,STATE device | grep "^$IF:" | cut -d: -f2)
 	label=bad; { [ "$state" = connected ] && [ "$fails" -le 2 ]; } && label=good

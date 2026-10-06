@@ -312,6 +312,63 @@ static const struct file_operations b43_ac_dbg_phydump_fops = {
 	.write		= b43_ac_dbg_phydump_write,
 };
 
+/* PHY tables wl writes during init: id, entries, 32-bit wide. notes/121 */
+static const struct { u16 id, n; bool w32; } b43_ac_dump_tbls[] = {
+	{0x01,128,0},{0x02,38,0},{0x03,256,1},{0x04,256,0},{0x05,22,1},
+	{0x07,1092,0},{0x0a,96,0},{0x0b,23,0},{0x0c,120,0},{0x0e,160,1},
+	{0x10,1463,1},{0x21,24,1},
+	{0x40,128,0},{0x41,128,1},{0x42,128,0},{0x44,42,0},{0x45,42,0},{0x47,64,1},{0x48,64,1},
+	{0x60,128,0},{0x61,128,1},{0x62,128,0},{0x64,42,0},{0x65,42,0},{0x67,64,1},{0x68,64,1},
+	{0x80,128,0},{0x81,128,1},{0x82,128,0},{0x87,64,1},{0x88,64,1},
+};
+
+static int b43_ac_dbg_tbldump_show(struct seq_file *s, void *unused)
+{
+	struct b43_wldev *dev = b43_ac_dbg_dev;
+	unsigned int t, o;
+
+	if (!dev)
+		return -ENODEV;
+	mutex_lock(&dev->wl->mutex);
+	if (b43_status(dev) < B43_STAT_INITIALIZED) {
+		mutex_unlock(&dev->wl->mutex);
+		return -ENODEV;
+	}
+	b43_mac_suspend(dev);
+	seq_printf(s, "wrap ioctl %08x reset_ctl %08x iostatus %08x\n",
+		   bcma_aread32(dev->dev->bdev, BCMA_IOCTL),
+		   bcma_aread32(dev->dev->bdev, BCMA_RESET_CTL),
+		   bcma_aread32(dev->dev->bdev, BCMA_IOST));
+	for (t = 0; t < ARRAY_SIZE(b43_ac_dump_tbls); t++) {
+		for (o = 0; o < b43_ac_dump_tbls[t].n; o++) {
+			u16 lo, hi = 0;
+
+			b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_dump_tbls[t].id);
+			b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, o);
+			lo = b43_phy_read(dev, B43_PHY_AC_TABLE_DATA1);
+			if (b43_ac_dump_tbls[t].w32)
+				hi = b43_phy_read(dev, B43_PHY_AC_TABLE_DATA2);
+			seq_printf(s, "%02x %04x %04x%04x\n", b43_ac_dump_tbls[t].id, o, hi, lo);
+		}
+	}
+	b43_mac_enable(dev);
+	mutex_unlock(&dev->wl->mutex);
+	return 0;
+}
+
+static int b43_ac_dbg_tbldump_open(struct inode *inode, struct file *file)
+{
+	return single_open_size(file, b43_ac_dbg_tbldump_show, NULL, 1024 * 1024);
+}
+
+static const struct file_operations b43_ac_dbg_tbldump_fops = {
+	.owner		= THIS_MODULE,
+	.open		= b43_ac_dbg_tbldump_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int b43_ac_dbg_macdump_show(struct seq_file *s, void *unused)
 {
 	struct b43_wldev *dev = b43_ac_dbg_dev;
@@ -366,6 +423,8 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 				    &b43_ac_dbg_fops);
 		debugfs_create_file("phydump", 0600, b43_ac_dbg_dir, NULL,
 				    &b43_ac_dbg_phydump_fops);
+		debugfs_create_file("tbldump", 0400, b43_ac_dbg_dir, NULL,
+				    &b43_ac_dbg_tbldump_fops);
 		debugfs_create_file("macdump", 0400, b43_ac_dbg_dir, NULL,
 				    &b43_ac_dbg_macdump_fops);
 		debugfs_create_file("mmio16", 0600, b43_ac_dbg_dir, (void *)3L,
@@ -1038,6 +1097,11 @@ static void b43_ac_rfkick_run(struct b43_wldev *dev)
 static char *b43_ac_fr_path;
 static uint b43_ac_fr_start, b43_ac_fr_end;
 static uint b43_ac_fr_mask = 0x1f;
+static uint b43_ac_fr_dscale = 1, b43_ac_fr_pad;
+module_param_named(ac_fr_dscale, b43_ac_fr_dscale, uint, 0644);
+MODULE_PARM_DESC(ac_fr_dscale, "AC-PHY diagnostic: multiply every replayed delay by this");
+module_param_named(ac_fr_pad, b43_ac_fr_pad, uint, 0644);
+MODULE_PARM_DESC(ac_fr_pad, "AC-PHY diagnostic: extra us of delay after every replayed op");
 module_param_named(ac_fr_path, b43_ac_fr_path, charp, 0644);
 module_param_named(ac_fr_start, b43_ac_fr_start, uint, 0644);
 module_param_named(ac_fr_end, b43_ac_fr_end, uint, 0644);
@@ -1099,12 +1163,15 @@ static void b43_ac_fr_run(struct b43_wldev *dev)
 					b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2, op->c >> 16);
 				b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1, op->c & 0xffff);
 				break;
-			case 4:
-				if (op->c >= 1000)
-					mdelay(op->c / 1000);
+			case 4: {
+				u32 us = op->c * b43_ac_fr_dscale;
+
+				if (us >= 1000)
+					mdelay(us / 1000);
 				else
-					udelay(op->c);
+					udelay(us);
 				break;
+			}
 			case 5:
 				if (op->width == 32)
 					b43_shm_write32(dev, op->a, op->b, op->c);
@@ -1112,6 +1179,8 @@ static void b43_ac_fr_run(struct b43_wldev *dev)
 					b43_shm_write16(dev, op->a, op->b, op->c);
 				break;
 			}
+			if (b43_ac_fr_pad)
+				udelay(b43_ac_fr_pad);
 		}
 	}
 done:
@@ -2134,6 +2203,8 @@ static void b43_phy_ac_force_rfseq(struct b43_wldev *dev, u8 which)
 	b43_phy_set(dev, 0x19e, 0x1);
 	b43_phy_set(dev, 0x400, 0x3);
 	b43_phy_set(dev, 0x402, bit);
+	/* wl waits 10 us before polling (seq.txt 137510); the busy bit is not up immediately */
+	udelay(10);
 	for (i = 200009; i != 9; i -= 10) {
 		if (!(b43_phy_read(dev, 0x403) & bit))
 			break;
