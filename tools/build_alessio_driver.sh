@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Build Alessio Ferri's b43-ac-wip (patches 0001-0003) against kernel v7.2 sources as out-of-tree
+# bcma.ko + b43.ko for the running kernel's -dev tree. Output: b43-src-builds/ale-{bcma,b43}-<ver>.ko
+# usage: tools/build_alessio_driver.sh /nix/store/...-linux-X.Y.Z-dev   (needs ~/src/linux with tag v7.2,
+#        ~/src/b43-ac-wip-latest)
+set -eu
+DEV=${1:?usage: $0 /nix/store/...-linux-X.Y.Z-dev}
+P=$(cd "$(dirname "$0")/.." && pwd)
+VER=$(ls "$DEV/lib/modules"); K=$DEV/lib/modules/$VER/build
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+(cd ~/src/linux && git archive v7.2 drivers/bcma drivers/net/wireless/broadcom/b43 include/linux/ssb \
+	include/linux/bcma include/linux/bcm47xx_sprom.h drivers/firmware/broadcom/bcm47xx_sprom.c) | tar -x -C "$T"
+cd "$T"
+for p in ~/src/b43-ac-wip-latest/patches/000[123]*.patch; do patch -p1 --no-backup-if-mismatch < "$p" >&2; done
+sed -i 's|<asm/unaligned.h>|<linux/unaligned.h>|' drivers/net/wireless/broadcom/b43/*.[ch]
+# forced includes: the patched ssb headers must win over the kernel's (regs first, ssb.h includes it)
+INC="-include $T/include/linux/ssb/ssb_regs.h -include $T/include/linux/ssb/ssb.h -include $T/include/linux/bcm47xx_sprom.h"
+nix-shell -p gnumake gcc --run "make -C $K M=$T/drivers/bcma modules KCFLAGS='$INC' >/dev/null; \
+	make -C $K M=$T/drivers/net/wireless/broadcom/b43 modules CONFIG_B43_PHY_AC=y KCFLAGS='$INC -DCONFIG_B43_PHY_AC=1 -DALLOW_24=true' >/dev/null"
+mkdir -p "$P/b43-src-builds"
+cp drivers/bcma/bcma.ko "$P/b43-src-builds/ale-bcma-$VER.ko"
+cp drivers/net/wireless/broadcom/b43/b43.ko "$P/b43-src-builds/ale-b43-$VER.ko"
