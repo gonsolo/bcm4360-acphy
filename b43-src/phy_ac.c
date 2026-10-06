@@ -3258,11 +3258,54 @@ static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
 	return false;
 }
 
+/*
+ * Self-healing for the per-init coin flip (notes/105, 119): only ~30 % of
+ * fresh inits can transmit; in the others every TX ends in a PHY TX error.
+ * With ac_selfheal=N the 15 s work polls the ucode's txphyerr counter (SHM
+ * 0xFE) and restarts the core through mac80211 (fresh init, fresh coin flip)
+ * after >= 3 errors in a window, at most N times; the budget refills after
+ * 10 quiet minutes. Polled, not IRQ-driven: unmasking B43_IRQ_PHY_TXERR hung
+ * the machine twice (notes/119).
+ */
+static uint b43_ac_selfheal;
+module_param_named(ac_selfheal, b43_ac_selfheal, uint, 0644);
+MODULE_PARM_DESC(ac_selfheal, "AC-PHY: max automatic core restarts when the txphyerr counter shows a bad init, 0 = off");
+
+#define B43_AC_SH_TXPHYERR	0x00FE
+
+static bool b43_phy_ac_check_badinit(struct b43_wldev *dev)
+{
+	static unsigned int restarts;
+	static unsigned long last_restart;
+	static u16 last;
+	u16 now, d;
+
+	if (!b43_ac_selfheal)
+		return false;
+	if (restarts && time_after(jiffies, last_restart + 600 * HZ))
+		restarts = 0;
+	now = b43_shm_read16(dev, B43_SHM_SHARED, B43_AC_SH_TXPHYERR);
+	d = now - last;
+	last = now;
+	if (d < 3 || restarts >= b43_ac_selfheal)
+		return false;
+	restarts++;
+	last_restart = jiffies;
+	last = 0;	/* the ucode is reloaded, its counters restart at 0 */
+	pr_emerg("b43 ac_selfheal: bad init (%u PHY TX errors), restart %u/%u\n",
+		 d, restarts, b43_ac_selfheal);
+	mdelay(30);
+	b43_controller_restart_full(dev, "AC bad init");
+	return true;
+}
+
 static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 {
 	struct b43_dmaring *rx = dev->dma.rx_ring;
 	struct b43_dmaring *tx = dev->dma.tx_ring_AC_BE;
 
+	if (b43_phy_ac_check_badinit(dev))
+		return;
 	if (b43_phy_ac_check_ack_watchdog(dev))
 		return;
 
