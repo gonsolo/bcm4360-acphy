@@ -40,3 +40,4 @@ b43-src/modules.order
 
 # Data package for Alessio Ferri (SROM dump, wl traces) - assembled by hand, not for the repo.
 /for-alessio/
+test-data/

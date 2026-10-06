@@ -1029,6 +1029,98 @@ static void b43_ac_rfkick_run(struct b43_wldev *dev)
 	b43info(dev->wl, "phy_ac: rfseq kicks done (mask %u)\n", b43_ac_rfkick);
 }
 
+
+/*
+ * Diagnostic (notes/119): replay wl's recorded PHY/radio/table/delay op
+ * stream (tools/gen_wl_ops.py) verbatim after the first-load replay, to see
+ * whether wl's exact sequence/timing makes every init good.
+ */
+static char *b43_ac_fr_path;
+static uint b43_ac_fr_start, b43_ac_fr_end;
+static uint b43_ac_fr_mask = 0x1f;
+module_param_named(ac_fr_path, b43_ac_fr_path, charp, 0644);
+module_param_named(ac_fr_start, b43_ac_fr_start, uint, 0644);
+module_param_named(ac_fr_end, b43_ac_fr_end, uint, 0644);
+module_param_named(ac_fr_mask, b43_ac_fr_mask, uint, 0644);
+MODULE_PARM_DESC(ac_fr_path, "AC-PHY diagnostic: wl op file; replay trace lines [ac_fr_start, ac_fr_end) of types in ac_fr_mask (bit t-1: 1 phy 2 radio 3 tbl 4 delay 5 shm)");
+
+struct b43_ac_fr_op {
+	u32 line;
+	u8 type, width;
+	u16 a;
+	u32 b, c;
+} __packed;
+
+static void b43_ac_fr_run(struct b43_wldev *dev)
+{
+	struct b43_ac_fr_op *buf;
+	struct file *f;
+	loff_t pos = 0;
+	unsigned long n = 0, applied = 0;
+	ssize_t got;
+
+	f = filp_open(b43_ac_fr_path, O_RDONLY, 0);
+	if (IS_ERR(f)) {
+		b43warn(dev->wl, "ac_fr: cannot open %s\n", b43_ac_fr_path);
+		return;
+	}
+	buf = kmalloc(16 * 4096, GFP_KERNEL);
+	if (!buf) {
+		filp_close(f, NULL);
+		return;
+	}
+	pr_emerg("b43 ac_fr: start lines [%u,%u) mask %x\n", b43_ac_fr_start,
+		 b43_ac_fr_end, b43_ac_fr_mask);
+	mdelay(30);
+	while ((got = kernel_read(f, buf, 16 * 4096, &pos)) >= (ssize_t)sizeof(*buf)) {
+		unsigned int i, cnt = got / sizeof(*buf);
+
+		pos -= got - cnt * sizeof(*buf);
+		for (i = 0; i < cnt; i++, n++) {
+			const struct b43_ac_fr_op *op = &buf[i];
+
+			if (op->line >= b43_ac_fr_end)
+				goto done;
+			if (op->line < b43_ac_fr_start ||
+			    !(b43_ac_fr_mask & (1u << (op->type - 1))))
+				continue;
+			applied++;
+			switch (op->type) {
+			case 1:
+				b43_phy_write(dev, op->a, op->b);
+				break;
+			case 2:
+				b43_radio_write(dev, op->a, op->b);
+				break;
+			case 3:
+				b43_phy_write(dev, B43_PHY_AC_TABLE_ID, op->a);
+				b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, op->b);
+				if (op->width == 32)
+					b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2, op->c >> 16);
+				b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1, op->c & 0xffff);
+				break;
+			case 4:
+				if (op->c >= 1000)
+					mdelay(op->c / 1000);
+				else
+					udelay(op->c);
+				break;
+			case 5:
+				if (op->width == 32)
+					b43_shm_write32(dev, op->a, op->b, op->c);
+				else
+					b43_shm_write16(dev, op->a, op->b, op->c);
+				break;
+			}
+		}
+	}
+done:
+	kfree(buf);
+	filp_close(f, NULL);
+	pr_emerg("b43 ac_fr: done, %lu ops applied\n", applied);
+	mdelay(30);
+}
+
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
 	struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
@@ -1094,6 +1186,8 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 		b43_ac_por, n[0], n[1], n[2], n[3], n[4], n[5]);
 	if (b43_ac_rfkick)
 		b43_ac_rfkick_run(dev);
+	if (b43_ac_fr_path)
+		b43_ac_fr_run(dev);
 }
 
 /*
