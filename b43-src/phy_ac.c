@@ -948,6 +948,87 @@ static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 	b43info(dev->wl, "phy_ac: applied 5 GHz first-load state\n");
 }
 
+static uint b43_ac_rfkick;
+module_param_named(ac_rfkick, b43_ac_rfkick, uint, 0644);
+MODULE_PARM_DESC(ac_rfkick, "AC-PHY diagnostic (notes/118): after the first-load replay run wl's RF-sequencer kicks verbatim, in wl's order (bit 0: the 5 cmd1+cmd2 pairs of rxcore_setstate, bit 1: the 4 cmd 0x20 kicks)");
+
+/* Wait for the RF sequencer (PHY 0x403 bit 0 busy), at most ~2 ms like wl's poll. */
+static void b43_ac_rfkick_wait(struct b43_wldev *dev)
+{
+	int i;
+
+	for (i = 0; i < 10; i++) {
+		if (!(b43_phy_read(dev, 0x403) & 1))
+			return;
+		udelay(200);
+	}
+	b43warn(dev->wl, "phy_ac: rfseq busy after 2 ms\n");
+}
+
+/* wl's rxcore_setstate pair (traces/decoded-firstload-5g/seq.txt line 137500..137530, coremask 3). */
+static void b43_ac_rfkick_pair(struct b43_wldev *dev)
+{
+	udelay(10);
+	b43_phy_write(dev, 0x160, 0x7b);
+	b43_phy_write(dev, 0x401, 0x7733);
+	b43_phy_write(dev, 0x401, 0x7733);
+	b43_phy_write(dev, 0x401, 0x7730);
+	b43_phy_write(dev, 0x400, 1);
+	b43_phy_write(dev, 0x19e, 0x3d2);
+	b43_phy_write(dev, 0x19e, 0x3d3);
+	b43_phy_write(dev, 0x400, 3);
+	b43_phy_write(dev, 0x402, 1);
+	udelay(20);
+	b43_ac_rfkick_wait(dev);
+	b43_phy_write(dev, 0x400, 1);
+	b43_phy_write(dev, 0x19e, 0x3d0);
+	b43_phy_write(dev, 0x19e, 0x3d2);
+	b43_phy_write(dev, 0x19e, 0x3d3);
+	b43_phy_write(dev, 0x400, 3);
+	b43_phy_write(dev, 0x402, 2);
+	udelay(10);
+	b43_ac_rfkick_wait(dev);
+	b43_phy_write(dev, 0x400, 1);
+	b43_phy_write(dev, 0x19e, 0x3d0);
+	b43_phy_write(dev, 0x401, 0x7733);
+	b43_phy_write(dev, 0x401, 0x7733);
+	b43_phy_write(dev, 0x400, 0);
+}
+
+/* wl's cmd 0x20 kick (seq.txt line 141632). */
+static void b43_ac_rfkick_k20(struct b43_wldev *dev)
+{
+	b43_phy_write(dev, 0x19e, 0x3d2);
+	b43_phy_write(dev, 0x19e, 0x3d3);
+	b43_phy_write(dev, 0x400, 3);
+	b43_phy_write(dev, 0x402, 0x20);
+	udelay(10);
+	b43_ac_rfkick_wait(dev);
+	b43_phy_write(dev, 0x400, 0);
+	b43_phy_write(dev, 0x19e, 0x3d0);
+}
+
+/* wl's order in its first load: pair, pair, k20, k20, pair, pair, k20, k20, pair. */
+static void b43_ac_rfkick_run(struct b43_wldev *dev)
+{
+	static const char order[] = "PPKKPPKKP";
+	int i;
+
+	for (i = 0; i < sizeof(order) - 1; i++) {
+		bool pair = order[i] == 'P';
+
+		if (!(b43_ac_rfkick & (pair ? 1 : 2)))
+			continue;
+		pr_emerg("b43 ac_rfseq: %d %s\n", i, pair ? "pair" : "k20");
+		mdelay(30);
+		if (pair)
+			b43_ac_rfkick_pair(dev);
+		else
+			b43_ac_rfkick_k20(dev);
+	}
+	b43info(dev->wl, "phy_ac: rfseq kicks done (mask %u)\n", b43_ac_rfkick);
+}
+
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
 	struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
@@ -1011,6 +1092,8 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 		}
 	b43info(dev->wl, "phy_ac: applied first-load state 0x%x (radio %u phy %u tbl %u shm %u cc %u pmu %u)\n",
 		b43_ac_por, n[0], n[1], n[2], n[3], n[4], n[5]);
+	if (b43_ac_rfkick)
+		b43_ac_rfkick_run(dev);
 }
 
 /*
