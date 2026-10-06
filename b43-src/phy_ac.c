@@ -3295,7 +3295,7 @@ static bool b43_phy_ac_check_badinit(struct b43_wldev *dev)
 	pr_emerg("b43 ac_selfheal: bad init (%u PHY TX errors), restart %u/%u\n",
 		 d, restarts, b43_ac_selfheal);
 	mdelay(30);
-	b43_controller_restart_full(dev, "AC bad init");
+	b43_controller_restart(dev, "AC bad init");
 	return true;
 }
 
