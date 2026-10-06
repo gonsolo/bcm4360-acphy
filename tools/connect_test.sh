@@ -7,6 +7,9 @@ IW=$P/tools/iw/bin/iw
 nmcli dev set $IF managed no 2>/dev/null
 rmmod b43 2>/dev/null
 CH=6 $P/b43_live.sh load ac_replay=1 dma32=1 ac_por=63 nohwcrypt=1 "$@" > /dev/null
+# udev sometimes loses the rename race after a quick rmmod/insmod (notes/107): do it ourselves
+for _ in 1 2 3 4 5; do [ -e /sys/class/net/$IF ] && break; sleep 1; done
+if [ ! -e /sys/class/net/$IF ] && [ -e /sys/class/net/wlan0 ]; then ip link set wlan0 down; ip link set wlan0 name $IF; fi
 $IW dev $IF set channel 1
 ip link set $IF down
 $IW dev $IF set type managed
