@@ -6,7 +6,7 @@ set -u
 SRC=$(ip -4 -o addr show dev wlp0s20u1 | awk '{print $4}' | cut -d/ -f1)
 MAC=a8:a1:59:2a:46:1b   # pampelmuse
 dmesg -n 8
-sysctl -q kernel.softlockup_panic=1 kernel.hung_task_panic=1 kernel.panic_on_oops=1 kernel.nmi_watchdog=1 \
+sysctl -q kernel.softlockup_panic=1 kernel.hung_task_panic=1 kernel.panic_on_oops=1 kernel.nmi_watchdog=1 kernel.hardlockup_panic=1 \
 	kernel.sysrq=1 kernel.printk_ratelimit=0
 modprobe -r netconsole 2>/dev/null
 modprobe netconsole netconsole="6665@$SRC/wlp0s20u1,6666@192.168.0.236/$MAC" || exit 1
