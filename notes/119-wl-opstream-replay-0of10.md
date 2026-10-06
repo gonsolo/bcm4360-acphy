@@ -14,3 +14,6 @@ Remaining untested: lines 23819+ (post-ucode-start cal runs, incl. the 0x380 eng
 
 ## ucode comparison: identical
 wl's ucode upload (trace shm region 0, 10850 w32 writes) vs firmware/b43/ucode42.fw (832.127, after the 8-byte header): zero differences. The ucode is ruled out.
+
+## Post-ucode range (lines 23819-143115) -> 0/10
+Same as the full replay: 5 GHz cal/channel state on a 2.4 GHz link breaks it. Not informative. Without a 2.4 GHz wl trace the verbatim-replay line of attack is exhausted.
