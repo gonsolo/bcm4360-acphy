@@ -12,3 +12,7 @@ Findings (2026-10-06):
 - Test harness: heal_test.sh (success = connected within ~80 s of load, no NetworkManager kicking).
 Next: N=10 for statistics, then enable by default in b43_boot.sh / the service params.
 Earlier root-cause negatives (kicks, op-stream replay, ucode identical): notes/118, 119.
+
+## N=10 result and default
+heal10 (ac_selfheal=3): 9/10 connected (6 of 10 needed one restart, 4 none, the failure had used its restart). With the first 3/3: 12/13 vs ~30 % before.
+Made ac_selfheal=3 the module default so the boot service (params in /etc/nixos, not edited by us) gets it; takes effect on the next load of the rebuilt b43-7.2.9.ko.

@@ -3267,9 +3267,9 @@ static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
  * 10 quiet minutes. Polled, not IRQ-driven: unmasking B43_IRQ_PHY_TXERR hung
  * the machine twice (notes/119).
  */
-static uint b43_ac_selfheal;
+static uint b43_ac_selfheal = 3;
 module_param_named(ac_selfheal, b43_ac_selfheal, uint, 0644);
-MODULE_PARM_DESC(ac_selfheal, "AC-PHY: max automatic core restarts when the txphyerr counter shows a bad init, 0 = off");
+MODULE_PARM_DESC(ac_selfheal, "AC-PHY: max automatic core restarts when the txphyerr counter shows a bad init, 0 = off, default 3");
 
 #define B43_AC_SH_TXPHYERR	0x00FE
 
