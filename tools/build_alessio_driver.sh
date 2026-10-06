@@ -14,7 +14,7 @@ cd "$T"
 for p in ~/src/b43-ac-wip-latest/patches/000[123]*.patch; do patch -p1 --no-backup-if-mismatch < "$p" >&2; done
 sed -i 's|<asm/unaligned.h>|<linux/unaligned.h>|' drivers/net/wireless/broadcom/b43/*.[ch]
 # trace every B43_AC_FN() function entry to the kernel log (hang forensics; pr_emerg makes journald fsync each line)
-sed -i 's/^#define B43_AC_FN() do { } while (0)/#define B43_AC_FN() pr_emerg("ACFN %s\\n", __func__)/' drivers/net/wireless/broadcom/b43/phy_ac.h
+sed -i 's/^#define B43_AC_FN() do { } while (0)/#define B43_AC_FN() do { pr_emerg("ACFN %s\\n", __func__); mdelay(30); } while (0)/' drivers/net/wireless/broadcom/b43/phy_ac.h
 # forced includes: the patched ssb headers must win over the kernel's (regs first, ssb.h includes it)
 INC="-include $T/include/linux/ssb/ssb_regs.h -include $T/include/linux/ssb/ssb.h -include $T/include/linux/bcm47xx_sprom.h"
 nix-shell -p gnumake gcc --run "make -C $K M=$T/drivers/bcma modules KCFLAGS='$INC' >/dev/null; \
