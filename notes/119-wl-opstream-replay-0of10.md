@@ -7,3 +7,7 @@ Result: no hang, but 0/10 connects (baseline ~30%), 2-11 MAC suspend failures pe
 Interpretation: wl's trace is a 5 GHz first load; replaying it on top of our 2.4 GHz state leaves the PHY in a mixed/5 GHz-configured state
 (our channel switch then does not undo it), so this arm is not a fair test of "wl's exact sequence". It only shows the stream is not a drop-in.
 Fair version needs a 2.4 GHz wl trace (none available) or bisecting sub-ranges that are channel-independent (radio init/cal only, e.g. lines 15174-23819).
+
+## Follow-up: radio init/cal only (lines 15174-23819) -> 3/10
+Same as baseline (3/10, ~30%). Connected attempts had 1-3 suspend failures, failed ones 5-17. No effect.
+Remaining untested: lines 23819+ (post-ucode-start cal runs, incl. the 0x380 engine), and 2.4 GHz-specific state.
