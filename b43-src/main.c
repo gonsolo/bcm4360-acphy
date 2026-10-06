@@ -1298,9 +1298,30 @@ void b43_wireless_core_phy_pll_reset(struct b43_wldev *dev)
 }
 
 #ifdef CONFIG_B43_BCMA
+static bool b43_ac_phyreset = true;
+module_param_named(ac_phyreset, b43_ac_phyreset, bool, 0444);
+MODULE_PARM_DESC(ac_phyreset, "AC-PHY: reset the PHY the way wl does (IOCTL 0x14f twice, 0x141, 0x145: reset asserted with the clock forced, released with the clock free) instead of the generic b43 order, default on (notes/122)");
+
 static void b43_bcma_phy_reset(struct b43_wldev *dev)
 {
 	u32 flags;
+
+	if (b43_ac_phyreset && (dev->dev->core_rev == 40 || dev->dev->core_rev == 42)) {
+		flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+		flags |= B43_BCMA_IOCTL_PHY_RESET | B43_BCMA_IOCTL_PHY_BW_20MHZ |
+			 BCMA_IOCTL_FGC | B43_BCMA_IOCTL_PHY_CLKEN;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
+		udelay(2);
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
+		flags &= ~(B43_BCMA_IOCTL_PHY_RESET | BCMA_IOCTL_FGC |
+			   B43_BCMA_IOCTL_PHY_CLKEN);
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
+		udelay(1);
+		flags |= B43_BCMA_IOCTL_PHY_CLKEN;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
+		udelay(1);
+		return;
+	}
 
 	/* Put PHY into reset */
 	flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
