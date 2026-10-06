@@ -11,3 +11,6 @@ Fair version needs a 2.4 GHz wl trace (none available) or bisecting sub-ranges t
 ## Follow-up: radio init/cal only (lines 15174-23819) -> 3/10
 Same as baseline (3/10, ~30%). Connected attempts had 1-3 suspend failures, failed ones 5-17. No effect.
 Remaining untested: lines 23819+ (post-ucode-start cal runs, incl. the 0x380 engine), and 2.4 GHz-specific state.
+
+## ucode comparison: identical
+wl's ucode upload (trace shm region 0, 10850 w32 writes) vs firmware/b43/ucode42.fw (832.127, after the 8-byte header): zero differences. The ucode is ruled out.
