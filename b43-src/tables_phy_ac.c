@@ -555,3 +555,23 @@ const struct b43_phy_ac_tbl b43_phy_ac_femctrl2_tbls[] = {
 	{ b43_femctrl2_a, 32, 0x0a, 0x40, 8 },
 };
 const unsigned int b43_phy_ac_femctrl2_tbls_n = ARRAY_SIZE(b43_phy_ac_femctrl2_tbls);
+
+/* Gain limits (table 0x0b), notes/134. Names after Alessio's tree. */
+static const u16 b43_glim_a[6] = { 0x000b, 0x000c, 0x000e, 0x0020, 0x0024, 0x0028 };
+static const u16 b43_glim_b[7] = { 0x0000, 0x0000, 0x0000, 0x0003, 0x0003, 0x0003, 0x0003 };
+
+/* RX-IQ-cal tone table (table 0x0e): a 20-entry period, two periods at 20 MHz. */
+static const u32 b43_iqcal_tone[20] = {
+	0x0002d400, 0x0002b3c8, 0x00024b96, 0x0001ab6e, 0x0000e354, 0x0000034b,
+	0x000f2354, 0x000e5b6e, 0x000dbb96, 0x000d53c8, 0x000d2c00, 0x000d5038,
+	0x000db86a, 0x000e5892, 0x000f20ac, 0x000000b5, 0x0000e0ac, 0x0001a892,
+	0x0002486a, 0x0002b038,
+};
+
+const struct b43_phy_ac_tbl b43_phy_ac_misc_tbls[] = {
+	{ b43_glim_a, 6, 0x0b, 0x08, 16 },
+	{ b43_glim_b, 7, 0x0b, 0x10, 16 },
+	{ b43_iqcal_tone, 20, 0x0e, 0x00, 32 },
+	{ b43_iqcal_tone, 20, 0x0e, 0x14, 32 },
+};
+const unsigned int b43_phy_ac_misc_tbls_n = ARRAY_SIZE(b43_phy_ac_misc_tbls);
