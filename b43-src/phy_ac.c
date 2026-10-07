@@ -2147,6 +2147,46 @@ static void b43_phy_ac_write_table(struct b43_wldev *dev,
  * PHY init for PHY rev 0/1 (vendor FUN_001a1202): RF-control override
  * defaults, then the acphytbl_info_rev0 table set.
  */
+/*
+ * 2.4 GHz power-estimation LUT of one core (tables 0x40 / 0x60), 128 entries, from the SROM
+ * power-detector triple (a1, b0, b1) = pa2ga words. At step j: num = 512*b0 + 32*b1*j,
+ * den = 0x8000 + a1*j, v = (den/2 + num)/den clamped to [-8, 0x7f] (the same transfer function
+ * as b43_nphy_tx_power_ctl_setup(); notes/134 checks it 128/128 against wl's table on this card).
+ * SROM word offsets (rev 11): core 0 pa2ga at 0x6d, core 1 at 0x81.
+ */
+static void b43_phy_ac_write_est_pwr(struct b43_wldev *dev)
+{
+	static const struct { u16 id; u16 word; } core_tbl[] = { { 0x40, 0x6d }, { 0x60, 0x81 } };
+	struct bcma_drv_cc *cc;
+	unsigned int c, j;
+
+	if (dev->dev->bus_type != B43_BUS_BCMA)
+		return;
+	cc = &dev->dev->bdev->bus->drv_cc;
+	for (c = 0; c < ARRAY_SIZE(core_tbl) && c < b43_phy_ac_num_cores(dev); c++) {
+		u16 w0 = bcma_read16(cc->core, BCMA_CC_SPROM + 2 * core_tbl[c].word);
+		u16 w1 = bcma_read16(cc->core, BCMA_CC_SPROM + 2 * (core_tbl[c].word + 1));
+		u16 w2 = bcma_read16(cc->core, BCMA_CC_SPROM + 2 * (core_tbl[c].word + 2));
+		s32 a1 = (s16)w0, b0 = (s16)w1, b1 = (s16)w2, num, den;
+		u16 lut[128];
+		struct b43_phy_ac_tbl tbl = { lut, 128, core_tbl[c].id, 0, 16 };
+
+		if (w0 == 0xffff && w1 == 0xffff && w2 == 0xffff)
+			continue;	/* unprogrammed SROM: keep the default table */
+		num = b0 << 9;
+		den = 0x8000;
+		for (j = 0; j < 128; j++) {
+			s32 d = den ? den : 1;
+			s32 v = (d / 2 + num) / d;
+
+			num += b1 * 0x20;
+			den += a1;
+			lut[j] = (u16)(clamp(v, -8, 0x7f) & 0xff);
+		}
+		b43_phy_ac_write_table(dev, &tbl);
+	}
+}
+
 static void b43_phy_ac_tables_init(struct b43_wldev *dev)
 {
 	static const u16 clear_regs[] = {
@@ -2172,6 +2212,7 @@ static void b43_phy_ac_tables_init(struct b43_wldev *dev)
 		b43_phy_ac_write_table(dev, &b43_phy_ac_tbls_rev0[i]);
 	for (i = 0; i < b43_phy_ac_rfseq_tbls_n; i++)
 		b43_phy_ac_write_table(dev, &b43_phy_ac_rfseq_tbls[i]);
+	b43_phy_ac_write_est_pwr(dev);
 	b43_phy_maskset(dev, 0x19e, ~0x2, save & 0x2);
 
 	b43_phy_write(dev, 0x1645, 0x25c);
