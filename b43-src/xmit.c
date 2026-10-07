@@ -241,6 +241,13 @@ module_param_named(ac_decerr_pass, b43_ac_decerr_pass, bool, 0644);
 MODULE_PARM_DESC(ac_decerr_pass, "AC-PHY: pass frames the ucode flags DECERR up to mac80211 instead of dropping them");
 static unsigned int b43_ac_decerr_logged;
 
+static int b43_ac_httx;
+static uint b43_ac_httx_var;
+module_param_named(ac_httx_var, b43_ac_httx_var, uint, 0644);
+MODULE_PARM_DESC(ac_httx_var, "AC-PHY experiment: HT header variants (bit0 rate index = mcs, bit1 rate field = 0x80|mcs, bit2 phy ctl word 2 = 0x0100)");
+module_param_named(ac_httx, b43_ac_httx, int, 0644);
+MODULE_PARM_DESC(ac_httx, "AC-PHY experiment (notes/123): send unicast data frames as HT20 at MCS (ac_httx - 1), 0 = off, runtime switchable");
+
 static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 				 struct sk_buff *skb,
 				 struct ieee80211_tx_info *info, u16 cookie)
@@ -299,11 +306,34 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	if (!is_ofdm && rate != B43_CCK_RATE_1MB &&
 	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
 		phy0 |= 0x0010;
+	if (b43_ac_httx > 0 && b43_ac_httx <= 16 && ieee80211_is_data(wlhdr->frame_control) &&
+	    !is_multicast_ether_addr(wlhdr->addr1) &&
+	    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+		static const u8 ht20_500k[8] = { 13, 26, 39, 52, 78, 104, 117, 130 };
+		u8 mcs = b43_ac_httx - 1;
+		u8 *plcp = ri + 0x06;
+
+		phy0 = 2 | 0x0004 | (((mcs > 7 ? 3 : b43_ac_txcore) & 0xf) << 6);
+		put_unaligned_le16(phy0, ri + 0x00);
+		put_unaligned_le16(0, ri + 0x02);
+		put_unaligned_le16((b43_ac_httx_var & 1) ? mcs : 0, ri + 0x04);
+		if (b43_ac_httx_var & 4)
+			put_unaligned_le16(0x0100, ri + 0x02);
+		plcp[0] = mcs;
+		plcp[1] = len & 0xff;
+		plcp[2] = len >> 8;
+		plcp[3] = 0x07;		/* smoothing, not sounding, reserved (brcmsmac) */
+		plcp[4] = 0;
+		plcp[5] = 0;
+		put_unaligned_le16((b43_ac_httx_var & 2) ? (0x80 | mcs) :
+				   ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
+	} else {
 	put_unaligned_le16(phy0, ri + 0x00);
 	put_unaligned_le16(0, ri + 0x02);
 	put_unaligned_le16(idx, ri + 0x04);
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06), len, rate);
 	put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
+	}
 	put_unaligned_le16(0x0020, ri + 0x10);	/* last rate entry */
 
 	{
