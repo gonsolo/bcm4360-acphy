@@ -13,3 +13,7 @@ captured on this very chip; the first thing to establish is whether range is a p
 Cheap discriminating tests (need the user): (1) walk-away test, b43 vs stick throughput/loss at increasing distance
 (or behind a wall); (2) repeat the signal comparison with b43 and stick swapped to an AP at a known distance;
 (3) if b43 loses badly, port the SROM RSSI offsets first (small), calibration second.
+
+Update (user): the stick has two large external antennas, the MacBook's are small internal ones. That alone plausibly
+explains most of the 10-13 dB RX level gap; the signal comparison is dropped as a test. TX retries (201 vs 203) are
+antenna-independent and match. The uncorrected raw RSSI byte only affects the displayed signal and decisions that use it.
