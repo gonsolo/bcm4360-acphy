@@ -22,5 +22,7 @@ extern const struct b43_phy_ac_tbl b43_phy_ac_misc_tbls[];
 extern const unsigned int b43_phy_ac_misc_tbls_n;
 extern const struct b43_phy_ac_tbl b43_phy_ac_ladder_tbls[];
 extern const unsigned int b43_phy_ac_ladder_tbls_n;
+extern const struct b43_phy_ac_tbl b43_phy_ac_vendor_tbls[];
+extern const unsigned int b43_phy_ac_vendor_tbls_n;
 
 #endif /* B43_TABLES_PHY_AC_H_ */

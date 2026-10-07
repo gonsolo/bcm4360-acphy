@@ -10,3 +10,5 @@ the 256 replayed entries are gone. Check: tbldump (31 tables, 5383 cells) bit-id
 Lesson (PHY registers): a register dump is NOT a stable acceptance test: 115 registers differ between two identical loads and more once
 the radio environment changes, so a 2-load volatile set is too small (the first delta-debug run was invalid for this reason). Table dumps are stable.
 Replay left: tables 0x07 (75), 0x0a (96), 0x0b (13), 0x0c (63), 0x0e (40) = 287 entries (from 3022).
+
+**Update:** the last 102 table cells (id 7 x75, id 0x0c x27) are now real table data too (`b43_phy_ac_vendor_tbls`, meaning still unidentified); table replay is empty, tbldump identical.

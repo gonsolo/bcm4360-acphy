@@ -591,3 +591,114 @@ const struct b43_phy_ac_tbl b43_phy_ac_ladder_tbls[] = {
 	{ b43_gain_ladder_a_c1, 18, 0x0c, 0x20, 16 },
 };
 const unsigned int b43_phy_ac_ladder_tbls_n = ARRAY_SIZE(b43_phy_ac_ladder_tbls);
+
+/* Remaining 2.4 GHz TX gain / power-control cells (tables 0x07 and 0x0c), values as wl programs them on this card. Meaning not yet identified. */
+static const u16 b43_vendor_7_106[3] = {
+	0x2f, 0xbef, 0xbef,
+};
+static const u16 b43_vendor_7_110[2] = {
+	0xbef, 0xbef,
+};
+static const u16 b43_vendor_7_249[2] = {
+	0xc8a5, 0xcca5,
+};
+static const u16 b43_vendor_7_256[2] = {
+	0xff00, 0xff00,
+};
+static const u16 b43_vendor_7_259[2] = {
+	0x7cf, 0x7cf,
+};
+static const u16 b43_vendor_7_262[2] = {
+	0xa7, 0xa7,
+};
+static const u16 b43_vendor_7_320[11] = {
+	0x2280, 0x2189, 0x40db, 0x40db, 0x40db, 0x4123, 0x4123, 0x4123,
+	0x416b, 0x416b, 0x40db,
+};
+static const u16 b43_vendor_7_336[11] = {
+	0x2280, 0x2189, 0x40db, 0x40db, 0x40db, 0x4123, 0x4123, 0x4123,
+	0x416b, 0x416b, 0x40db,
+};
+static const u16 b43_vendor_7_398[1] = {
+	0x0,
+};
+static const u16 b43_vendor_7_864[11] = {
+	0x140, 0x140, 0x141, 0x141, 0x141, 0x141, 0x141, 0x141,
+	0x141, 0x141, 0x141,
+};
+static const u16 b43_vendor_7_880[11] = {
+	0x140, 0x140, 0x141, 0x141, 0x141, 0x141, 0x141, 0x141,
+	0x141, 0x141, 0x141,
+};
+static const u16 b43_vendor_7_966[2] = {
+	0x20, 0x20,
+};
+static const u16 b43_vendor_7_973[1] = {
+	0x2d3,
+};
+static const u16 b43_vendor_7_982[2] = {
+	0x20, 0x20,
+};
+static const u16 b43_vendor_7_989[1] = {
+	0x352,
+};
+static const u16 b43_vendor_7_998[2] = {
+	0x20, 0x20,
+};
+static const u16 b43_vendor_7_1018[3] = {
+	0x2f, 0xbef, 0xbef,
+};
+static const u16 b43_vendor_7_1022[2] = {
+	0xbef, 0xbef,
+};
+static const u16 b43_vendor_7_1088[4] = {
+	0x140, 0x2192, 0x140, 0x2192,
+};
+static const u16 b43_vendor_12_64[2] = {
+	0x40, 0x4,
+};
+static const u16 b43_vendor_12_67[3] = {
+	0xff02, 0xff, 0xfe06,
+};
+static const u16 b43_vendor_12_72[2] = {
+	0xb, 0x11,
+};
+static const u16 b43_vendor_12_75[3] = {
+	0x101, 0xff00, 0x4f3,
+};
+static const u16 b43_vendor_12_95[9] = {
+	0xacdc, 0x3f, 0xfff5, 0xff02, 0x3f, 0xa, 0xffff, 0x101,
+	0x3f,
+};
+static const u16 b43_vendor_12_112[8] = {
+	0x3f, 0xfff5, 0xff02, 0x3f, 0xa, 0xffff, 0x101, 0x3f,
+};
+
+const struct b43_phy_ac_tbl b43_phy_ac_vendor_tbls[] = {
+	{ b43_vendor_7_106, 3, 0x07, 0x6a, 16 },
+	{ b43_vendor_7_110, 2, 0x07, 0x6e, 16 },
+	{ b43_vendor_7_249, 2, 0x07, 0xf9, 16 },
+	{ b43_vendor_7_256, 2, 0x07, 0x100, 16 },
+	{ b43_vendor_7_259, 2, 0x07, 0x103, 16 },
+	{ b43_vendor_7_262, 2, 0x07, 0x106, 16 },
+	{ b43_vendor_7_320, 11, 0x07, 0x140, 16 },
+	{ b43_vendor_7_336, 11, 0x07, 0x150, 16 },
+	{ b43_vendor_7_398, 1, 0x07, 0x18e, 16 },
+	{ b43_vendor_7_864, 11, 0x07, 0x360, 16 },
+	{ b43_vendor_7_880, 11, 0x07, 0x370, 16 },
+	{ b43_vendor_7_966, 2, 0x07, 0x3c6, 16 },
+	{ b43_vendor_7_973, 1, 0x07, 0x3cd, 16 },
+	{ b43_vendor_7_982, 2, 0x07, 0x3d6, 16 },
+	{ b43_vendor_7_989, 1, 0x07, 0x3dd, 16 },
+	{ b43_vendor_7_998, 2, 0x07, 0x3e6, 16 },
+	{ b43_vendor_7_1018, 3, 0x07, 0x3fa, 16 },
+	{ b43_vendor_7_1022, 2, 0x07, 0x3fe, 16 },
+	{ b43_vendor_7_1088, 4, 0x07, 0x440, 16 },
+	{ b43_vendor_12_64, 2, 0x0c, 0x40, 16 },
+	{ b43_vendor_12_67, 3, 0x0c, 0x43, 16 },
+	{ b43_vendor_12_72, 2, 0x0c, 0x48, 16 },
+	{ b43_vendor_12_75, 3, 0x0c, 0x4b, 16 },
+	{ b43_vendor_12_95, 9, 0x0c, 0x5f, 16 },
+	{ b43_vendor_12_112, 8, 0x0c, 0x70, 16 },
+};
+const unsigned int b43_phy_ac_vendor_tbls_n = ARRAY_SIZE(b43_phy_ac_vendor_tbls);
