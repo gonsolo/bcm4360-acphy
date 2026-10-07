@@ -1196,6 +1196,13 @@ done:
 	mdelay(30);
 }
 
+/* Ablation (notes/132): skip first-load PHY/radio entries with index in [from, to). */
+static uint b43_ac_por_pfrom, b43_ac_por_pto, b43_ac_por_rfrom, b43_ac_por_rto;
+module_param_named(ac_por_pfrom, b43_ac_por_pfrom, uint, 0644);
+module_param_named(ac_por_pto, b43_ac_por_pto, uint, 0644);
+module_param_named(ac_por_rfrom, b43_ac_por_rfrom, uint, 0644);
+module_param_named(ac_por_rto, b43_ac_por_rto, uint, 0644);
+
 /* Ablation (notes/131): groups of first-load table ids to skip. */
 static uint b43_ac_por_tskip;
 module_param_named(ac_por_tskip, b43_ac_por_tskip, uint, 0644);
@@ -1222,14 +1229,16 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 
 	if (b43_ac_por & B43_AC_POR_RADIO)
 		for (i = 0; i < ARRAY_SIZE(b43_ac_por_radio); i++, n[0]++)
-			if (b43_ac_por_radio[i][0] != 0xffff)
+			if (b43_ac_por_radio[i][0] != 0xffff &&
+			    !(i >= b43_ac_por_rfrom && i < b43_ac_por_rto))
 				b43_radio_write(dev, b43_ac_por_radio[i][0],
 						b43_ac_por_radio[i][1]);
 	if ((b43_ac_por & B43_AC_POR_RADIO) && !(b43_ac_por & 0x40))
 		b43_radio_2069_vcocal(dev);
 	if (b43_ac_por & B43_AC_POR_PHY)
 		for (i = 0; i < ARRAY_SIZE(b43_ac_por_phy); i++, n[1]++)
-			if (b43_ac_por_phy[i][0] != 0xffff)
+			if (b43_ac_por_phy[i][0] != 0xffff &&
+			    !(i >= b43_ac_por_pfrom && i < b43_ac_por_pto))
 				b43_phy_write(dev, b43_ac_por_phy[i][0],
 					      b43_ac_por_phy[i][1]);
 	if (b43_ac_por & B43_AC_POR_TBL)
