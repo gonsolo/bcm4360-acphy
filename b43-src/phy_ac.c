@@ -818,6 +818,9 @@ MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (experiment
 static bool b43_ac_5g_80;
 module_param_named(ac_5g_80, b43_ac_5g_80, bool, 0644);
 MODULE_PARM_DESC(ac_5g_80, "AC-PHY test: on 5 GHz keep wl's 80 MHz setup instead of re-tuning to 20 MHz");
+static uint b43_ac_5g_ctr;
+module_param_named(ac_5g_ctr, b43_ac_5g_ctr, uint, 0644);
+MODULE_PARM_DESC(ac_5g_ctr, "AC-PHY test: with ac_5g_80, retune the 80 MHz setup to this block-centre channel (106, 122, ...)");
 
 static bool b43_ac_init_state;
 module_param_named(ac_init_state, b43_ac_init_state, bool, 0444);
@@ -1521,6 +1524,19 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		 * PHY in 80 MHz mode) and set the core's PHY bandwidth to 80 MHz,
 		 * toggling force-gated-clock around the change like wl. */
 		b43_phy_ac_apply_por5g(dev);
+		if (b43_ac_5g_ctr) {
+			const struct b43_radio_2069_chan *c = b43_radio_2069_find_chan(dev, b43_ac_5g_ctr);
+
+			if (c) {
+				save = b43_phy_read(dev, 0x19e);
+				b43_phy_set(dev, 0x19e, 0x3);
+				b43_phy_ac_tune(dev, c, b43_ac_5g_ctr);
+				b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
+				for (i = 0; i < 6; i++)
+					b43_phy_write(dev, B43_PHY_AC_BW1A + i, c->bw[i]);
+				b43_phy_ac_set_farrow(dev, b43_ac_5g_ctr);
+			}
+		}
 		ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | 0x2);
 		ioctl = (ioctl & ~B43_BCMA_IOCTL_PHY_BW) | B43_BCMA_IOCTL_PHY_BW_80MHZ;
