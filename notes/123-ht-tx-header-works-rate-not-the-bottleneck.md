@@ -9,8 +9,11 @@ Measured with `iw station dump` tx retries/failed deltas over 20-30 pings: MCS0-
 
 But throughput does not move: LAN upload to pampelmuse (ncat sink) 19-20 Mbit/s legacy 54, 17-19 at MCS7,
 22-24 at MCS15; UDP blast 23/23/29 Mbit/s. CPU 89 % idle, ~1700 IRQ/s (about one per frame):
-the TX path is limited per frame (~450 us), not by airtime. verbose=1 changes little.
-Next: find the per-frame limit (TX completion/ring/queue depth), then A-MPDU.
+this is NOT a driver bug: unaggregated frames are channel-access bound. 1400 B at legacy 54: ~232 us data
++ SIFS 16 + ACK 28 + DIFS/backoff ~100 = ~380 us -> ~2600 fps = ~29 Mbit/s (measured 23). HT MCS7 ~355 us (31 Mbit/s),
+MCS15 ~270 us (41 Mbit/s). Without A-MPDU the PHY rate barely matters; gains need aggregation or, for downlink,
+the AP choosing HT rates (needs HT caps + RX decode on our side).
+Next: HT caps + RX decode (stage 2), then A-MPDU (header format not captured anywhere).
 Harness gotchas: tools/connect_test.sh-loaded links don't pass data reliably; use
 tools/b43_load_until_connected.sh with B43_LOAD pointing at a b43_boot.sh copy that insmods b43-src/b43.ko.
 Two interfaces on one subnet: use `ping -I`/`curl --interface`, rp_filter 0 on wlp3s0b1.
