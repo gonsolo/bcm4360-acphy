@@ -3210,8 +3210,8 @@ static void b43_mac_suspend_diag(struct b43_wldev *dev)
 /* notes/83/91: temporary diagnostic timing for b43_op_config's phases
  * and b43_mac_suspend()'s own sub-phases, chasing the 7.2.7-only slow
  * suspend waits. Logs only when the relevant call is slower than
- * b43_optiming_thresh_ms (default 15ms). Remove once localized. */
-static int b43_optiming_thresh_ms = 15;
+ * b43_optiming_thresh_ms (default off). Remove once localized. */
+static int b43_optiming_thresh_ms = -1;
 module_param_named(optiming_thresh_ms, b43_optiming_thresh_ms, int, 0644);
 MODULE_PARM_DESC(optiming_thresh_ms, "diagnostic: log b43_op_config/b43_mac_suspend phase timing above this many ms (0: log every call, -1: disable)");
 

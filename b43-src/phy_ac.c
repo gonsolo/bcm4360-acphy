@@ -790,6 +790,9 @@ static void b43_phy_ac_op_prepare_structs(struct b43_wldev *dev)
 	memset(phy_ac, 0, sizeof(*phy_ac));
 }
 
+static bool b43_ac_diag;
+module_param_named(ac_diag, b43_ac_diag, bool, 0644);
+MODULE_PARM_DESC(ac_diag, "log MAC/DMA/GPIO/macstat state every 15 s (default off)");
 static bool b43_ac_replay;
 module_param_named(ac_replay, b43_ac_replay, bool, 0444);
 MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channel 6 PHY/radio state");
@@ -1251,7 +1254,7 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 				bcma_chipco_regctl_maskset(cc, b43_ac_por_pmu[i].idx,
 							   0, b43_ac_por_pmu[i].val);
 		}
-	b43info(dev->wl, "phy_ac: applied first-load state 0x%x (radio %u phy %u tbl %u shm %u cc %u pmu %u)\n",
+	b43dbg(dev->wl, "phy_ac: applied first-load state 0x%x (radio %u phy %u tbl %u shm %u cc %u pmu %u)\n",
 		b43_ac_por, n[0], n[1], n[2], n[3], n[4], n[5]);
 	if (b43_ac_rfkick)
 		b43_ac_rfkick_run(dev);
@@ -3123,7 +3126,7 @@ static void b43_phy_ac_replay_ch6(struct b43_wldev *dev)
 					b43_ac_replay_shm[i].off,
 					b43_ac_replay_shm[i].val);
 	}
-	b43info(dev->wl, "phy_ac: replayed vendor ch6 state (%zu radio, %zu PHY regs, %zu table entries)\n",
+	b43dbg(dev->wl, "phy_ac: replayed vendor ch6 state (%zu radio, %zu PHY regs, %zu table entries)\n",
 		ARRAY_SIZE(b43_ac_replay_radio), ARRAY_SIZE(b43_ac_replay_phy),
 		ARRAY_SIZE(b43_ac_replay_tbl));
 }
@@ -3384,6 +3387,8 @@ static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 	 * refill sweep this port never had; do the equivalent here. */
 	b43_dma_rx_retry_poisoned(dev);
 
+	if (!b43_ac_diag)
+		return;
 	b43info(dev->wl, "phy_ac: MACCTL=%08x IRQ reason=%08x mask=%08x pio=%d\n",
 		b43_read32(dev, B43_MMIO_MACCTL),
 		b43_read32(dev, B43_MMIO_GEN_IRQ_REASON),
