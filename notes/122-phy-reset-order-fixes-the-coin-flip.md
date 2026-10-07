@@ -11,3 +11,8 @@ Results (ac_selfheal=0, raw first init): 20/20 connected with 0 PHY TX errors, t
 Before: 8/30, 11/30, 3/24.
 Ruled out along the way (notes/121): rfseq delay, replay padding, PHY tables, IOCTL value after init.
 Not yet ported from Alessio: pcie2 HAVEHTREQ (CLKCTLST), skipping bcma_core_pll_ctl on AC.
+
+## Follow-up (2026-10-07): skipping bcma_core_pll_ctl on AC (`ac_nopllctl=1`)
+Opt-in param, off by default: skip the 80211/PHY PLL request+wait at core reset on AC. 10/10 fresh reload+connects, 0 PHY TX
+errors, 0 suspend failures: identical to the default (48/48), so harmless but no gain; kept as a param, not enabled.
+The pcie2 HAVEHTREQ part of Alessio's change was not ported (no defect to fix, init already reliable).

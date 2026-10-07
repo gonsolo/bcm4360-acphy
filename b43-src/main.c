@@ -1320,6 +1320,9 @@ void b43_wireless_core_phy_pll_reset(struct b43_wldev *dev)
 }
 
 #ifdef CONFIG_B43_BCMA
+static bool b43_ac_nopllctl;
+module_param_named(ac_nopllctl, b43_ac_nopllctl, bool, 0444);
+MODULE_PARM_DESC(ac_nopllctl, "AC-PHY test: do not request/wait for the 80211/PHY PLLs (bcma_core_pll_ctl) at core reset");
 static bool b43_ac_phyreset = true;
 module_param_named(ac_phyreset, b43_ac_phyreset, bool, 0444);
 MODULE_PARM_DESC(ac_phyreset, "AC-PHY: reset the PHY the way wl does (IOCTL 0x14f twice, 0x141, 0x145: reset asserted with the clock forced, released with the clock free) instead of the generic b43 order, default on (notes/122)");
@@ -1387,7 +1390,8 @@ static void b43_bcma_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 
 	bcma_core_set_clockmode(dev->dev->bdev, BCMA_CLKMODE_FAST);
 	b43_bcma_phy_reset(dev);
-	bcma_core_pll_ctl(dev->dev->bdev, req, status, true);
+	if (!(b43_ac_nopllctl && dev->phy.type == B43_PHYTYPE_AC))
+		bcma_core_pll_ctl(dev->dev->bdev, req, status, true);
 }
 #endif
 
