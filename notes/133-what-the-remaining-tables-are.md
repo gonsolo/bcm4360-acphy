@@ -19,3 +19,13 @@ So real-code replacement order by effort: 0x21 (zeros, trivial) < 0x07 (symbolic
 - Verified exactly: tbldump (all 31 tables, 5383 cells) bit-identical to the pre-change dump (0 lines differ), including after a fresh
   load + connect. Replay now: id7 75 entries, 0x0a 96, 0x0b 13, 0x0c 63, 0x0e 40, 0x40 128, 0x60 128 = 543 table entries (from 3022).
 - Remaining id 7 offsets: 0x6a-0x6f, 0xf9, 0x100-0x106 (gain coefficients), 0x140-0x15a, 0x18e, 0x360-0x37a, 0x3c6-0x3e7, 0x3fa-0x3ff, 0x440.
+
+## Why the rest is not a cheap win (checked)
+- id 7 @ 0x100/0x103/0x106 (gain codes ff00, 07cf, 00a7, both cores): Alessio's b43_phy_ac_txgain_program() derives them from an entry of the
+  TX gain LUT; no entry of his 5 GHz LUT (txgain_epa_5g_2069rev4) gives these values, so they come from the 2.4 GHz LUT, which his tree lacks.
+- id 0x0c: three groups: gain-index ramps (0x00-0x11, 0x20-0x31: 0x100,0x200,0x300,0x500,0x800,0xb00,0x1000,..), setup cells 0x40-0x4d, and
+  bbmult/limit cells 0x5f-0x77 (0x3f at 0x63/0x73/0x67/0x77 ...). The bbmult cells are the ones his TX-power code writes; the ramps are not in his tree.
+- id 0x40/0x60: programmed power-estimation LUT (does not match rev0 defaults at all). id 0x0a: board FEM pattern (differs from his router table). id 0x0b: gain limits
+  (his code writes 0x0b @ 8 (6 cells) and @ 0x10 (7 cells) from glim_a/glim_b), 0x0e: tone tables.
+So the remaining 543 entries are a coherent block: the TX gain / power-control setup for the 2.4 GHz band on this board. Replacing it needs the 2.4 GHz TX gain
+LUT (wl's acphy_txgain_*2g* tables, in the wl object in the repo's disassembly) plus Alessio's txpwrctrl programming; this is the TX power/calibration item.
