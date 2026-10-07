@@ -242,9 +242,6 @@ MODULE_PARM_DESC(ac_decerr_pass, "AC-PHY: pass frames the ucode flags DECERR up 
 static unsigned int b43_ac_decerr_logged;
 
 static int b43_ac_httx;
-static uint b43_ac_httx_var;
-module_param_named(ac_httx_var, b43_ac_httx_var, uint, 0644);
-MODULE_PARM_DESC(ac_httx_var, "AC-PHY experiment: HT header variants (bit0 rate index = mcs, bit1 rate field = 0x80|mcs, bit2 phy ctl word 2 = 0x0100)");
 module_param_named(ac_httx, b43_ac_httx, int, 0644);
 MODULE_PARM_DESC(ac_httx, "AC-PHY experiment (notes/123): send unicast data frames as HT20 at MCS (ac_httx - 1), 0 = off, runtime switchable");
 
@@ -265,6 +262,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	unsigned int len = skb->len + FCS_LEN;
 	u8 *ri = h + B43_TXH_AC_RATE(0);
 	u16 mac_lo = 0, phy0, idx = 0, chanspec;
+	int ht_mcs = -1;
 	const u8 *tbl = is_ofdm ? ofdm : cck;
 	unsigned int n = is_ofdm ? ARRAY_SIZE(ofdm) : ARRAY_SIZE(cck);
 
@@ -306,27 +304,30 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	if (!is_ofdm && rate != B43_CCK_RATE_1MB &&
 	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
 		phy0 |= 0x0010;
-	if (b43_ac_httx > 0 && b43_ac_httx <= 16 && ieee80211_is_data(wlhdr->frame_control) &&
-	    !is_multicast_ether_addr(wlhdr->addr1) &&
-	    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
+		ht_mcs = info->control.rates[0].idx;
+	else if (b43_ac_httx > 0 && b43_ac_httx <= 16 && ieee80211_is_data(wlhdr->frame_control) &&
+		 !is_multicast_ether_addr(wlhdr->addr1) &&
+		 !(info->flags & IEEE80211_TX_CTL_NO_ACK))
+		ht_mcs = b43_ac_httx - 1;
+
+	if (ht_mcs >= 0 && ht_mcs <= 15) {
+		/* HT20: frame type 2, PLCP as brcmsmac lays it out, rate index = MCS (notes/123) */
 		static const u8 ht20_500k[8] = { 13, 26, 39, 52, 78, 104, 117, 130 };
-		u8 mcs = b43_ac_httx - 1;
+		u8 mcs = ht_mcs;
 		u8 *plcp = ri + 0x06;
 
 		phy0 = 2 | 0x0004 | (((mcs > 7 ? 3 : b43_ac_txcore) & 0xf) << 6);
 		put_unaligned_le16(phy0, ri + 0x00);
 		put_unaligned_le16(0, ri + 0x02);
-		put_unaligned_le16((b43_ac_httx_var & 1) ? mcs : 0, ri + 0x04);
-		if (b43_ac_httx_var & 4)
-			put_unaligned_le16(0x0100, ri + 0x02);
+		put_unaligned_le16(mcs, ri + 0x04);
 		plcp[0] = mcs;
 		plcp[1] = len & 0xff;
 		plcp[2] = len >> 8;
 		plcp[3] = 0x07;		/* smoothing, not sounding, reserved (brcmsmac) */
 		plcp[4] = 0;
 		plcp[5] = 0;
-		put_unaligned_le16((b43_ac_httx_var & 2) ? (0x80 | mcs) :
-				   ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
+		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
 	} else {
 	put_unaligned_le16(phy0, ri + 0x00);
 	put_unaligned_le16(0, ri + 0x02);
@@ -900,9 +901,24 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 
 	if (dev->phy.type == B43_PHYTYPE_AC &&
-	    (phystat0 & B43_RX_PHYST0_FTYPE) >= B43_RX_PHYST0_PRE_N)
-		rate_idx = 0; /* TODO: decode HT/VHT SIG */
-	else if (phystat0 & B43_RX_PHYST0_OFDM)
+	    (phystat0 & B43_RX_PHYST0_FTYPE) == B43_RX_PHYST0_PRE_N) {
+		/* HT frame: the six bytes before the frame are HT-SIG: MCS and
+		 * 40 MHz bit in byte 0, coding/STBC/short GI in byte 3. */
+		const u8 *sig = plcp->raw;
+
+		status.encoding = RX_ENC_HT;
+		if (sig[0] & 0x80)
+			status.bw = RATE_INFO_BW_40;
+		if (sig[3] & 0x80)
+			status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
+		if (sig[3] & 0x40)
+			status.enc_flags |= RX_ENC_FLAG_LDPC;
+		status.enc_flags |= ((sig[3] >> 4) & 0x3) << RX_ENC_FLAG_STBC_SHIFT;
+		rate_idx = (sig[0] & 0x7f) <= 15 ? sig[0] & 0x7f : -1;
+	} else if (dev->phy.type == B43_PHYTYPE_AC &&
+		   (phystat0 & B43_RX_PHYST0_FTYPE) == B43_RX_PHYST0_STD_N) {
+		rate_idx = -1;	/* VHT: not advertised */
+	} else if (phystat0 & B43_RX_PHYST0_OFDM)
 		rate_idx = b43_plcp_get_bitrate_idx_ofdm(plcp,
 					!!(chanstat & B43_RX_CHAN_5GHZ));
 	else

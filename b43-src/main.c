@@ -376,6 +376,28 @@ static struct ieee80211_supported_band b43_band_2GHz = {
 	.n_bitrates	= b43_g_ratetable_size,
 };
 
+static bool b43_ac_ht;
+module_param_named(ac_ht, b43_ac_ht, bool, 0444);
+MODULE_PARM_DESC(ac_ht, "AC-PHY: advertise HT20 (2 streams, no aggregation, no short GI) on 2.4 GHz, default off: no throughput gain yet (notes/124)");
+
+static struct ieee80211_supported_band b43_band_2GHz_ac = {
+	.band		= NL80211_BAND_2GHZ,
+	.channels	= b43_2ghz_chantable,
+	.n_channels	= ARRAY_SIZE(b43_2ghz_chantable),
+	.bitrates	= b43_g_ratetable,
+	.n_bitrates	= b43_g_ratetable_size,
+	.ht_cap		= {
+		.ht_supported	= true,
+		.cap		= IEEE80211_HT_CAP_SM_PS,	/* static SM power save disabled */
+		.ampdu_factor	= IEEE80211_HT_MAX_AMPDU_8K,
+		.ampdu_density	= IEEE80211_HT_MPDU_DENSITY_NONE,
+		.mcs		= {
+			.rx_mask	= { 0xff, 0xff },
+			.tx_params	= IEEE80211_HT_MCS_TX_DEFINED,
+		},
+	},
+};
+
 static struct ieee80211_supported_band b43_band_2ghz_limited = {
 	.band		= NL80211_BAND_2GHZ,
 	.channels	= b43_2ghz_chantable,
@@ -5725,7 +5747,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
 
 	if (have_2ghz_phy)
 		hw->wiphy->bands[NL80211_BAND_2GHZ] = limited_2g ?
-			&b43_band_2ghz_limited : &b43_band_2GHz;
+			&b43_band_2ghz_limited :
+			(dev->phy.type == B43_PHYTYPE_AC && b43_ac_ht ?
+			 &b43_band_2GHz_ac : &b43_band_2GHz);
 	if (dev->phy.type == B43_PHYTYPE_N) {
 		if (have_5ghz_phy)
 			hw->wiphy->bands[NL80211_BAND_5GHZ] = limited_5g ?
