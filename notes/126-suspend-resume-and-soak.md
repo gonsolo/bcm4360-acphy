@@ -9,3 +9,9 @@ Soak: tools/b43_soak.sh <seconds> [log]: ping the gateway through wlp3s0b1 every
 transitions, kernel error counters and station retries every 5 min. 2 h run on the production Nix module
 (test-logs/soak_main.log). Gotcha: restarting b43-ac-load.service by hand with b43 already loaded logs
 "try 1: load failed (File exists)" and reloads; at boot the module is not loaded so this does not happen.
+
+## Soak result (production Nix module, 03:10-05:05, killed at ~1 h 55 min of the planned 2 h)
+690 pings, 11 lost, never more than 2 in a row, 0 kernel errors (PHY TX error / MAC suspend failed / bad init).
+Two NM state transitions at 03:37 (connected -> connecting (configuring) -> connected in 10 s, during my own
+test activity); no unrecovered drop. Last 55 min: 0 lost. Verdict: pass. b43_soak.sh now uses tools/iw
+(txpk/retries filled) and prints the end line on INT/TERM.

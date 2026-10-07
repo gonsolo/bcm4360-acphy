@@ -3,10 +3,12 @@
 # reconnects and kernel counters. usage: sudo tools/b43_soak.sh <seconds> [logfile]
 set -u
 P=/home/gonsolo/bcm4360-acphy
-IF=wlp3s0b1; GW=${GW:-192.168.0.1}
+IF=wlp3s0b1; IW=$P/tools/iw/bin/iw; GW=${GW:-192.168.0.1}
 DUR=${1:?seconds}; LOG=${2:-$P/test-logs/soak_$(date +%m%d_%H%M).log}
 sysctl -q net.ipv4.conf.$IF.rp_filter=0
 echo "# soak start $(date) dur=${DUR}s module=$(sudo cat /sys/module/b43/parameters/ac_phyreset 2>/dev/null)" | tee "$LOG"
+summary() { echo "# soak end $(date): pings=$n lost=$lost maxrun=$maxrun transitions=$recon" | tee -a "$LOG"; }
+trap "summary; exit" INT TERM
 end=$(( $(date +%s) + DUR )); n=0; lost=0; run=0; maxrun=0; recon=0; last=
 dm0=$(dmesg | grep -c -E "PHY transmission error|MAC suspend failed|ac_selfheal: bad init")
 while [ "$(date +%s)" -lt "$end" ]; do
@@ -18,8 +20,8 @@ while [ "$(date +%s)" -lt "$end" ]; do
 	[ "$r" = LOST ] && echo "$(date +%T) LOST (run $run) state=$st" >> "$LOG"
 	if [ $((n % 30)) -eq 0 ]; then
 		dm=$(dmesg | grep -c -E "PHY transmission error|MAC suspend failed|ac_selfheal: bad init")
-		echo "$(date +%T) n=$n lost=$lost maxrun=$maxrun transitions=$recon kerr=$((dm-dm0)) $(iw dev $IF station dump 2>/dev/null | awk '/tx retries/{r=$3}/tx packets/{p=$3}END{print "txpk="p" retries="r}')" | tee -a "$LOG"
+		echo "$(date +%T) n=$n lost=$lost maxrun=$maxrun transitions=$recon kerr=$((dm-dm0)) $($IW dev $IF station dump 2>/dev/null | awk '/tx retries/{r=$3}/tx packets/{p=$3}END{print "txpk="p" retries="r}')" | tee -a "$LOG"
 	fi
 	sleep 10
 done
-echo "# soak end $(date): pings=$n lost=$lost maxrun=$maxrun transitions=$recon" | tee -a "$LOG"
+summary
