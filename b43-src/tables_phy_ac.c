@@ -575,3 +575,19 @@ const struct b43_phy_ac_tbl b43_phy_ac_misc_tbls[] = {
 	{ b43_iqcal_tone, 20, 0x0e, 0x14, 32 },
 };
 const unsigned int b43_phy_ac_misc_tbls_n = ARRAY_SIZE(b43_phy_ac_misc_tbls);
+
+/* Gain ladder "A" (table 0x0c, 18 index/gain pairs per core; name after Alessio's tree, the variant wl loads on this card). */
+static const u16 b43_gain_ladder_a_c0[18] = {
+	0x0100, 0x0200, 0x0300, 0x0500, 0x0800, 0x0b00, 0x1000, 0x1001, 0x1002,
+	0x1003, 0x1004, 0x1005, 0x1006, 0x1007, 0x1607, 0x2007, 0x2d07, 0x4007,
+};
+static const u16 b43_gain_ladder_a_c1[18] = {
+	0x0100, 0x0200, 0x0300, 0x0500, 0x0800, 0x0b00, 0x1000, 0x1600, 0x2000,
+	0x2d00, 0x4000, 0x4001, 0x4002, 0x4003, 0x4004, 0x4005, 0x4006, 0x4007,
+};
+
+const struct b43_phy_ac_tbl b43_phy_ac_ladder_tbls[] = {
+	{ b43_gain_ladder_a_c0, 18, 0x0c, 0x00, 16 },
+	{ b43_gain_ladder_a_c1, 18, 0x0c, 0x20, 16 },
+};
+const unsigned int b43_phy_ac_ladder_tbls_n = ARRAY_SIZE(b43_phy_ac_ladder_tbls);

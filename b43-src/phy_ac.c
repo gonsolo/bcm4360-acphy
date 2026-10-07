@@ -2215,6 +2215,8 @@ static void b43_phy_ac_tables_init(struct b43_wldev *dev)
 	b43_phy_ac_write_est_pwr(dev);
 	for (i = 0; i < b43_phy_ac_misc_tbls_n; i++)
 		b43_phy_ac_write_table(dev, &b43_phy_ac_misc_tbls[i]);
+	for (i = 0; i < b43_phy_ac_ladder_tbls_n; i++)
+		b43_phy_ac_write_table(dev, &b43_phy_ac_ladder_tbls[i]);
 	/* FEM control pattern: only the femctrl == 2 variant (this card) is known. SROM rev 11 word 0x55 bits 15:11. */
 	if (dev->dev->bus_type == B43_BUS_BCMA &&
 	    (bcma_read16(dev->dev->bdev->bus->drv_cc.core, BCMA_CC_SPROM + 0xaa) >> 11) == 2)
