@@ -14,5 +14,7 @@ struct b43_phy_ac_tbl {
 
 extern const struct b43_phy_ac_tbl b43_phy_ac_tbls_rev0[];
 extern const unsigned int b43_phy_ac_tbls_rev0_n;
+extern const struct b43_phy_ac_tbl b43_phy_ac_rfseq_tbls[];
+extern const unsigned int b43_phy_ac_rfseq_tbls_n;
 
 #endif /* B43_TABLES_PHY_AC_H_ */

@@ -2170,6 +2170,8 @@ static void b43_phy_ac_tables_init(struct b43_wldev *dev)
 	b43_phy_set(dev, 0x19e, 0x2);
 	for (i = 0; i < b43_phy_ac_tbls_rev0_n; i++)
 		b43_phy_ac_write_table(dev, &b43_phy_ac_tbls_rev0[i]);
+	for (i = 0; i < b43_phy_ac_rfseq_tbls_n; i++)
+		b43_phy_ac_write_table(dev, &b43_phy_ac_rfseq_tbls[i]);
 	b43_phy_maskset(dev, 0x19e, ~0x2, save & 0x2);
 
 	b43_phy_write(dev, 0x1645, 0x25c);

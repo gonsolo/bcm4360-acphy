@@ -10,3 +10,12 @@ real code can be verified exactly by diffing dumps. Alessio's tree (~/src/b43-ac
 | 0x40, 0x60 | 128 each | est_pwr_lut core0/core1, ours has 0/128 matches with the rev0 default arrays (tbl_05/tbl_06) so they are the programmed power-estimation LUT | TX power control setup (txpwrctrl program from SROM pa params); part of the TX power / calibration port |
 So real-code replacement order by effort: 0x21 (zeros, trivial) < 0x07 (symbolic arrays exist, verify with dump diff) < 0x0a (needs board FEM derivation)
 < 0x0b/0xc/0xe (unknown) < 0x40/0x60 (TX power control). The 290 PHY writes (all contribute, notes/132) are the larger open item.
+
+## Done (same day)
+- id 0x21: now a real zero table in tables_phy_ac.c (24 entries removed from the replay).
+- id 0x07: 136 of 211 entries are now named RF-sequencer arrays in tables_phy_ac.c (opcode enum after Alessio's tree; rx2tx/tx2rx/
+  reset2rx commands, rfseq2 commands per core, delay blocks, update-delay cells), written by b43_phy_ac_tables_init and removed from
+  the replay. Note the tx2rx list starts with an extra opcode 0xb3 on this core rev; his array has no such opcode.
+- Verified exactly: tbldump (all 31 tables, 5383 cells) bit-identical to the pre-change dump (0 lines differ), including after a fresh
+  load + connect. Replay now: id7 75 entries, 0x0a 96, 0x0b 13, 0x0c 63, 0x0e 40, 0x40 128, 0x60 128 = 543 table entries (from 3022).
+- Remaining id 7 offsets: 0x6a-0x6f, 0xf9, 0x100-0x106 (gain coefficients), 0x140-0x15a, 0x18e, 0x360-0x37a, 0x3c6-0x3e7, 0x3fa-0x3ff, 0x440.

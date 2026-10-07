@@ -363,6 +363,9 @@ static const u32 b43_acphy_tbl_22[] = {
 	0x00750460, 0x006e04a3, 0x006804e9, 0x00620533, 0x005d0582, 0x005805d6, 0x0053062e, 0x004e068c,
 };
 
+/* ppr (power per rate) table: all zero until TX power control programs it (notes/133, was replayed) */
+static const u32 b43_acphy_tbl_ppr[24];
+
 const struct b43_phy_ac_tbl b43_phy_ac_tbls_rev0[] = {
 	{ b43_acphy_tbl_00, 128, 1, 0, 16 },
 	{ b43_acphy_tbl_01, 38, 2, 0, 8 },
@@ -387,6 +390,146 @@ const struct b43_phy_ac_tbl b43_phy_ac_tbls_rev0[] = {
 	{ b43_acphy_tbl_20, 64, 72, 0, 32 },
 	{ b43_acphy_tbl_21, 64, 104, 0, 32 },
 	{ b43_acphy_tbl_22, 64, 136, 0, 32 },
+	{ b43_acphy_tbl_ppr, 24, 0x21, 0, 32 },
 };
 
 const unsigned int b43_phy_ac_tbls_rev0_n = ARRAY_SIZE(b43_phy_ac_tbls_rev0);
+/* RF sequencer tables (table id 7), previously replayed from wl's first-load capture (notes/133).
+ * Opcode names after Alessio Ferri's tree; values are what core revision 42 holds after wl's init. */
+enum {
+	RFSEQ_NOP = 0x00,
+	RFSEQ_RXG_FBW = 0x01,
+	RFSEQ_TR_SWITCH = 0x02,
+	RFSEQ_INT_PA_PU = 0x03,
+	RFSEQ_EXT_PA = 0x04,
+	RFSEQ_RXPD_TXPD = 0x05,
+	RFSEQ_TX_GAIN = 0x06,
+	RFSEQ_RX_GAIN = 0x07,
+	RFSEQ_CLR_HIQ_DIS = 0x08,
+	RFSEQ_SET_LPF_H_HPC = 0x0a,
+	RFSEQ_SET_LPF_M_HPC = 0x0c,
+	RFSEQ_SET_LPF_L_HPC = 0x0e,
+	RFSEQ_CLR_RXRX_BIAS = 0x0f,
+	RFSEQ_END = 0x1f,
+	RFSEQ_UNK_2A = 0x2a,
+	RFSEQ_UNK_2B = 0x2b,
+	RFSEQ_UNK_35 = 0x35,
+	RFSEQ_UNK_36 = 0x36,
+	RFSEQ_UNK_B3 = 0xb3,
+};
+
+/* receive -> transmit sequencer commands, table 7 @ 0x0 */
+static const u16 b43_rfseq_rx2tx_cmd[] = {
+	RFSEQ_NOP, RFSEQ_RXG_FBW, RFSEQ_TR_SWITCH, RFSEQ_CLR_HIQ_DIS,
+	RFSEQ_RXPD_TXPD, RFSEQ_NOP, RFSEQ_TX_GAIN, RFSEQ_INT_PA_PU,
+	RFSEQ_CLR_RXRX_BIAS, RFSEQ_EXT_PA, RFSEQ_NOP, RFSEQ_UNK_35,
+	RFSEQ_CLR_RXRX_BIAS, RFSEQ_NOP, RFSEQ_UNK_36, RFSEQ_END,
+};
+
+/* transmit -> receive (starts with an extra 0xb3 opcode on core rev 42), table 7 @ 0x10 */
+static const u16 b43_rfseq_tx2rx_cmd[] = {
+	RFSEQ_UNK_B3, RFSEQ_EXT_PA, RFSEQ_INT_PA_PU, RFSEQ_TX_GAIN,
+	RFSEQ_RXPD_TXPD, RFSEQ_NOP, RFSEQ_TR_SWITCH, RFSEQ_RXG_FBW,
+	RFSEQ_CLR_HIQ_DIS, RFSEQ_UNK_2A, RFSEQ_CLR_RXRX_BIAS, RFSEQ_NOP,
+	RFSEQ_CLR_RXRX_BIAS, RFSEQ_UNK_2B, RFSEQ_END, RFSEQ_END,
+};
+
+/* reset -> receive, table 7 @ 0x20 */
+static const u16 b43_rfseq_reset2rx_cmd[] = {
+	RFSEQ_EXT_PA, RFSEQ_INT_PA_PU, RFSEQ_TX_GAIN, RFSEQ_RXPD_TXPD,
+	RFSEQ_TR_SWITCH, RFSEQ_RXG_FBW, RFSEQ_CLR_HIQ_DIS, RFSEQ_UNK_2A,
+	RFSEQ_UNK_2B, RFSEQ_CLR_RXRX_BIAS, RFSEQ_END, RFSEQ_END,
+	RFSEQ_END, RFSEQ_END, RFSEQ_END, RFSEQ_END,
+};
+
+/* second sequencer, core 0, table 7 @ 0x30 */
+static const u16 b43_rfseq_rfseq2_cmd_c0[] = {
+	RFSEQ_UNK_2A, RFSEQ_RX_GAIN, RFSEQ_SET_LPF_H_HPC, RFSEQ_NOP,
+	RFSEQ_CLR_HIQ_DIS, RFSEQ_UNK_2B, RFSEQ_END, RFSEQ_END,
+};
+
+/* second sequencer, core 1, table 7 @ 0x40 */
+static const u16 b43_rfseq_rfseq2_cmd_c1[] = {
+	RFSEQ_UNK_2A, RFSEQ_RX_GAIN, RFSEQ_CLR_HIQ_DIS, RFSEQ_SET_LPF_M_HPC,
+	RFSEQ_SET_LPF_L_HPC, RFSEQ_UNK_2B, RFSEQ_END, RFSEQ_END,
+};
+
+/* second sequencer, core 2, table 7 @ 0x50 */
+static const u16 b43_rfseq_rfseq2_cmd_c2[] = {
+	RFSEQ_UNK_2A, RFSEQ_RX_GAIN, RFSEQ_CLR_HIQ_DIS, RFSEQ_SET_LPF_L_HPC,
+	RFSEQ_UNK_2B, RFSEQ_END, RFSEQ_END, RFSEQ_END,
+};
+
+/* rx2tx/tx2rx delays, table 7 @ 0x80 */
+static const u16 b43_rfseq_dly_80[] = {
+	0x0001, 0x0008, 0x0004, 0x0002,
+	0x0002, 0x0001, 0x0003, 0x0004,
+	0x0006, 0x0004, 0x000a, 0x0004,
+	0x0002, 0x0001, 0x0001, 0x0001,
+};
+
+/* reset2rx delays, table 7 @ 0x90 */
+static const u16 b43_rfseq_reset2rx_dly[] = {
+	0x000c, 0x0002, 0x0002, 0x0004,
+	0x0004, 0x0006, 0x0001, 0x0004,
+	0x0001, 0x0002, 0x0001, 0x0001,
+	0x0001, 0x0001, 0x0001, 0x0001,
+};
+
+/* rfseq2 delays, core 0, table 7 @ 0xa0 */
+static const u16 b43_rfseq_dly_a[] = {
+	0x0001, 0x0002, 0x0002, 0x0002,
+	0x0010, 0x0001, 0x0001, 0x0001,
+};
+
+/* rfseq2 delays, core 1, table 7 @ 0xb0 */
+static const u16 b43_rfseq_dly_b[] = {
+	0x0001, 0x0006, 0x0012, 0x0008,
+	0x0010, 0x0001, 0x0001, 0x0001,
+};
+
+/* rfseq2 delays, core 2, table 7 @ 0xc0 */
+static const u16 b43_rfseq_dly_c[] = {
+	0x0001, 0x0006, 0x001e, 0x001c,
+	0x0001, 0x0001, 0x0001, 0x0001,
+};
+
+/* rfseq update-delay cells, table 7 @ 0x121 */
+static const u16 b43_rfseq_updl_lpf_hpc0[] = {
+	0x0aaa, 0x0aaa,
+};
+
+/* rfseq update-delay cells, table 7 @ 0x124 */
+static const u16 b43_rfseq_updl_tia_hpc0[] = {
+	0x0222, 0x0222,
+};
+
+/* rfseq update-delay cells, table 7 @ 0x131 */
+static const u16 b43_rfseq_updl_lpf_hpc1[] = {
+	0x0aaa, 0x0aaa,
+};
+
+/* rfseq update-delay cells, table 7 @ 0x137 */
+static const u16 b43_rfseq_updl_tia_hpc1[] = {
+	0x0222, 0x0222,
+};
+
+const struct b43_phy_ac_tbl b43_phy_ac_rfseq_tbls[] = {
+	{ b43_rfseq_rx2tx_cmd, 16, 7, 0x0, 16 },
+	{ b43_rfseq_tx2rx_cmd, 16, 7, 0x10, 16 },
+	{ b43_rfseq_reset2rx_cmd, 16, 7, 0x20, 16 },
+	{ b43_rfseq_rfseq2_cmd_c0, 8, 7, 0x30, 16 },
+	{ b43_rfseq_rfseq2_cmd_c1, 8, 7, 0x40, 16 },
+	{ b43_rfseq_rfseq2_cmd_c2, 8, 7, 0x50, 16 },
+	{ b43_rfseq_dly_80, 16, 7, 0x80, 16 },
+	{ b43_rfseq_reset2rx_dly, 16, 7, 0x90, 16 },
+	{ b43_rfseq_dly_a, 8, 7, 0xa0, 16 },
+	{ b43_rfseq_dly_b, 8, 7, 0xb0, 16 },
+	{ b43_rfseq_dly_c, 8, 7, 0xc0, 16 },
+	{ b43_rfseq_updl_lpf_hpc0, 2, 7, 0x121, 16 },
+	{ b43_rfseq_updl_tia_hpc0, 2, 7, 0x124, 16 },
+	{ b43_rfseq_updl_lpf_hpc1, 2, 7, 0x131, 16 },
+	{ b43_rfseq_updl_tia_hpc1, 2, 7, 0x137, 16 },
+};
+
+const unsigned int b43_phy_ac_rfseq_tbls_n = ARRAY_SIZE(b43_phy_ac_rfseq_tbls);
