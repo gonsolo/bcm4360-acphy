@@ -1196,6 +1196,25 @@ done:
 	mdelay(30);
 }
 
+/* Ablation (notes/131): groups of first-load table ids to skip. */
+static uint b43_ac_por_tskip;
+module_param_named(ac_por_tskip, b43_ac_por_tskip, uint, 0644);
+MODULE_PARM_DESC(ac_por_tskip, "AC-PHY diagnostic: skip first-load table groups (1 id7, 2 ids a/b/c/e, 4 id10, 8 id21, 0x10 ids 44/45/64/65, 0x20 ids 40/60, 0x40 id4, 0x80 ids the init tables already write identically)");
+
+static unsigned int b43_ac_por_tgroup(u16 id)
+{
+	switch (id) {
+	case 0x07: return 0x01;
+	case 0x0a: case 0x0b: case 0x0c: case 0x0e: return 0x02;
+	case 0x10: return 0x04;
+	case 0x21: return 0x08;
+	case 0x44: case 0x45: case 0x64: case 0x65: return 0x10;
+	case 0x40: case 0x60: return 0x20;
+	case 0x04: return 0x40;
+	default: return 0x80;
+	}
+}
+
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
 	struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
@@ -1216,6 +1235,8 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 	if (b43_ac_por & B43_AC_POR_TBL)
 		for (i = 0; i < ARRAY_SIZE(b43_ac_por_tbl); i++, n[2]++) {
 			if (b43_ac_por_tbl[i].id == 0xffff)
+				continue;
+			if (b43_ac_por_tskip & b43_ac_por_tgroup(b43_ac_por_tbl[i].id))
 				continue;
 			b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_por_tbl[i].id);
 			b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, b43_ac_por_tbl[i].off);
