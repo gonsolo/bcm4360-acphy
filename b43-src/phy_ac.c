@@ -1196,99 +1196,26 @@ done:
 	mdelay(30);
 }
 
-/* Ablation (notes/132): skip first-load PHY/radio entries with index in [from, to). */
-static uint b43_ac_por_pfrom, b43_ac_por_pto, b43_ac_por_rfrom, b43_ac_por_rto;
+/* Ablation (notes/132): skip first-load PHY entries with index in [from, to). */
+static uint b43_ac_por_pfrom, b43_ac_por_pto;
 module_param_named(ac_por_pfrom, b43_ac_por_pfrom, uint, 0644);
 module_param_named(ac_por_pto, b43_ac_por_pto, uint, 0644);
-module_param_named(ac_por_rfrom, b43_ac_por_rfrom, uint, 0644);
-module_param_named(ac_por_rto, b43_ac_por_rto, uint, 0644);
-
-/* Ablation (notes/131): groups of first-load table ids to skip. */
-static uint b43_ac_por_tskip;
-module_param_named(ac_por_tskip, b43_ac_por_tskip, uint, 0644);
-MODULE_PARM_DESC(ac_por_tskip, "AC-PHY diagnostic: skip first-load table groups (1 id7, 2 ids a/b/c/e, 4 id10, 8 id21, 0x10 ids 44/45/64/65, 0x20 ids 40/60, 0x40 id4, 0x80 ids the init tables already write identically)");
-
-static unsigned int b43_ac_por_tgroup(u16 id)
-{
-	switch (id) {
-	case 0x07: return 0x01;
-	case 0x0a: case 0x0b: case 0x0c: case 0x0e: return 0x02;
-	case 0x10: return 0x04;
-	case 0x21: return 0x08;
-	case 0x44: case 0x45: case 0x64: case 0x65: return 0x10;
-	case 0x40: case 0x60: return 0x20;
-	case 0x04: return 0x40;
-	default: return 0x80;
-	}
-}
 
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
-	struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
-	unsigned int i, n[6] = { 0 };
+	unsigned int i, n = 0;
 
-	if (b43_ac_por & B43_AC_POR_RADIO)
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por_radio); i++, n[0]++)
-			if (b43_ac_por_radio[i][0] != 0xffff &&
-			    !(i >= b43_ac_por_rfrom && i < b43_ac_por_rto))
-				b43_radio_write(dev, b43_ac_por_radio[i][0],
-						b43_ac_por_radio[i][1]);
-	if ((b43_ac_por & B43_AC_POR_RADIO) && !(b43_ac_por & 0x40))
-		b43_radio_2069_vcocal(dev);
+	/* Everything else wl's first-load state contained (radio, tables, SHM,
+	 * chipcommon, PMU) is now real init code or proven unnecessary
+	 * (notes/130-135). Only the PHY register writes are left. */
 	if (b43_ac_por & B43_AC_POR_PHY)
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por_phy); i++, n[1]++)
+		for (i = 0; i < ARRAY_SIZE(b43_ac_por_phy); i++, n++)
 			if (b43_ac_por_phy[i][0] != 0xffff &&
 			    !(i >= b43_ac_por_pfrom && i < b43_ac_por_pto))
 				b43_phy_write(dev, b43_ac_por_phy[i][0],
 					      b43_ac_por_phy[i][1]);
-	if (b43_ac_por & B43_AC_POR_TBL)
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por_tbl); i++, n[2]++) {
-			if (b43_ac_por_tbl[i].id == 0xffff)
-				continue;
-			if (b43_ac_por_tskip & b43_ac_por_tgroup(b43_ac_por_tbl[i].id))
-				continue;
-			b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_por_tbl[i].id);
-			b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, b43_ac_por_tbl[i].off);
-			if (b43_ac_por_tbl[i].width == 32)
-				b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2,
-					      b43_ac_por_tbl[i].val >> 16);
-			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
-				      b43_ac_por_tbl[i].val & 0xffff);
-		}
-	if (b43_ac_por & B43_AC_POR_SHM)
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por_shm); i++, n[3]++) {
-			u16 off = b43_ac_por_shm[i].off;
-
-			/* The per-rate blocks the rate maps point at (OFDM
-			 * 6-54M at words 0x4c6.., CCK 1-11M at 0x516..0x54d)
-			 * hold the PLCP templates the ucode sends its own
-			 * ACK/CTS with (word 1: OFDM L-SIG, CCK SIGNAL).
-			 * initvals set them up; wl's first-load values there
-			 * zero those words, and every ucode ACK then died as a
-			 * txphyerr (rate field 0). */
-			if (off >= 0x098c && off < 0x0a9c)
-				continue;
-			if (b43_ac_por_shm[i].routing != 0xffff)
-				b43_shm_write16(dev, b43_ac_por_shm[i].routing,
-						b43_ac_por_shm[i].off,
-						b43_ac_por_shm[i].val);
-		}
-	if ((b43_ac_por & B43_AC_POR_CC) && dev->dev->bus_type == B43_BUS_BCMA)
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por_cc); i++, n[4]++)
-			if (b43_ac_por_cc[i][0] != 0xffff)
-				bcma_cc_write32(cc, b43_ac_por_cc[i][0],
-						b43_ac_por_cc[i][1]);
-	if ((b43_ac_por & B43_AC_POR_PMU) && dev->dev->bus_type == B43_BUS_BCMA)
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por_pmu); i++, n[5]++) {
-			if (b43_ac_por_pmu[i].kind == 0)
-				bcma_chipco_chipctl_maskset(cc, b43_ac_por_pmu[i].idx,
-							    0, b43_ac_por_pmu[i].val);
-			else if (b43_ac_por_pmu[i].kind == 1)
-				bcma_chipco_regctl_maskset(cc, b43_ac_por_pmu[i].idx,
-							   0, b43_ac_por_pmu[i].val);
-		}
-	b43dbg(dev->wl, "phy_ac: applied first-load state 0x%x (radio %u phy %u tbl %u shm %u cc %u pmu %u)\n",
-		b43_ac_por, n[0], n[1], n[2], n[3], n[4], n[5]);
+	b43dbg(dev->wl, "phy_ac: applied first-load state 0x%x (phy %u)\n",
+		b43_ac_por, n);
 	if (b43_ac_rfkick)
 		b43_ac_rfkick_run(dev);
 	if (b43_ac_fr_path)
