@@ -592,7 +592,16 @@ const struct b43_phy_ac_tbl b43_phy_ac_ladder_tbls[] = {
 };
 const unsigned int b43_phy_ac_ladder_tbls_n = ARRAY_SIZE(b43_phy_ac_ladder_tbls);
 
-/* Remaining 2.4 GHz TX gain / power-control cells (tables 0x07 and 0x0c), values as wl programs them on this card. Meaning not yet identified. */
+/*
+ * Remaining 2.4 GHz cells of tables 0x07 (RF sequencer) and 0x0c, values as
+ * wl programs them on this card.  What is known is structure only, not the
+ * meaning of the values:
+ *  - 0x140/0x150 and 0x360/0x370 are identical pairs 0x10 apart, so they
+ *    look like one block per core (two cores).
+ *  - 0x6a/0x6e and 0x3fa/0x3fe repeat the same {0x2f, 0xbef, 0xbef} data.
+ *  - table 0x0c offsets 0x5f and 0x70 end in the same eight words.
+ * Nothing here has been varied independently of wl, so these stay literal.
+ */
 static const u16 b43_vendor_7_106[3] = {
 	0x2f, 0xbef, 0xbef,
 };

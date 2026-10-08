@@ -1214,6 +1214,10 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 			    !(i >= b43_ac_por_pfrom && i < b43_ac_por_pto))
 				b43_phy_write(dev, b43_ac_por_phy[i][0],
 					      b43_ac_por_phy[i][1]);
+	/* The one replay write that matters on its own: without it throughput
+	 * collapses to ~20 kB/s (bisected, notes/136). Meaning of the register
+	 * is not known. */
+	b43_phy_write(dev, 0x0070, 0xe500);
 	b43dbg(dev->wl, "phy_ac: applied first-load state 0x%x (phy %u)\n",
 		b43_ac_por, n);
 	if (b43_ac_rfkick)
