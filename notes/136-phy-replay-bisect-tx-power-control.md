@@ -38,3 +38,12 @@ idle-TSSI measurement (never ported; Alessio's driver has idle_tssi_meas / txpwr
 - Confirm under wl: read 0x640/0x840 while wl transmits (index should sit at 20-38, est near target).
 - Port TSSI path enable + idle TSSI + txpwrctrl setup; acceptance: index moves off 0, est tracks target,
   then loss/throughput A/B.
+
+## Update: the power loop needs radio state, not PHY writes (same day)
+- Old module (full replay) status 0x640=942e/0x840=2000 (index ~20, est = target 0x2e): the loop regulates.
+  Our current build: frozen at 8013/8022. Bisect of the 51 radio writes removed in e214612:
+  writes 3-8 (radio 0x0548, 0x0549, 0x054a, 0x054c, 0x040b, 0x054b) are what the loop needs.
+  Restoring the radio table (always applied; ac_por_rfrom/rto skip a range): index 19, est 0x2e on both cores in 3 of 3 loads.
+- The e214612 A/B only measured throughput/loss, so it missed this.
+- 4-pair A/B, loop frozen vs working: 500 vs 483 kB/s, loss unchanged. The loop is NOT the cause of the loss.
+- TODO: cut the radio table to the six writes as named init code.
