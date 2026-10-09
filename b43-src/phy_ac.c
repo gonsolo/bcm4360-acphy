@@ -1281,7 +1281,8 @@ static void b43_phy_ac_coeff_bank_init(struct b43_wldev *dev)
 
 static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 {
-	/* wl: 0x04xx mode/override words, AFE state, misc */
+	/* His b43_radio_2069_init() prologue (0x0415/040e/040c/0408/0417/0416)
+	 * and the end state of the power-on (0x0408 = 0x0c02, 0x0417 = 4) */
 	b43_phy_write(dev, 0x1739, 0x0000);
 	b43_phy_write(dev, 0x0415, 0x0000);
 	b43_phy_write(dev, 0x040e, 0x0000);
@@ -1297,8 +1298,9 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x03c4, 0x0668);	/* wl */
 	b43_phy_ac_set_reg_on_reset(dev);
 	b43_phy_write(dev, 0x0358, 0xc07f);	/* set_pdet_on_reset */
-	b43_phy_write(dev, 0x0414, 0x0555);	/* wl: rxcore_setstate */
-	b43_phy_write(dev, 0x040a, 0x0390);	/* wl */
+	/* FEM table 2 / sub 1 setup (his b43_phy_ac_fem2_sub1_setup) */
+	b43_phy_set(dev, 0x040a, 0x0100);
+	b43_phy_write(dev, 0x0414, 0x0555);
 	b43_phy_ac_coeff_bank_init(dev);
 	b43_phy_write(dev, 0x0197, 0x0014);	/* channel_setup */
 	b43_phy_write(dev, 0x0198, 0x0010);
