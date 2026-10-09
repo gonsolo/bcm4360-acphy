@@ -68,3 +68,10 @@ Alessio's 5 GHz channel switch runs ~17 phases (switch_prep ... afe_gain); ours 
   (4 value diffs), PHY writes covered except 0x02e4/0x06d4/0x08d4 (17 value diffs: IQ coefficients, CRS regs, 0x0d-0f, 0x1601).
   The wl-only MMIO in the hop (0x0200/0240/0280/02c0/02c4, 0x0128/012c) is TX DMA of scan probe requests and IRQ mask, not RX.
 - Conclusion: the channel-switch register set is not what is missing; the cause is state before it (bring-up) or a value detail.
+
+## Radio table cut to 21 named writes (2026-10-09)
+Bisect of the table with ac_por_rfrom/rto: the power loop needs 0x548-0x54c, 0x40b, 0x4e, 0x166, 0x24e, 0x366 and the
+per-core 0x1a-0x1f / 0x21a-0x21f plus 0x170. The six TSSI writes alone are not enough (loop frozen). The other ~50 writes
+(0x203-0x205, 0x370, 0x20-0x3d, 0x220-0x23d, 0x16e..) are not needed. Table deleted, 21 writes in apply_por(); the
+ac_por_rfrom/rto params are gone. Loop regulates (0x640=922e, 0x840=9b2d) in 3 of 3 loads.
+A/B (3 pairs, up/down Mbit/s): old table 20.0/19.6, 19.1/18.9, 18.8/18.1; 21 writes 20.2/19.3, 16.2/11.1, 20.3/19.2.

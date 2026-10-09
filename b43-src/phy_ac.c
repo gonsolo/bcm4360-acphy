@@ -1201,96 +1201,34 @@ static uint b43_ac_por_pfrom, b43_ac_por_pto;
 module_param_named(ac_por_pfrom, b43_ac_por_pfrom, uint, 0644);
 module_param_named(ac_por_pto, b43_ac_por_pto, uint, 0644);
 
-static const u16 b43_ac_por_radio[][2] = {
-	/* This whole block is wl's radio state as captured on its very first
-	 * boot, which associates on channel 1 before anything else runs.
-	 * Registers that are also part of the per-channel synthesizer tune
-	 * (b43_radio_2069_tune_regs[]) genuinely differ between channel 1
-	 * and channel 6, and this table runs *after* the correct channel-6
-	 * tune in switch_channel() - applying channel 1's values here was
-	 * silently detuning the radio back to channel 1 on every channel-6
-	 * switch. Skipped (0xffff) rather than deleted, to keep the
-	 * original captured values visible; the real per-channel tune
-	 * already covers these. */
-	/* 0x8e5/0x8d0/0x8e8/0x8dc are exactly the four registers
-	 * b43_radio_2069_vcocal() manipulates as its own calibration
-	 * trigger sequence (mask then re-set specific bits). By the time
-	 * this table runs, b43_phy_ac_tune() has already called vcocal()
-	 * once, correctly, for the real target channel. Writing these
-	 * wl-channel-1-boot-captured static values here afterwards
-	 * clobbers that just-completed calibration's own state - the same
-	 * class of bug as the 19 tuning registers already skipped above,
-	 * just for VCO-cal control bits instead of frequency-setting ones.
-	 * Skipped (0xffff) rather than deleted, values kept for the record. */
-	{ 0x0203, 0x0088 },
-	{ 0x0204, 0x006a },
-	{ 0x0205, 0x00e1 },
-	{ 0x0548, 0x0001 },
-	{ 0x0549, 0x0000 },
-	{ 0x054a, 0x0000 },
-	{ 0x054c, 0x0000 },
-	{ 0x040b, 0x0168 },
-	{ 0x054b, 0x0101 },
-	{ 0x004e, 0x8400 },
-	{ 0x0166, 0x0000 },
-	{ 0x024e, 0x8600 },
-	{ 0x0366, 0x0000 },
-	{ 0x001a, 0x0014 },
-	{ 0x001b, 0x0280 },
-	{ 0x001c, 0x0044 },
-	{ 0x001e, 0x0010 },
-	{ 0x001f, 0x0000 },
-	{ 0x0170, 0x0100 },
-	{ 0x021a, 0x0014 },
-	{ 0x021b, 0x0280 },
-	{ 0x021c, 0x0044 },
-	{ 0x021e, 0x0010 },
-	{ 0x021f, 0x0000 },
-	{ 0x0370, 0x0100 },
-	{ 0x0020, 0x0000 },
-	{ 0x0021, 0x0000 },
-	{ 0x0022, 0x0000 },
-	{ 0x0023, 0x0000 },
-	{ 0x003a, 0x0000 },
-	{ 0x003d, 0x000f },
-	{ 0x0220, 0x0000 },
-	{ 0x0221, 0x0000 },
-	{ 0x0222, 0x0000 },
-	{ 0x0223, 0x0000 },
-	{ 0x023a, 0x0000 },
-	{ 0x023d, 0x000f },
-	{ 0x016e, 0x0000 },
-	{ 0x000e, 0x0001 },
-	{ 0x0161, 0x0100 },
-	{ 0x0017, 0x0011 },
-	{ 0x015f, 0x0000 },
-	{ 0x0024, 0x0303 },
-	{ 0x0025, 0x005a },
-	{ 0x036e, 0x0000 },
-	{ 0x020e, 0x0001 },
-	{ 0x0361, 0x0100 },
-	{ 0x0217, 0x0011 },
-	{ 0x035f, 0x0000 },
-	{ 0x0224, 0x0203 },
-	{ 0x0225, 0x006a },
-};
-static uint b43_ac_por_rfrom, b43_ac_por_rto;
-module_param_named(ac_por_rfrom, b43_ac_por_rfrom, uint, 0644);
-module_param_named(ac_por_rto, b43_ac_por_rto, uint, 0644);
-
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
 	unsigned int i, n = 0;
 
-	/* Radio state the hardware TX power loop depends on (TSSI / power
-	 * detector path, per-core 0x01a-0x020 and 0x548-0x54c blocks). Without
-	 * it PHY 0x640/0x840 freeze at index 0 and the loop never reaches its
-	 * target (notes/137). ac_por_rfrom/rto skip a range, for bisecting. */
-	for (i = 0; i < ARRAY_SIZE(b43_ac_por_radio); i++)
-		if (b43_ac_por_radio[i][0] != 0xffff &&
-		    !(i >= b43_ac_por_rfrom && i < b43_ac_por_rto))
-			b43_radio_write(dev, b43_ac_por_radio[i][0],
-					b43_ac_por_radio[i][1]);
+	/* Radio state the hardware TX power loop needs (TSSI / power detector
+	 * path, per-core 0x01a-0x01f / 0x21a-0x21f, notes/136). Without it PHY 0x640/0x840 freeze at index 0 and
+	 * the loop never reaches its target. */
+	b43_radio_write(dev, 0x0548, 0x0001);
+	b43_radio_write(dev, 0x0549, 0x0000);
+	b43_radio_write(dev, 0x054a, 0x0000);
+	b43_radio_write(dev, 0x054c, 0x0000);
+	b43_radio_write(dev, 0x040b, 0x0168);
+	b43_radio_write(dev, 0x054b, 0x0101);
+	b43_radio_write(dev, 0x004e, 0x8400);
+	b43_radio_write(dev, 0x0166, 0x0000);
+	b43_radio_write(dev, 0x024e, 0x8600);
+	b43_radio_write(dev, 0x0366, 0x0000);
+	b43_radio_write(dev, 0x001a, 0x0014);
+	b43_radio_write(dev, 0x001b, 0x0280);
+	b43_radio_write(dev, 0x001c, 0x0044);
+	b43_radio_write(dev, 0x001e, 0x0010);
+	b43_radio_write(dev, 0x001f, 0x0000);
+	b43_radio_write(dev, 0x021a, 0x0014);
+	b43_radio_write(dev, 0x021b, 0x0280);
+	b43_radio_write(dev, 0x021c, 0x0044);
+	b43_radio_write(dev, 0x021e, 0x0010);
+	b43_radio_write(dev, 0x021f, 0x0000);
+	b43_radio_write(dev, 0x0170, 0x0100);
 
 	/* Everything else wl's first-load state contained (radio, tables, SHM,
 	 * chipcommon, PMU) is now real init code or proven unnecessary
