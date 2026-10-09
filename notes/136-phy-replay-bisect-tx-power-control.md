@@ -97,3 +97,9 @@ during a clean ping run reproduces exactly that pattern (8.5 % loss, bursts of 3
 (NetworkManager/wpa_supplicant) happened to fall in the 10 s ping window. Each off-channel hop drops the pings that
 arrive meanwhile: the AP is apparently not buffering for us (PS nullfunc not sent/acked or not honoured).
 Next: monitor-capture a scan hop (is the PM=1 nullfunc sent and acked?).
+
+Monitor capture of a scan hop (mon43 as a second vif on b43's phy, concurrent with the managed one works): before each
+off-channel hop b43 sends a QoS-Null with PM=1 (FC c8 11), the AP ACKs it, and on return a QoS-Null with PM=0 (c8 01).
+So the power-save signalling is correct. Each hop leaves a ~130-190 ms gap, ~3-4 pings at 50 ms spacing. Scan of 2
+channels 5 % loss, of 4 channels 27 %. Not a b43 TX-status bug; looks like generic mac80211 software-scan behaviour
+(a stick comparison failed: ping via wlp0s20u1 gets 100 % loss for an unrelated routing reason). Parked.
