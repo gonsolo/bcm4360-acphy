@@ -82,3 +82,8 @@ full 19.5/15.0, 21.8/15.3, 19.5/11.3; no PHY replay 19.2/12.6, 19.0/10.2, 20.1/1
 Averages 20.3/13.9 vs 19.4/11.7: within the load-to-load spread (10-19 down). The 124-239 vs 751-1074 kB/s gap
 measured earlier was the frozen power loop (0x70 and the radio state), not the 290 PHY writes.
 Next: connect/hold check without the replay, then delete the PHY table.
+
+Connect/hold check (5 loads each, 200 pings at 20 ms after the 25 s hold): all 10 loads connect and hold clean.
+Ping loss: ac_por=3 (no PHY replay) 22.5/22.5/0/23/0 %; ac_por=7 (full replay) 0/23/0/0/0 %. The loss is bimodal
+(0 or ~22 %) per load. 3/5 bad loads without the replay vs 1/5 with it: small sample, but the PHY replay is NOT
+deleted. The bimodal 22 % load state is the remaining 2.4 GHz problem (throughput is ~equal in both modes).
