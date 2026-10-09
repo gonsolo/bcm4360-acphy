@@ -47,3 +47,14 @@ idle-TSSI measurement (never ported; Alessio's driver has idle_tssi_meas / txpwr
 - The e214612 A/B only measured throughput/loss, so it missed this.
 - 4-pair A/B, loop frozen vs working: 500 vs 483 kB/s, loss unchanged. The loop is NOT the cause of the loss.
 - TODO: cut the radio table to the six writes as named init code.
+
+## 5 GHz RX baselines on 2026-10-09 (all listen-only, monitor mode, 2.4 GHz sanity 110-126 frames each time)
+- iPhone hotspot on ch44 at -17 dBm: existing 20 MHz path (minimal args and full replay): 0 frames on 5220/5180/5240.
+  Plus the 28 PHY + 2 radio regs that wl sets differently per band in its channel steps (extracted from
+  traces/decoded-firstload-5g/seq.txt, 221 5 GHz and 81 2.4 GHz steps): still 0.
+- Router ch116 at -44 dBm: 20 MHz path 0, 80 MHz state retuned to centre 122: 0.
+- Router moved to ch112 at -42 dBm, wl's untouched 80 MHz state (ac_5ghz=1 ac_5g_80=1), the mode of notes/07 that
+  decoded 88/100 beacons: current tree 0, Oct 7 module 0, the 09-26 commit 6b399f0 ("5 GHz: receives") rebuilt for 7.2.9: 0.
+=> the former 5 GHz RX success does not reproduce on kernel 7.2.9 with this setup. Not a code regression of the last
+   days; either the environment (kernel/reset order/router DFS) or the notes/07 measurement conditions differ.
+Alessio's 5 GHz channel switch runs ~17 phases (switch_prep ... afe_gain); ours is tune + BW regs + Farrow + CCA reset.
