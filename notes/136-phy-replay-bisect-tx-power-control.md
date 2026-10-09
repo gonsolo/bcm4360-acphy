@@ -87,3 +87,13 @@ Connect/hold check (5 loads each, 200 pings at 20 ms after the 25 s hold): all 1
 Ping loss: ac_por=3 (no PHY replay) 22.5/22.5/0/23/0 %; ac_por=7 (full replay) 0/23/0/0/0 %. The loss is bimodal
 (0 or ~22 %) per load. 3/5 bad loads without the replay vs 1/5 with it: small sample, but the PHY replay is NOT
 deleted. The bimodal 22 % load state is the remaining 2.4 GHz problem (throughput is ~equal in both modes).
+
+## The bimodal ~22% ping loss is background scanning, not init state (2026-10-09)
+10 loads (3 bad, 7 good) dumped (phy, radio, mac, tables): no static register differs between good and bad. Radio and
+tables are identical; the "separating" PHY/MAC registers are AGC/noise counters.
+A bad load loses pings in bursts of 3-4 every ~7.7 pings (~385 ms), only for the first ~5 s of the ping run; a second
+run on the same load and a run after 30 s idle are 0 %. Triggering `iw dev wlp3s0b1 scan freq 2412 2437 2462 2467 2472`
+during a clean ping run reproduces exactly that pattern (8.5 % loss, bursts of 3-4). So "bad load" = a background scan
+(NetworkManager/wpa_supplicant) happened to fall in the 10 s ping window. Each off-channel hop drops the pings that
+arrive meanwhile: the AP is apparently not buffering for us (PS nullfunc not sent/acked or not honoured).
+Next: monitor-capture a scan hop (is the PM=1 nullfunc sent and acked?).
