@@ -75,3 +75,10 @@ per-core 0x1a-0x1f / 0x21a-0x21f plus 0x170. The six TSSI writes alone are not e
 (0x203-0x205, 0x370, 0x20-0x3d, 0x220-0x23d, 0x16e..) are not needed. Table deleted, 21 writes in apply_por(); the
 ac_por_rfrom/rto params are gone. Loop regulates (0x640=922e, 0x840=9b2d) in 3 of 3 loads.
 A/B (3 pairs, up/down Mbit/s): old table 20.0/19.6, 19.1/18.9, 18.8/18.1; 21 writes 20.2/19.3, 16.2/11.1, 20.3/19.2.
+
+## PHY replay no longer needed for throughput (2026-10-09, after the radio fix)
+3 pairs, same build, ac_por=7 vs ac_por=3 (no PHY register replay), up/down Mbit/s:
+full 19.5/15.0, 21.8/15.3, 19.5/11.3; no PHY replay 19.2/12.6, 19.0/10.2, 20.1/12.3.
+Averages 20.3/13.9 vs 19.4/11.7: within the load-to-load spread (10-19 down). The 124-239 vs 751-1074 kB/s gap
+measured earlier was the frozen power loop (0x70 and the radio state), not the 290 PHY writes.
+Next: connect/hold check without the replay, then delete the PHY table.
