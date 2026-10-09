@@ -135,3 +135,8 @@ phy_ac_por.h and the ablation params are removed from phy_ac.c. 5 GHz still uses
 Ping loss after connect (22 % in every load of both builds today) is the scan-hop effect described above.
 Next: derive the values instead of writing them (his masksets, bandwidth/band dependent), starting with coeff_bank_init and
 set_reg_on_reset.
+
+b43_phy_ac_phyinit() now uses Alessio's read-modify-write forms (mode_init, set_reg_on_reset, coeff_bank_init as named
+functions, per-core loops): a full phydump after load matches the literal version on all 72 registers (so the reset
+defaults + masksets give the replayed values). Still constants for 2.4 GHz / 20 MHz; the band/width dependent parts of
+coeff_bank_init (0x0076 index, LUT per width, 0x0250/0x0261-0x0263, 0x0140/0x0164) are not used yet.

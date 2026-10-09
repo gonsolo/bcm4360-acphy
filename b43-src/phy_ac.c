@@ -1200,33 +1200,17 @@ module_param_named(ac_phyinit, b43_ac_phyinit, uint, 0644);
 
 /*
  * PHY register init, 2.4 GHz / 20 MHz, replacing the first 72 entries of the
- * wl first-load replay. Structure and values follow the reset-time blocks of
- * Alessio Ferri's b43-ac-wip (b43_phy_ac_mode_init, set_reg_on_reset,
- * set_pdet_on_reset, coeff_bank_init, init_regs); the registers marked
- * "wl" are written by wl in this window but not by his code.
+ * wl first-load replay. The blocks follow the reset-time code of Alessio
+ * Ferri's b43-ac-wip (mode_init, set_reg_on_reset, set_pdet_on_reset,
+ * coeff_bank_init); the words marked "wl" are written by wl in this window
+ * but not by his code. Read-modify-write is kept where he uses it: the
+ * result must equal the replayed value (checked register by register).
  */
-static void b43_phy_ac_phyinit(struct b43_wldev *dev)
+#define B43_AC_NCORES	2	/* coremask 0x3 on this chip */
+
+/* 0x17xx analog front end page, AFE on */
+static void b43_phy_ac_mode_init(struct b43_wldev *dev)
 {
-	static const u16 lut_bw20[21] = {
-		0x0015, 0x0146, 0x0088, 0x0146, 0x076e, 0x01a8, 0x00a3, 0x00f4,
-		0x00a3, 0x0684, 0x00ad, 0x00e5, 0x0068, 0x00e5, 0x06be, 0x019e,
-		0x0073, 0x00b2, 0x0073, 0x05fe, 0x00cc,
-	};
-	unsigned int i, c;
-
-	/* wl: analog front end state (AFE_OFF counterpart, 0x1739) and the
-	 * 0x04xx mode/override words. */
-	b43_phy_write(dev, 0x1739, 0x0000);
-	b43_phy_write(dev, 0x0415, 0x0000);
-	b43_phy_write(dev, 0x040e, 0x0000);
-	b43_phy_write(dev, 0x040c, 0x2000);
-	b43_phy_write(dev, 0x0416, 0x000d);
-	b43_phy_write(dev, 0x0408, 0x0c02);
-	b43_phy_write(dev, 0x0417, 0x0004);
-	b43_phy_write(dev, 0x016b, 0x0000);
-	b43_phy_write(dev, 0x0175, 0x0000);
-
-	/* mode_init: 0x17xx page clears, AFE on, 0x073a/0x1725 mirrors */
 	b43_phy_write(dev, 0x173e, 0x0000);
 	b43_phy_write(dev, 0x1725, 0x0000);
 	b43_phy_write(dev, 0x1722, 0x0000);
@@ -1238,50 +1222,84 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x1720, 0x0180);
 	b43_phy_write(dev, 0x1729, 0x0000);
 	b43_phy_write(dev, 0x1721, 0x5000);
-	b43_phy_write(dev, 0x173a, 0x0100);
-	b43_phy_write(dev, 0x1725, 0x0400);
+	b43_phy_write(dev, 0x173a, b43_phy_read(dev, 0x073a) | 0x0100);
+	b43_phy_write(dev, 0x1725, b43_phy_read(dev, 0x1725) | 0x0400);
+}
 
-	/* init_regs, first bring-up: 0x1645 and the ADC gain words are the
-	 * later part of this window; only 0x1645 is in the replay head. */
-	b43_phy_write(dev, 0x1645, 0x025c);
-	b43_phy_write(dev, 0x03c4, 0x0668);	/* wl */
+static void b43_phy_ac_set_reg_on_reset(struct b43_wldev *dev)
+{
+	unsigned int c;
 
-	/* set_reg_on_reset */
 	b43_phy_write(dev, 0x01f2, 0x00c8);
 	b43_phy_write(dev, 0x0026, 0x0092);
 	b43_phy_write(dev, 0x01ed, 0x0050);	/* wl */
 	b43_phy_write(dev, 0x0025, 0x0030);
-	b43_phy_write(dev, 0x02ef, 0x2055);	/* clip mask low byte 0x55 */
-	b43_phy_write(dev, 0x02eb, 0x2055);
-	b43_phy_write(dev, 0x02f7, 0x2055);
-	b43_phy_write(dev, 0x02f3, 0x2055);
-	b43_phy_write(dev, 0x01ca, 0x2000);
-	b43_phy_write(dev, 0x01b0, 0xa6cb);
-	b43_phy_write(dev, 0x01b1, 0xdc00);
-	b43_phy_write(dev, 0x01b6, 0x443b);
-	for (c = 0; c < 2; c++)
-		b43_phy_write(dev, 0x0690 + c * 0x200, 0x0600);
-	b43_phy_write(dev, 0x01e6, 0x0030);
 
-	/* set_pdet_on_reset (full): 0x0358 */
-	b43_phy_write(dev, 0x0358, 0xc07f);
+	/* clip mask: low byte 0x55 */
+	b43_phy_maskset(dev, 0x02ef, (u16)~0x00ff, 0x0055);
+	b43_phy_maskset(dev, 0x02eb, (u16)~0x00ff, 0x0055);
+	b43_phy_maskset(dev, 0x02f7, (u16)~0x00ff, 0x0055);
+	b43_phy_maskset(dev, 0x02f3, (u16)~0x00ff, 0x0055);
 
-	/* wl: RX core state words (rxcore_setstate / fem2_sub1_setup) */
-	b43_phy_write(dev, 0x0414, 0x0555);
-	b43_phy_write(dev, 0x040a, 0x0390);
-
-	/* coeff_bank_init, 20 MHz: width selector, LUT 0x0180-0x0194,
-	 * gain/threshold words, per-core 0x06ed/0x06ef */
-	b43_phy_write(dev, 0x0076, 0x0041);
-	for (i = 0; i < 21; i++)
-		b43_phy_write(dev, 0x0180 + i, lut_bw20[i]);
-	b43_phy_write(dev, 0x01b5, 0x0097);
-	b43_phy_write(dev, 0x0312, 0x0013);
-	b43_phy_write(dev, 0x0313, 0x1318);
-	for (c = 0; c < 2; c++) {
-		b43_phy_write(dev, 0x06ed + c * 0x200, 0x000a);
-		b43_phy_write(dev, 0x06ef + c * 0x200, 0x0e0f);
+	b43_phy_maskset(dev, 0x01ca, (u16)~0x1000, 0);
+	b43_phy_maskset(dev, 0x01b0, (u16)~0x0020, 0);
+	b43_phy_maskset(dev, 0x01b1, (u16)~0x1000, 0x1000);
+	b43_phy_maskset(dev, 0x01b6, (u16)~0x8000, 0);
+	for (c = 0; c < B43_AC_NCORES; c++) {
+		b43_phy_maskset(dev, 0x0690 + c * 0x200, (u16)~0x0200, 0x0200);
+		b43_phy_maskset(dev, 0x0690 + c * 0x200, (u16)~0x0400, 0x0400);
 	}
+	b43_phy_write(dev, 0x01e6, 0x0030);
+}
+
+/* RX gain / threshold LUT and per-core words, 20 MHz */
+static void b43_phy_ac_coeff_bank_init(struct b43_wldev *dev)
+{
+	static const u16 lut_bw20[21] = {
+		0x0015, 0x0146, 0x0088, 0x0146, 0x076e, 0x01a8, 0x00a3, 0x00f4,
+		0x00a3, 0x0684, 0x00ad, 0x00e5, 0x0068, 0x00e5, 0x06be, 0x019e,
+		0x0073, 0x00b2, 0x0073, 0x05fe, 0x00cc,
+	};
+	unsigned int i, c;
+
+	b43_phy_maskset(dev, 0x0076, (u16)~0x0007, 1);	/* width index, 20 MHz */
+	b43_phy_maskset(dev, 0x0180, (u16)~0x001f, lut_bw20[0]);
+	for (i = 1; i < 21; i++)
+		b43_phy_maskset(dev, 0x0180 + i, (u16)~0x07ff, lut_bw20[i]);
+	b43_phy_maskset(dev, 0x01b5, (u16)~0x00ff, 0x0097);
+	b43_phy_maskset(dev, 0x0312, (u16)~0x00ff, 0x0013);
+	b43_phy_maskset(dev, 0x0313, (u16)~0xff00, 0x1300);
+	for (c = 0; c < B43_AC_NCORES; c++) {
+		u16 st = c * 0x200;
+
+		b43_phy_maskset(dev, 0x06ed + st, (u16)~0x00ff, 0x000a);
+		b43_phy_maskset(dev, 0x06ef + st, (u16)~0x00ff, 0x0017);
+		b43_phy_maskset(dev, 0x06ef + st, (u16)~0xff00, 0x0e00);
+		b43_phy_maskset(dev, 0x06ef + st, (u16)~0x00ff, 0x000f);
+	}
+}
+
+static void b43_phy_ac_phyinit(struct b43_wldev *dev)
+{
+	/* wl: 0x04xx mode/override words, AFE state, misc */
+	b43_phy_write(dev, 0x1739, 0x0000);
+	b43_phy_write(dev, 0x0415, 0x0000);
+	b43_phy_write(dev, 0x040e, 0x0000);
+	b43_phy_write(dev, 0x040c, 0x2000);
+	b43_phy_write(dev, 0x0416, 0x000d);
+	b43_phy_write(dev, 0x0408, 0x0c02);
+	b43_phy_write(dev, 0x0417, 0x0004);
+	b43_phy_write(dev, 0x016b, 0x0000);
+	b43_phy_write(dev, 0x0175, 0x0000);
+
+	b43_phy_ac_mode_init(dev);
+	b43_phy_write(dev, 0x1645, 0x025c);	/* init_regs */
+	b43_phy_write(dev, 0x03c4, 0x0668);	/* wl */
+	b43_phy_ac_set_reg_on_reset(dev);
+	b43_phy_write(dev, 0x0358, 0xc07f);	/* set_pdet_on_reset */
+	b43_phy_write(dev, 0x0414, 0x0555);	/* wl: rxcore_setstate */
+	b43_phy_write(dev, 0x040a, 0x0390);	/* wl */
+	b43_phy_ac_coeff_bank_init(dev);
 	b43_phy_write(dev, 0x0197, 0x0014);	/* channel_setup */
 	b43_phy_write(dev, 0x0198, 0x0010);
 }
