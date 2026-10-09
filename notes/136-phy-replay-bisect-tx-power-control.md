@@ -103,3 +103,10 @@ off-channel hop b43 sends a QoS-Null with PM=1 (FC c8 11), the AP ACKs it, and o
 So the power-save signalling is correct. Each hop leaves a ~130-190 ms gap, ~3-4 pings at 50 ms spacing. Scan of 2
 channels 5 % loss, of 4 channels 27 %. Not a b43 TX-status bug; looks like generic mac80211 software-scan behaviour
 (a stick comparison failed: ping via wlp0s20u1 gets 100 % loss for an unrelated routing reason). Parked.
+
+## CORRECTION (2026-10-09): the two "no PHY replay" tests above used ac_por=3, which still contains B43_AC_POR_PHY (0x02)
+The no-PHY setting is ac_por=5 (RADIO|TBL). The sections "PHY replay no longer needed for throughput" and the hold/ping
+check (3 vs 5 bad loads) compared two settings that both replay the PHY writes; their conclusions are void.
+Redo with ac_por=5 (3 pairs, up/down Mbit/s): with replay 5.1/7.1 (bad load), 21.0/15.7, 19.9/11.0;
+no PHY replay 7.8/14.1, 5.3/15.2, 9.0/10.1. Upload collapses to 5-9 without the PHY writes, download is unaffected.
+So some of the 290 PHY writes are needed for TX. Next: bisect on the upload figure.
