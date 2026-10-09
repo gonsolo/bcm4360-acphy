@@ -1252,30 +1252,58 @@ static void b43_phy_ac_set_reg_on_reset(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x01e6, 0x0030);
 }
 
-/* RX gain / threshold LUT and per-core words, 20 MHz */
+/* Operating width in MHz; the coefficient bank scales with it. */
+static unsigned int b43_phy_ac_bw_mhz(struct b43_wldev *dev)
+{
+	switch (dev->wl->hw->conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_80:
+		return 80;
+	case NL80211_CHAN_WIDTH_40:
+		return 40;
+	default:
+		return 20;
+	}
+}
+
+/*
+ * RX gain / threshold LUT and per-core words. The 20 MHz values are checked
+ * against wl on 2.4 GHz; the 40 and 80 MHz ones are his (5 GHz captures) and
+ * not exercised here yet.
+ */
 static void b43_phy_ac_coeff_bank_init(struct b43_wldev *dev)
 {
-	static const u16 lut_bw20[21] = {
-		0x0015, 0x0146, 0x0088, 0x0146, 0x076e, 0x01a8, 0x00a3, 0x00f4,
-		0x00a3, 0x0684, 0x00ad, 0x00e5, 0x0068, 0x00e5, 0x06be, 0x019e,
-		0x0073, 0x00b2, 0x0073, 0x05fe, 0x00cc,
+	static const u16 lut[3][21] = {
+		{ 0x0015, 0x0146, 0x0088, 0x0146, 0x076e, 0x01a8, 0x00a3, 0x00f4,
+		  0x00a3, 0x0684, 0x00ad, 0x00e5, 0x0068, 0x00e5, 0x06be, 0x019e,
+		  0x0073, 0x00b2, 0x0073, 0x05fe, 0x00cc },
+		{ 0x000b, 0x0181, 0x005a, 0x0181, 0x0793, 0x01b7, 0x00c1, 0x0102,
+		  0x00c1, 0x06c0, 0x00a9, 0x0162, 0x0042, 0x0162, 0x075c, 0x01b3,
+		  0x00b1, 0x00ed, 0x00b1, 0x0692, 0x00af },
+		{ 0x0005, 0x017a, 0x009e, 0x017a, 0x07ca, 0x01b2, 0x00bd, 0x0114,
+		  0x00bd, 0x06d6, 0x00a2, 0x016c, 0x006f, 0x016c, 0x0793, 0x01b2,
+		  0x00b6, 0x00ff, 0x00b6, 0x06b4, 0x00a8 },
 	};
+	const unsigned int bw = b43_phy_ac_bw_mhz(dev);
+	const unsigned int w = bw / 40;		/* 0, 1, 2 */
 	unsigned int i, c;
 
-	b43_phy_maskset(dev, 0x0076, (u16)~0x0007, 1);	/* width index, 20 MHz */
-	b43_phy_maskset(dev, 0x0180, (u16)~0x001f, lut_bw20[0]);
+	b43_phy_maskset(dev, 0x0076, (u16)~0x0007, w + 1);	/* width index */
+	b43_phy_maskset(dev, 0x0180, (u16)~0x001f, lut[w][0]);
 	for (i = 1; i < 21; i++)
-		b43_phy_maskset(dev, 0x0180 + i, (u16)~0x07ff, lut_bw20[i]);
-	b43_phy_maskset(dev, 0x01b5, (u16)~0x00ff, 0x0097);
-	b43_phy_maskset(dev, 0x0312, (u16)~0x00ff, 0x0013);
-	b43_phy_maskset(dev, 0x0313, (u16)~0xff00, 0x1300);
+		b43_phy_maskset(dev, 0x0180 + i, (u16)~0x07ff, lut[w][i]);
+	b43_phy_maskset(dev, 0x01b5, (u16)~0x00ff, bw == 40 ? 0x008b : 0x0097);
+	b43_phy_maskset(dev, 0x0312, (u16)~0x00ff, bw == 80 ? 0x0009 : 0x0013);
+	b43_phy_maskset(dev, 0x0313, (u16)~0xff00, bw == 80 ? 0x0900 : 0x1300);
 	for (c = 0; c < B43_AC_NCORES; c++) {
 		u16 st = c * 0x200;
 
-		b43_phy_maskset(dev, 0x06ed + st, (u16)~0x00ff, 0x000a);
-		b43_phy_maskset(dev, 0x06ef + st, (u16)~0x00ff, 0x0017);
-		b43_phy_maskset(dev, 0x06ef + st, (u16)~0xff00, 0x0e00);
-		b43_phy_maskset(dev, 0x06ef + st, (u16)~0x00ff, 0x000f);
+		b43_phy_maskset(dev, 0x06ed + st, (u16)~0x00ff,
+				bw == 20 ? 0x000a : 0x0014);
+		b43_phy_maskset(dev, 0x06ef + st, (u16)~0x00ff,
+				bw == 20 ? 0x0017 : (bw == 40 ? 0x002a : 0x0054));
+		b43_phy_maskset(dev, 0x06ef + st, (u16)~0xff00,
+				bw == 20 ? 0x0e00 : (bw == 40 ? 0x1600 : 0x2c00));
+		b43_phy_maskset(dev, 0x06ef + st, (u16)~0x00ff, 15 * (bw / 20));
 	}
 }
 
