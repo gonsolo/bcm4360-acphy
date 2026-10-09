@@ -58,3 +58,13 @@ idle-TSSI measurement (never ported; Alessio's driver has idle_tssi_meas / txpwr
 => the former 5 GHz RX success does not reproduce on kernel 7.2.9 with this setup. Not a code regression of the last
    days; either the environment (kernel/reset order/router DFS) or the notes/07 measurement conditions differ.
 Alessio's 5 GHz channel switch runs ~17 phases (switch_prep ... afe_gain); ours is tune + BW regs + Farrow + CCA reset.
+
+## 5 GHz: Alessio's channel sequence on our chip (2026-10-09)
+
+- Throwaway copy of his switch_channel (b43-src/phy_ac_alx.c, `ac_alx=1|2`, not committed): 0 frames on ch112 (router, -42 dBm)
+  and ch44, with and without reset_cca/afecal/adc_reset/txpwrctrl_enable. 2.4 GHz sanity 126-135 frames.
+- His full bring-up (op_init, software_rfkill, cold preamble) hard-hangs this machine (notes/117); not run.
+- Offline diff (his test/unit harness, ch36/20 MHz, vs our wl 6.30 first-load hop, segment 12): radio writes 79/79 covered
+  (4 value diffs), PHY writes covered except 0x02e4/0x06d4/0x08d4 (17 value diffs: IQ coefficients, CRS regs, 0x0d-0f, 0x1601).
+  The wl-only MMIO in the hop (0x0200/0240/0280/02c0/02c4, 0x0128/012c) is TX DMA of scan probe requests and IRQ mask, not RX.
+- Conclusion: the channel-switch register set is not what is missing; the cause is state before it (bring-up) or a value detail.
