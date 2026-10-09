@@ -11,111 +11,26 @@ Linux since kernel 4.5 (~2016) — nobody had gotten it working. This
 project is not there either, but it's the furthest getting I'm aware
 of anyone getting: real hardware, real reception, real association.
 
-## Status (2026-09-29)
+## Status (2026-10-10)
 
-**Read `notes/102-status-2026-09-29-ninth-bisect-boot-desktop-fully-worked-no-usb-stick-network-firmware-path-timing.md`
-first** — it's the current entry point, and the first genuinely good
-boot report: after six missing-driver fixes (notes/94-99) and a rework
-to use NixOS's own actual `.config` plus a real generic `modprobe`-
-everything initrd (notes/100), then a fix for `/run/current-system`
-never being created (notes/101), **the desktop fully worked** - apps
-launched, a terminal opened, the user even ran `claude` inside the
-bisect-booted kernel. The one gap: the USB WiFi backup stick never got
-network, traced to a pure ordering bug (notes/102) - the initrd loads
-every module, including the stick's driver, before the firmware search
-path is set, so its immediate firmware request silently failed; fixed
-by moving the firmware-path setup earlier in the init script, no kernel
-rebuild needed. notes/93 has the fuller compile-server/bisect setup
-context. notes/92 concluded the timing-
-instrumentation thread: on 7.2.7, `psctl=0ms` and `wait=79-86ms` in
-16/16 samples from an ordinary daily-use boot autoload; on 6.18.53
-(notes/90/91, same instrumented binary), `psctl=0ms` and `wait=0-3ms`.
-**The entire regression is isolated to one single-register poll**
-(waiting for the ucode to set `B43_IRQ_MAC_SUSPENDED` after a `MACCTL`
-write) - every other phase of the same function is equally fast on both
-kernels, and there's no more driver-side code left to split. A `git
-bisect` is now underway to find *why*: a remote compile server
-(pampelmuse, 24 cores, same LAN) is wired up, the first candidate
-commit (`60b8d4d49281`, ~15 steps predicted out of 66,387 commits
-between v6.18 and v7.2) is built and staged as a one-shot boot entry
-(default entry, normal 7.2.7 daily use, untouched), waiting on a
-reboot to test. It links back to everything that built up to this
-(start with `notes/77` for the fuller kernel-regression writeup,
-`notes/78`-`81` for the channel-6 replay/A-B/C-state threads, `notes/82`-
-`83` for the ftrace finding on steady-state scanning, `notes/84` for the
-phase-timing instrumentation that first pinned connect-time slowness on
-`b43_mac_suspend`, `notes/85`-`86` for the still-parked steady-state-
-scanning mystery, `notes/87`-`88` for the auto-recovery watchdog,
-`notes/89` for the lock-vs-suspend split, `notes/90` for the 6.18.53
-reference capture, `notes/91` for the refuted IRQ-race hypothesis and
-the psctl/wait split, `notes/92` for the conclusive 7.2.7 confirmation).
-The numbered files in `notes/` are a chronological log of the whole
-investigation; earlier "session summary"
-checkpoints (`notes/17`, `notes/76`) are also good wide-angle reads, but
-`notes/92` is the most current.
+**Current entry points:** `notes/136-phy-replay-bisect-tx-power-control.md`
+(init work) and `notes/117-alessio-driver-live-test-hangs.md` (the other
+AC-PHY driver, retested).
 
-**The original ACK/firmware-TX blocker (2026-09-26/27, see notes/06-21) is
-long since resolved** — it turned out to be several distinct SHM/POR-replay
-bugs (see notes/33, "Bug 1-4"), not a hardware fault. Since then:
-
-Working, on real hardware, on kernel 6.18.53 (the original/historical
-kernel this project developed against):
-- Attach, firmware upload, DMA, radio power-up, channel tuning (2.4 GHz
-  and 5 GHz, including the Farrow-resampler per-channel fix, notes/51/53).
-- Full WPA2 4-way handshake, DHCP (IPv4 and IPv6), and real IP traffic
-  (ping, ARP) over the actual BCM4360 hardware (notes/33) — the project's
-  original milestone.
-- Reliable reconnection: 4-5/5 clean first-try connections, zero MAC-
-  suspend failures, in the project's most recent clean A/B test
-  (notes/76).
-
-**Current blocker, now precisely bounded (root cause itself still not
-found): `b43_mac_suspend()`'s suspend-ack poll** — the specific loop
-that does nothing but repeatedly read one register waiting for the
-ucode to set an acknowledgment bit, after an immediately-preceding,
-flush-verified register write — **completes in 0-3ms on kernel 6.18.53
-and takes a consistent ~80ms on kernel 7.2.7, for the identical driver
-binary, identical hardware, identical operation** (notes/90-92: a
-direct, controlled reference capture with the same instrumented build
-on both kernels, split down to this one specific wait — every other
-phase of the same function and its caller, including a separate power-
-save wake-wait inside the same call, is proven equally fast on both
-kernels). This is what makes fresh connects/reconnects on 7.2.7 fail
-~30-40% of the time (notes/76, notes/84, reconfirmed by an ordinary
-daily-use boot autoload in notes/92) — not a firmware/RF/hardware
-issue, and not (per notes/89) simply "2x a retry" (that ~80ms figure is
-`msleep(1)` rounding, present on both kernels equally; what differs is
-whether the wait ever *succeeds* within it). **Staying on 6.18.53 as the
-daily-use kernel is explicitly not an option** — 7.2.x has to be made
-reliable; 6.18.53 stays reference-only. Ruled out as the cause: bcma/
-mac80211/PCI-ASPM/irq/workqueue/hrtimer commits (notes/77), CPU
-C-states/wakeup latency (notes/81), and a real interrupt-handler race on
-the same status register (notes/91 — the bit isn't even in the hardware
-interrupt mask). **Driver-side instrumentation has reached its limit**
-(notes/92) — there is no more source code between the write and the
-poll to split further; the remaining question (does the write itself
-arrive late, or does the ucode take longer to act on it) needs either
-bus-level tracing this project doesn't currently have, or a `git
-bisect` in `~/src/linux`, now well-scoped to a fast, unambiguous
-pass/fail test instead of a vague reliability judgment call. A
-*separate*, real but currently un-reproducible-on-demand phenomenon
-also exists during steady-state scanning (notes/82/83/85/86, parked).
-notes/78 found a real, heavy (~1300-register) vendor-state replay on
-every touch of channel 6 (a fixed staging channel every module bring-up
-passes through, unrelated to the AP's real channel — which is 11,
-notes/81) that the `ac_state_once` runtime knob suppresses, but whether
-that reduces the failure rate is still untested under the right
-conditions (notes/79/80). A newer, not-yet-understood RX-blackout
-symptom found live at the end of an earlier session (notes/77, Part 6)
-also still needs a clean re-check. **Auto-recovery is built and working
-regardless** (`tools/b43_autorecover.sh`, notes/87/88) — a stuck
-connection self-heals within ~60-90s, so the driver is usable today
-even before the root cause above is fully nailed down.
-
-Not working / not attempted:
-- 5 GHz transmit (receive works, notes/53) and a from-scratch
-  (non-replay) channel-set/init path.
-- The kernel-7.2.7 regression above.
+- **2.4 GHz works** on kernel 7.2.9: associates, holds, ~20 Mbit/s up and
+  ~17 Mbit/s down, 0% ping loss. The remaining periodic ping loss is
+  mac80211 background-scan hops, not driver init (notes/136).
+- **Init is real code, not a replay.** The 290-write PHY replay table is
+  replaced by `b43_phy_ac_phyinit()` (named blocks mode_init,
+  set_reg_on_reset, coeff_bank_init, following Alessio's driver), and the
+  radio table is cut to 21 named writes. A register dump matches the old
+  replay on all 72 critical registers.
+- **Not done:** the code is hard-wired to 2.4 GHz / 20 MHz; 40/80 MHz
+  branches, 5 GHz init (still a table, `phy_ac_por5g.h`) and 5 GHz RX are
+  open; five PHY words (0x1739, 0x016b, 0x0175, 0x03c4, 0x0197/98 values)
+  are still constants of unknown meaning.
+- Older bisect/boot history (kernel regression hunt, notes/76-102) is kept
+  in the notes.
 
 ## How this is built
 
