@@ -27,3 +27,13 @@ too, so not only b43: the PCI/bus side or the whole machine); reboot needed. The
 Open: whether that is a real hang in the table path (a gate/lock pair he added 2026-10-07: "table gate as nested
 lock/unlock") or just the 30 ms mdelay per ACFN line making an 80000-call init take 40 min while the stack timed out.
 Next time: drop the mdelay from the table functions, keep it elsewhere.
+
+## Second retest, no delay in the table functions (2026-10-09): NO HANG
+The earlier "hang" was my logging: ACFN + mdelay(30) on ~80000 b43_actab_* calls (~40 min). tools/build_alessio_driver.sh now
+skips the log/delay for b43_actab*. With that his driver (head ce2127a, ALLOW_24) runs the whole init in ~5 s, the machine and
+the stick stay up, wlp3s0b1 appears and the ACFN trace shows the complete op_init -> switch_channel -> calibrate path.
+But the radio does not work: after the first channel "radio 2069: power-on timeout (0x040b=0x0001)" repeats every channel
+switch (the first pwron read 0x0169 after 2 polls), probe requests go out with acked 0 / supp 0-4, no scan result
+(`ip link up` / scan: -EBUSY at the time). 0x040b is also the register our TX power loop needs (we write 0x168).
+Restored with try_alessio_driver.sh restore (the stick needed `nmcli device connect`).
+Next: find out why 0x040b stays 0x0001 after the first channel, and compare with our sequence there.
