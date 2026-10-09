@@ -960,7 +960,6 @@ module_param_named(ac_por, b43_ac_por, uint, 0644);
  * radio class, 0x80 wl MAC timing regs, 0x100 wl final radio regs. */
 MODULE_PARM_DESC(ac_por, "AC-PHY diagnostic: after the ch6 replay also apply wl's first-load state (bitmask: 1 radio, 2 phy, 4 tables, 8 shm, 16 chipcommon, 32 pmu)");
 
-#include "phy_ac_por.h"
 #include "phy_ac_por5g.h"
 
 /* wl's 5 GHz first-load state (80 MHz, channel 112 primary): radio, PHY,
@@ -1196,14 +1195,99 @@ done:
 	mdelay(30);
 }
 
-/* Ablation (notes/132): skip first-load PHY entries with index in [from, to). */
-static uint b43_ac_por_pfrom, b43_ac_por_pto;
-module_param_named(ac_por_pfrom, b43_ac_por_pfrom, uint, 0644);
-module_param_named(ac_por_pto, b43_ac_por_pto, uint, 0644);
+static uint b43_ac_phyinit = 1;
+module_param_named(ac_phyinit, b43_ac_phyinit, uint, 0644);
+
+/*
+ * PHY register init, 2.4 GHz / 20 MHz, replacing the first 72 entries of the
+ * wl first-load replay. Structure and values follow the reset-time blocks of
+ * Alessio Ferri's b43-ac-wip (b43_phy_ac_mode_init, set_reg_on_reset,
+ * set_pdet_on_reset, coeff_bank_init, init_regs); the registers marked
+ * "wl" are written by wl in this window but not by his code.
+ */
+static void b43_phy_ac_phyinit(struct b43_wldev *dev)
+{
+	static const u16 lut_bw20[21] = {
+		0x0015, 0x0146, 0x0088, 0x0146, 0x076e, 0x01a8, 0x00a3, 0x00f4,
+		0x00a3, 0x0684, 0x00ad, 0x00e5, 0x0068, 0x00e5, 0x06be, 0x019e,
+		0x0073, 0x00b2, 0x0073, 0x05fe, 0x00cc,
+	};
+	unsigned int i, c;
+
+	/* wl: analog front end state (AFE_OFF counterpart, 0x1739) and the
+	 * 0x04xx mode/override words. */
+	b43_phy_write(dev, 0x1739, 0x0000);
+	b43_phy_write(dev, 0x0415, 0x0000);
+	b43_phy_write(dev, 0x040e, 0x0000);
+	b43_phy_write(dev, 0x040c, 0x2000);
+	b43_phy_write(dev, 0x0416, 0x000d);
+	b43_phy_write(dev, 0x0408, 0x0c02);
+	b43_phy_write(dev, 0x0417, 0x0004);
+	b43_phy_write(dev, 0x016b, 0x0000);
+	b43_phy_write(dev, 0x0175, 0x0000);
+
+	/* mode_init: 0x17xx page clears, AFE on, 0x073a/0x1725 mirrors */
+	b43_phy_write(dev, 0x173e, 0x0000);
+	b43_phy_write(dev, 0x1725, 0x0000);
+	b43_phy_write(dev, 0x1722, 0x0000);
+	b43_phy_write(dev, 0x1723, 0x0000);
+	b43_phy_write(dev, 0x1724, 0x0000);
+	b43_phy_write(dev, 0x1727, 0x0000);
+	b43_phy_write(dev, 0x1750, 0x0000);
+	b43_phy_write(dev, 0x1728, 0x0080);
+	b43_phy_write(dev, 0x1720, 0x0180);
+	b43_phy_write(dev, 0x1729, 0x0000);
+	b43_phy_write(dev, 0x1721, 0x5000);
+	b43_phy_write(dev, 0x173a, 0x0100);
+	b43_phy_write(dev, 0x1725, 0x0400);
+
+	/* init_regs, first bring-up: 0x1645 and the ADC gain words are the
+	 * later part of this window; only 0x1645 is in the replay head. */
+	b43_phy_write(dev, 0x1645, 0x025c);
+	b43_phy_write(dev, 0x03c4, 0x0668);	/* wl */
+
+	/* set_reg_on_reset */
+	b43_phy_write(dev, 0x01f2, 0x00c8);
+	b43_phy_write(dev, 0x0026, 0x0092);
+	b43_phy_write(dev, 0x01ed, 0x0050);	/* wl */
+	b43_phy_write(dev, 0x0025, 0x0030);
+	b43_phy_write(dev, 0x02ef, 0x2055);	/* clip mask low byte 0x55 */
+	b43_phy_write(dev, 0x02eb, 0x2055);
+	b43_phy_write(dev, 0x02f7, 0x2055);
+	b43_phy_write(dev, 0x02f3, 0x2055);
+	b43_phy_write(dev, 0x01ca, 0x2000);
+	b43_phy_write(dev, 0x01b0, 0xa6cb);
+	b43_phy_write(dev, 0x01b1, 0xdc00);
+	b43_phy_write(dev, 0x01b6, 0x443b);
+	for (c = 0; c < 2; c++)
+		b43_phy_write(dev, 0x0690 + c * 0x200, 0x0600);
+	b43_phy_write(dev, 0x01e6, 0x0030);
+
+	/* set_pdet_on_reset (full): 0x0358 */
+	b43_phy_write(dev, 0x0358, 0xc07f);
+
+	/* wl: RX core state words (rxcore_setstate / fem2_sub1_setup) */
+	b43_phy_write(dev, 0x0414, 0x0555);
+	b43_phy_write(dev, 0x040a, 0x0390);
+
+	/* coeff_bank_init, 20 MHz: width selector, LUT 0x0180-0x0194,
+	 * gain/threshold words, per-core 0x06ed/0x06ef */
+	b43_phy_write(dev, 0x0076, 0x0041);
+	for (i = 0; i < 21; i++)
+		b43_phy_write(dev, 0x0180 + i, lut_bw20[i]);
+	b43_phy_write(dev, 0x01b5, 0x0097);
+	b43_phy_write(dev, 0x0312, 0x0013);
+	b43_phy_write(dev, 0x0313, 0x1318);
+	for (c = 0; c < 2; c++) {
+		b43_phy_write(dev, 0x06ed + c * 0x200, 0x000a);
+		b43_phy_write(dev, 0x06ef + c * 0x200, 0x0e0f);
+	}
+	b43_phy_write(dev, 0x0197, 0x0014);	/* channel_setup */
+	b43_phy_write(dev, 0x0198, 0x0010);
+}
 
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
-	unsigned int i, n = 0;
 
 	/* Radio state the hardware TX power loop needs (TSSI / power detector
 	 * path, per-core 0x01a-0x01f / 0x21a-0x21f, notes/136). Without it PHY 0x640/0x840 freeze at index 0 and
@@ -1233,20 +1317,16 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 	/* Everything else wl's first-load state contained (radio, tables, SHM,
 	 * chipcommon, PMU) is now real init code or proven unnecessary
 	 * (notes/130-135). Only the PHY register writes are left. */
-	if (b43_ac_por & B43_AC_POR_PHY)
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por_phy); i++, n++)
-			if (b43_ac_por_phy[i][0] != 0xffff &&
-			    !(i >= b43_ac_por_pfrom && i < b43_ac_por_pto))
-				b43_phy_write(dev, b43_ac_por_phy[i][0],
-					      b43_ac_por_phy[i][1]);
+	if (b43_ac_phyinit)
+		b43_phy_ac_phyinit(dev);
 	/* Hardware TX power control: 0x70 bits 15:13 enable it, 0x71 holds the
 	 * averaging window, 0x72 the rest of its configuration. Without these
 	 * three, upload collapses to 1-9 Mbit/s (bisected, notes/136). */
 	b43_phy_write(dev, 0x0070, 0xe500);
 	b43_phy_write(dev, 0x0071, 0x04c8);
 	b43_phy_write(dev, 0x0072, 0x400d);
-	b43dbg(dev->wl, "phy_ac: applied first-load state 0x%x (phy %u)\n",
-		b43_ac_por, n);
+	b43dbg(dev->wl, "phy_ac: applied first-load state 0x%x\n",
+		b43_ac_por);
 	if (b43_ac_rfkick)
 		b43_ac_rfkick_run(dev);
 	if (b43_ac_fr_path)

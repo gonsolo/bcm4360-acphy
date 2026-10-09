@@ -122,3 +122,16 @@ The router was then switched to auto and moved to channel 1; every later run (gr
 identical config: 20.5, 20.5, then 2.3, 3.5, then 0 x4) is not comparable, and the full replay itself gave 11.0/18.4.
 Bisect inconclusive. 0x70/0x71/0x72 are now written explicitly (TX power control); the rest stays replayed until the
 init is rewritten (decision: rewrite from Alessio's op_init, even if it hangs).
+
+## The 290-write PHY replay is gone (2026-10-09): b43_phy_ac_phyinit()
+Bisect of the replay on upload: only entries 0-71 matter and only as a whole (halves of them are worse than none).
+They map to the reset-time blocks of Alessio's code: mode_init (0x17xx AFE page), set_reg_on_reset (0x01f2, 0x0025/26,
+clip mask 0x02eb-0x02f7, 0x01b0/b1/b6, 0x0690/0x0890, 0x01e6), set_pdet_on_reset (0x0358), coeff_bank_init (0x0076,
+LUT 0x0180-0x0194, 0x01b5, 0x0312/13, 0x06ed/0x06ef per core), init_regs (0x1645) and channel_setup (0x0197/98); plus a few
+words wl writes that his code does not (0x04xx, 0x03c4, 0x01ed, 0x016b, 0x0175, 0x0414, 0x040a).
+b43_phy_ac_phyinit() writes those 72 values as grouped, commented code (ac_phyinit=1, default). A/B vs the full table
+(3 pairs, up/down Mbit/s): table 20.5/17.6, 19.3/17.4, 20.1/18.0; phyinit 20.7/16.8, 20.9/17.7, 20.7/17.9.
+phy_ac_por.h and the ablation params are removed from phy_ac.c. 5 GHz still uses its own table (phy_ac_por5g.h).
+Ping loss after connect (22 % in every load of both builds today) is the scan-hop effect described above.
+Next: derive the values instead of writing them (his masksets, bandwidth/band dependent), starting with coeff_bank_init and
+set_reg_on_reset.
