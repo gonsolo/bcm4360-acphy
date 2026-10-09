@@ -14,7 +14,7 @@ cd "$T"
 for p in ~/src/b43-ac-wip-latest/patches/000[123]*.patch; do patch -p1 --no-backup-if-mismatch < "$p" >&2; done
 sed -i 's|<asm/unaligned.h>|<linux/unaligned.h>|' drivers/net/wireless/broadcom/b43/*.[ch]
 # trace every B43_AC_FN() function entry to the kernel log (hang forensics; pr_emerg makes journald fsync each line)
-sed -i 's/^#define B43_AC_FN() do { } while (0)/#define B43_AC_FN() do { pr_emerg("ACFN %s\\n", __func__); mdelay(30); } while (0)/' drivers/net/wireless/broadcom/b43/phy_ac.h
+sed -i 's/^#define B43_AC_FN() do { } while (0)/#define B43_AC_FN() do { if (strncmp(__func__, "b43_actab", 9)) { pr_emerg("ACFN %s\\n", __func__); mdelay(30); } } while (0)/' drivers/net/wireless/broadcom/b43/phy_ac.h
 # hang forensics: log every PHY/radio port access (0x3e0-0x3f4) before it happens, with a delay for journald
 perl -0pi -e 's|(static inline u16 b43_read16\(struct b43_wldev \*dev, u16 offset\)\n\{\n)|$1\tif (offset >= 0x3e0 \&\& offset < 0x3f4) { pr_emerg("RD %x\\n", offset); mdelay(8); }\n|; s|(static inline void b43_write16\(struct b43_wldev \*dev, u16 offset, u16 value\)\n\{\n)|$1\tif (offset >= 0x3e0 \&\& offset < 0x3f4) { pr_emerg("WR %x=%x\\n", offset, value); mdelay(8); }\n|' drivers/net/wireless/broadcom/b43/b43.h
 # forced includes: the patched ssb headers must win over the kernel's (regs first, ssb.h includes it)
