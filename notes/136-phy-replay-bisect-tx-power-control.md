@@ -110,3 +110,15 @@ check (3 vs 5 bad loads) compared two settings that both replay the PHY writes; 
 Redo with ac_por=5 (3 pairs, up/down Mbit/s): with replay 5.1/7.1 (bad load), 21.0/15.7, 19.9/11.0;
 no PHY replay 7.8/14.1, 5.3/15.2, 9.0/10.1. Upload collapses to 5-9 without the PHY writes, download is unaffected.
 So some of the 290 PHY writes are needed for TX. Next: bisect on the upload figure.
+
+## PHY replay bisect on upload (2026-10-09), result: partial
+While the AP was on ch11 (single-file bisect, keep/skip ranges of the 290 writes, upload Mbit/s):
+- ac_por=5 (no PHY table, 0x70 only): 5-9. Skipping table entries 224/225 (PHY 0x0072=0x400d, 0x0071=0x04c8) alone: 0.4-0.8.
+  Writing 0x70/0x71/0x72 explicitly: 10.7 with no table, ~21 with the table (3 pairs, stable).
+- Any single quarter or half skipped: ~20 (the table is redundant); keeping only entries [0,72): 20.5 twice,
+  [72,145) mixed, [145,290) 1-3. Neither [0,36) nor [36,72) alone works (worse than nothing): a coherent set.
+  Candidate groups in [0,72): 0x04xx, 0x172x, 0x02ef-0x02f7 (0x2055), 0x01b0-0x01b6, 0x0180-0x0194 table, 0x06ed-0x08ef.
+The router was then switched to auto and moved to channel 1; every later run (group removal, even the control with the
+identical config: 20.5, 20.5, then 2.3, 3.5, then 0 x4) is not comparable, and the full replay itself gave 11.0/18.4.
+Bisect inconclusive. 0x70/0x71/0x72 are now written explicitly (TX power control); the rest stays replayed until the
+init is rewritten (decision: rewrite from Alessio's op_init, even if it hangs).
