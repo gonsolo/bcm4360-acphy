@@ -17,3 +17,13 @@ tools/build_alessio_driver.sh, loaded with tools/try_alessio_driver.sh (b43 swap
   is the 7.14 sequence, our chip's captures are wl 6.30. Version mismatch is a lead, not proven.
 - Each live test costs a reboot (and has corrupted .git twice: unsynced writes). Stop live runs of his driver.
   Safe path: run his offline unit harness (test/unit, cmp_skip.py) against OUR MacBook trace and diff op by op.
+
+## Retest with his head ce2127a (2026-10-09), user-approved
+Built with tools/build_alessio_driver.sh (ACFN/mdelay forensics), loaded with try_alessio_driver.sh. The init got
+much further than on 2026-10-06: past the rfseq kicks, radio init, rccal and the rxcal AFE iterations (the last non-table
+function in the journal is b43_phy_ac_rxcal_afe_finalize_gain_luts -> b43_phy_ac_cca_pulse), then ~80000 log lines of
+b43_actab_write_bulk_scoped (table writes), and the log ends there. WiFi on both interfaces was dead afterwards (the stick
+too, so not only b43: the PCI/bus side or the whole machine); reboot needed. The journal survived (emerg + fsync).
+Open: whether that is a real hang in the table path (a gate/lock pair he added 2026-10-07: "table gate as nested
+lock/unlock") or just the 30 ms mdelay per ACFN line making an 80000-call init take 40 min while the stack timed out.
+Next time: drop the mdelay from the table functions, keep it elsewhere.
