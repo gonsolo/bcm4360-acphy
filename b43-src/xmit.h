@@ -230,8 +230,6 @@ struct b43_txstatus {
 	u8 intermediate;	/* Intermediate status notification (not final) */
 	u8 for_ampdu;		/* Status is for an AMPDU (afterburner) */
 	u8 acked;		/* Wireless ACK received */
-	u8 ampdu_len;		/* AC: MPDUs of the aggregate, set on its first MPDU only */
-	u8 ampdu_ack_len;	/* AC: how many of them the block ack acknowledged */
 };
 
 /* txstatus supp_reason values */

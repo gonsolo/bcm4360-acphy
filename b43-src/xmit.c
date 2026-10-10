@@ -245,9 +245,6 @@ static int b43_ac_httx;
 module_param_named(ac_httx, b43_ac_httx, int, 0644);
 MODULE_PARM_DESC(ac_httx, "AC-PHY experiment (notes/123): send unicast data frames as HT20 at MCS (ac_httx - 1), 0 = off, runtime switchable");
 
-static uint b43_ac_ampdu_hdr = 15;
-module_param_named(ac_ampdu_hdr, b43_ac_ampdu_hdr, uint, 0644);
-MODULE_PARM_DESC(ac_ampdu_hdr, "AC-PHY: bit 0 MAC control 0x45c0 on session frames, bit 1 the cache info, bit 2 the sequence number, bit 3 a fallback rate block (diagnostic)");
 static uint b43_ac_ampdu_mpdus = 4;
 module_param_named(ac_ampdu_mpdus, b43_ac_ampdu_mpdus, uint, 0644);
 MODULE_PARM_DESC(ac_ampdu_mpdus, "AC-PHY: MPDUs per aggregate in the cache info, 0 = stock 32; long aggregates lose their later MPDUs (notes/137)");
@@ -307,27 +304,28 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		chanspec |= 0xc000;
 
 	if (agg) {
-		/* MPDU of a block ack session: MAC control 0x45c0, nothing in
-		 * 0x04, and the cache info the stock driver leaves at +0x64
-		 * (rxtx-1s-ht20-40-80.zip): 32 MPDUs at the primary and the
-		 * fallback rate, duration 5414 us, window 63, max length 0x14 */
+		/* MPDU of a block ack session, as the stock driver posts it
+		 * (rxtx-1s-ht20-40-80.zip): MAC control 0x45c0, no fixed rate,
+		 * the sequence number, and the cache info at +0x64: no cipher
+		 * (we encrypt in software; the stock 50 04 makes the microcode
+		 * encrypt again), MPDUs per aggregate at the primary and the
+		 * fallback rate, duration 5414 us, window 63, max length 0x14.
+		 * Without the cache info the AP deauthenticates us. */
 		static const u8 cache[8] = { 0x00, 0x00, 0x20, 0x20, 0x26, 0x15, 0x3f, 0x14 };
 
-		if (b43_ac_ampdu_hdr & 1)
-			mac_lo = 0x45c0;
-		if (b43_ac_ampdu_hdr & 2)
-			memcpy(h + 0x64, cache, sizeof(cache));
-		if ((b43_ac_ampdu_hdr & 2) && b43_ac_ampdu_mpdus)
+		mac_lo = 0x45c0;
+		memcpy(h + 0x64, cache, sizeof(cache));
+		if (b43_ac_ampdu_mpdus)
 			h[0x66] = h[0x67] = b43_ac_ampdu_mpdus;
 	}
 	put_unaligned_le16(mac_lo, h + 0x02);
-	put_unaligned_le16((agg && (b43_ac_ampdu_hdr & 1)) ? 0 : 0x0002, h + 0x04);	/* fixed rate */
+	put_unaligned_le16(agg ? 0 : 0x0002, h + 0x04);	/* fixed rate */
 	put_unaligned_le16(chanspec, h + 0x06);
 	h[0x08] = ieee80211_hdrlen(wlhdr->frame_control);
 	put_unaligned_le16(len, h + 0x0a);
 	put_unaligned_le16(cookie, h + 0x0c);
-	if (agg && (b43_ac_ampdu_hdr & 4))
-		put_unaligned_le16(le16_to_cpu(wlhdr->seq_ctrl), h + 0x0e);	/* as the stock driver: the session needs the sequence number */
+	if (agg)
+		put_unaligned_le16(le16_to_cpu(wlhdr->seq_ctrl), h + 0x0e);
 
 	/* Rate entry 0: frame type, always-set bit 2, TX core 0 mask. */
 	phy0 = (is_ofdm ? 1 : 0) | 0x0004 | ((b43_ac_txcore & 0xf) << 6);
@@ -365,31 +363,24 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06), len, rate);
 	put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
 	}
-	if (agg && (b43_ac_ampdu_hdr & 8) &&
-	    ht_mcs >= 0 && info->control.rates[1].idx >= 0 &&
+	if (agg && info->control.rates[1].idx >= 0 &&
 	    info->control.rates[1].idx <= 15 &&
 	    (info->control.rates[1].flags & IEEE80211_TX_RC_MCS)) {
-		/* Fallback rate blocks, as the stock driver passes for a session:
-		 * the fallback rate twice (bit 4: three times), then MCS 0 */
+		/* Second rate block: the fallback rate of the session frame */
 		static const u8 ht20_500k[8] = { 13, 26, 39, 52, 78, 104, 117, 130 };
-		unsigned int b, nb = (b43_ac_ampdu_hdr & 16) ? 3 : 1;
+		u8 mcs = info->control.rates[1].idx;
 
-		for (b = 0; b < nb; b++) {
-			u8 mcs = b == 2 ? 0 : info->control.rates[1].idx;
-
-			put_unaligned_le16(0, ri + 0x10);
-			ri += 0x14;
-			put_unaligned_le16(2 | 0x0004 | (((mcs > 7 ? 3 : b43_ac_txcore) & 0xf) << 6), ri + 0x00);
-			put_unaligned_le16(mcs, ri + 0x04);
-			ri[0x06] = mcs;
-			ri[0x07] = len & 0xff;
-			ri[0x08] = len >> 8;
-			ri[0x09] = 0x07;
-			put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
-		}
+		put_unaligned_le16(0, ri + 0x10);
+		ri += 0x14;
+		put_unaligned_le16(2 | 0x0004 | (((mcs > 7 ? 3 : b43_ac_txcore) & 0xf) << 6), ri + 0x00);
+		put_unaligned_le16(mcs, ri + 0x04);
+		ri[0x06] = mcs;
+		ri[0x07] = len & 0xff;
+		ri[0x08] = len >> 8;
+		ri[0x09] = 0x07;
+		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
 	}
 	put_unaligned_le16(0x0020, ri + 0x10);	/* last rate entry */
-	b43dbg(dev->wl, "AC txh %04x agg %d mcs %d rate %02x fb %d/%02x len %u seq %03x fl %x\n", cookie, agg, ht_mcs, rate, info->control.rates[1].idx, info->control.rates[1].flags, len, le16_to_cpu(wlhdr->seq_ctrl) >> 4, info->control.rates[0].flags);
 
 	{
 		static atomic_t dumped = ATOMIC_INIT(0), dumped_data = ATOMIC_INIT(0);
@@ -1104,9 +1095,12 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
 		report->status.ampdu_len = 1;
 		report->status.ampdu_ack_len = status->acked ? 1 : 0;
 	}
-	if (report->flags & IEEE80211_TX_CTL_AMPDU) {
+	if ((report->flags & IEEE80211_TX_CTL_AMPDU) &&
+	    (report->status.rates[0].flags & IEEE80211_TX_RC_MCS)) {
+		/* Sent with two rate blocks: attempts at each */
 		report->status.rates[0].count = status->frame_count;
-		if (status->fb_count)
+		if (status->fb_count && report->status.rates[1].idx >= 0 &&
+		    (report->status.rates[1].flags & IEEE80211_TX_RC_MCS))
 			report->status.rates[1].count = status->fb_count;
 		else
 			report->status.rates[1].idx = -1;

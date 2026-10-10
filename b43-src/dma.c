@@ -37,9 +37,6 @@
 static uint b43_ac_ampdu_requeue = 4;
 module_param_named(ac_ampdu_requeue, b43_ac_ampdu_requeue, uint, 0644);
 MODULE_PARM_DESC(ac_ampdu_requeue, "AC-PHY: times an unacknowledged session frame is put back on the ring, 0 = never");
-static uint b43_ac_txslots = B43_TXRING_SLOTS;
-module_param_named(ac_txslots, b43_ac_txslots, uint, 0444);
-MODULE_PARM_DESC(ac_txslots, "TX ring slots, two per frame (diagnostic: keep queued A-MPDU frames inside the block ack window)");
 
 static u32 b43_dma_address(struct b43_dma *dma, dma_addr_t dmaaddr,
 			   enum b43_addrtype addrtype)
@@ -882,7 +879,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 
 	ring->nr_slots = B43_RXRING_SLOTS;
 	if (for_tx)
-		ring->nr_slots = clamp(b43_ac_txslots, 16u, (uint)B43_TXRING_SLOTS) & ~1u;
+		ring->nr_slots = B43_TXRING_SLOTS;
 
 	ring->meta = kcalloc(ring->nr_slots, sizeof(struct b43_dmadesc_meta),
 			     GFP_KERNEL);
