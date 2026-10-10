@@ -56,3 +56,42 @@ Compared, working state against cold state:
 Also learned: PHY registers survive a b43 reload. A 2.4 GHz dump taken after 5 GHz tests in the same boot still shows 0x073b = 0x2c from the 5 GHz table (0x18 straight after boot). Our load does not reset the PHY, so the order of experiments within one boot matters, and "clean init" is not clean.
 
 Not compared yet: PHY and radio state while tuned to 5 GHz, working against cold. Reading them there hung the machine once (notes/112).
+
+## Found: PHY table 0x14 (RF sequencer extension), entries 0x30–0x32
+
+Cross-check against Alessio's driver (read-only study of his 5 GHz bring-up) turned up that wl writes some PHY tables through a third data port, PHY 0x011, three 16-bit words per entry. `tools/decode_trace.py` knew only 0x00f/0x010, so these tables were never in `phy_ac_por5g.h`, and `tbldump` does not show them:
+
+| table | entries | what |
+|---|---|---|
+| 0x14 | 0x30–0x33 | RF sequencer extension |
+| 0x20 | 0–127 | TX gain table (5 GHz values on 5 GHz) |
+| 0x11 | 464 | rewritten 42 times during the trace, mostly `bf25 0071 4002` |
+
+Extracted from the trace: `traces/decoded-firstload-5g-cold/tables-wide.txt`. Read back live (ID, offset, then three reads of 0x011) they hold exactly wl's values after wl has run: PHY tables survive `rmmod wl`, b43 reloads and a PCI bus reset (a bus reset does not bring the cold state back; a reboot does).
+
+Bisect in the working state, monitor on 5560 MHz, 8 s:
+
+| change | frames |
+|---|---|
+| table 0x14 entries zeroed | 0 |
+| table 0x11 zeroed | 69 |
+| table 0x20 zeroed | 68 |
+| only 0x14/0x33 zeroed | 68 |
+| only 0x14/0x30–0x32 zeroed | 0 |
+| 0x33 = `e800 0084 d182` (wl's 20 MHz init) or `e800 0084 d351` (2.4 GHz) | 68 |
+| all restored | 68–69 |
+
+`b43_phy_ac_rfseq_ext_5g()` now writes 0x30 `0fd2 0096 0000`, 0x31 `0fc2 0086 0000`, 0x32 `0fd2 0086 0000`, 0x33 `0800 0086 d182` on every 5 GHz switch. With the table zeroed beforehand the new driver receives 69 frames. Still to confirm from a real cold boot.
+
+Reading PHY and radio on 5 GHz in blocks of 0x80/0x40 with a sync before each (`tools/dump_phy_radio_blocks.sh`) did not hang; dumps of the working state are in `traces/5g-state-after-wl/on5560/`.
+
+## Scan found nothing although monitor mode received
+
+Two separate reasons:
+
+1. My test command was wrong: `iw scan passive freq 5560` only prints the usage text. Correct is `iw dev X scan freq 5560 passive`. All "passive scan: no BSS" rows above are void; the monitor-mode rows stand.
+2. `apply_por5g` replayed wl's SHM chanspec (0x00a0 = 0xe36a, 80 MHz centre 106). The microcode puts that word into every RX header, so frames were tagged 5530 MHz and mac80211 dropped the beacons. The replay now skips that word.
+
+With both: `scan freq 5560 passive` finds `8c:6a:8d:9e:2a:90 Vodafone-2A84` at -50 dBm, 3 of 3. Time from the hop to the first frame in monitor mode: 6–73 ms, the hop itself takes 52 ms.
+
+Open: the missing wide tables also explain why hardware TX power control never worked (table 0x20 was never loaded by us on a cold boot).

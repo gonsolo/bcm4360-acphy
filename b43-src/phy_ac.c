@@ -985,11 +985,40 @@ MODULE_PARM_DESC(ac_por, "AC-PHY diagnostic: after the ch6 replay also apply wl'
 
 #include "phy_ac_por5g.h"
 
+/*
+ * RF sequencer extension (PHY table 0x14), entries 0x30-0x33, as wl writes
+ * them on 5 GHz. The entries are 48 bits wide and go through the third data
+ * port, 0x011, low word first; the trace decoder knew only 0x00f/0x010, so
+ * they were never in the replayed state. Without 0x30-0x32 the receiver is
+ * completely deaf on 5 GHz; 2.4 GHz does not need them. PHY tables survive
+ * a driver reload and a PCI bus reset, which is why 5 GHz received after wl
+ * had run once in the same boot (notes/139).
+ */
+static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
+{
+	static const u16 ext[4][3] = {
+		{ 0x0fd2, 0x0096, 0x0000 },
+		{ 0x0fc2, 0x0086, 0x0000 },
+		{ 0x0fd2, 0x0086, 0x0000 },
+		{ 0x0800, 0x0086, 0xd182 },
+	};
+	unsigned int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(ext); i++) {
+		b43_phy_write(dev, B43_PHY_AC_TABLE_ID, 0x14);
+		b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, 0x30 + i);
+		for (j = 0; j < 3; j++)
+			b43_phy_write(dev, 0x011, ext[i][j]);
+	}
+}
+
 /* wl's 5 GHz first-load state (80 MHz, channel 112 primary): radio, PHY,
  * tables, SHM. Chipcommon/PMU are band independent (2.4 GHz state). */
 static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 {
 	unsigned int i;
+
+	b43_phy_ac_rfseq_ext_5g(dev);
 
 	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_radio); i++)
 		if (b43_ac_por5g_radio[i][0] != 0xffff)
@@ -1012,7 +1041,11 @@ static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 			      b43_ac_por5g_tbl[i].val & 0xffff);
 	}
 	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_shm); i++)
-		if (b43_ac_por5g_shm[i].routing != 0xffff)
+		/* not the chanspec (wl's 80 MHz one): it comes back in every RX
+		 * header and mac80211 drops beacons tagged with the wrong channel */
+		if (b43_ac_por5g_shm[i].routing != 0xffff &&
+		    !(b43_ac_por5g_shm[i].routing == B43_SHM_SHARED &&
+		      b43_ac_por5g_shm[i].off == B43_SHM_SH_CHAN))
 			b43_shm_write16(dev, b43_ac_por5g_shm[i].routing,
 					b43_ac_por5g_shm[i].off,
 					b43_ac_por5g_shm[i].val);
