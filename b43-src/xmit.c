@@ -253,6 +253,55 @@ bool b43_ac_ampdu = true;
 module_param_named(ac_ampdu, b43_ac_ampdu, bool, 0444);
 MODULE_PARM_DESC(ac_ampdu, "AC-PHY: block ack sessions, the microcode builds the A-MPDUs (notes/137)");
 
+/*
+ * One VHT rate block (frame type 3), as the stock driver lays it out and
+ * Alessio Ferri's driver builds it: the width in word 0 bits 15:14, the
+ * subband of the primary within that width in word 1, MCS and NSS - 1 in
+ * word 2, VHT-SIG-A1/A2 in the PLCP bytes (group ID 63, both reserved bits
+ * set), FBW 0x0300 and the rate in 500 kbit/s.
+ */
+static void b43_txhdr_ac_vht_block(u8 *ri, const struct ieee80211_tx_rate *t,
+				   u16 chanspec)
+{
+	static const u8 rate_bw[] = {
+		RATE_INFO_BW_20, RATE_INFO_BW_40, RATE_INFO_BW_80,
+	};
+	u8 mcs = ieee80211_rate_get_vht_mcs(t);
+	u8 nss = ieee80211_rate_get_vht_nss(t);
+	unsigned int bw = 0;
+	struct rate_info rinfo = { .flags = RATE_INFO_FLAGS_VHT_MCS };
+	u16 sb = 0;
+	u32 a1, a2;
+
+	/* wider than 20 MHz only inside the 80 MHz channel */
+	if ((chanspec & 0x3800) == 0x2000) {
+		if (t->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+			bw = 2;
+		else if (t->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			bw = 1;
+		sb = ((chanspec >> 8) & 0x7) >> bw;
+	}
+	rinfo.mcs = mcs;
+	rinfo.nss = nss;
+	rinfo.bw = rate_bw[bw];
+
+	put_unaligned_le16(3 | 0x0004 |
+			   (((nss > 1 ? 3 : b43_ac_txcore) & 0xf) << 6) |
+			   (bw << 14), ri + 0x00);
+	put_unaligned_le16(sb, ri + 0x02);
+	put_unaligned_le16((mcs & 0xf) | ((nss - 1) << 4), ri + 0x04);
+	a1 = bw | BIT(2) | (63 << 4) | ((nss - 1) << 10) | BIT(23);
+	a2 = (mcs << 4) | BIT(9);
+	ri[0x06] = a1;
+	ri[0x07] = a1 >> 8;
+	ri[0x08] = a1 >> 16;
+	ri[0x09] = a2;
+	ri[0x0a] = a2 >> 8;
+	ri[0x0b] = a2 >> 16;
+	put_unaligned_le16(0x0300, ri + 0x0c);
+	put_unaligned_le16(cfg80211_calculate_bitrate(&rinfo) / 5, ri + 0x0e);
+}
+
 static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 				 struct sk_buff *skb,
 				 struct ieee80211_tx_info *info, u16 cookie)
@@ -273,8 +322,10 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	int ht_mcs = -1;
 	/* Only HT rates go out as session frames: a legacy probe frame with the
 	 * aggregate header fails at every attempt (notes/137). */
+	bool vht = info->control.rates[0].flags & IEEE80211_TX_RC_VHT_MCS;
 	bool agg = (info->flags & IEEE80211_TX_CTL_AMPDU) &&
-		   (info->control.rates[0].flags & IEEE80211_TX_RC_MCS);
+		   (info->control.rates[0].flags &
+		    (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS));
 	const u8 *tbl = is_ofdm ? ofdm : cck;
 	unsigned int n = is_ofdm ? ARRAY_SIZE(ofdm) : ARRAY_SIZE(cck);
 
@@ -335,12 +386,19 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		phy0 |= 0x0010;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
 		ht_mcs = info->control.rates[0].idx;
+	else if (vht && !agg)
+		/* A VHT frame always goes out as an A-MPDU; outside a session
+		 * send the HT20 rate of the same stream count instead */
+		ht_mcs = min_t(int, ieee80211_rate_get_vht_mcs(&info->control.rates[0]), 7) +
+			 8 * (ieee80211_rate_get_vht_nss(&info->control.rates[0]) - 1);
 	else if (b43_ac_httx > 0 && b43_ac_httx <= 16 && ieee80211_is_data(wlhdr->frame_control) &&
 		 !is_multicast_ether_addr(wlhdr->addr1) &&
 		 !(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		ht_mcs = b43_ac_httx - 1;
 
-	if (ht_mcs >= 0 && ht_mcs <= 15) {
+	if (vht && agg) {
+		b43_txhdr_ac_vht_block(ri, &info->control.rates[0], chanspec);
+	} else if (ht_mcs >= 0 && ht_mcs <= 15) {
 		/* HT20: frame type 2, PLCP as brcmsmac lays it out, rate index = MCS (notes/123) */
 		static const u8 ht20_500k[8] = { 13, 26, 39, 52, 78, 104, 117, 130 };
 		u8 mcs = ht_mcs;
@@ -364,7 +422,12 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06), len, rate);
 	put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
 	}
-	if (agg && info->control.rates[1].idx >= 0 &&
+	if (vht && agg && info->control.rates[1].idx >= 0 &&
+	    (info->control.rates[1].flags & IEEE80211_TX_RC_VHT_MCS)) {
+		put_unaligned_le16(0, ri + 0x10);
+		ri += 0x14;
+		b43_txhdr_ac_vht_block(ri, &info->control.rates[1], chanspec);
+	} else if (agg && !vht && info->control.rates[1].idx >= 0 &&
 	    info->control.rates[1].idx <= 15 &&
 	    (info->control.rates[1].flags & IEEE80211_TX_RC_MCS)) {
 		/* Second rate block: the fallback rate of the session frame */
@@ -967,7 +1030,27 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		rate_idx = (sig[0] & 0x7f) <= 15 ? sig[0] & 0x7f : -1;
 	} else if (dev->phy.type == B43_PHYTYPE_AC &&
 		   (phystat0 & B43_RX_PHYST0_FTYPE) == B43_RX_PHYST0_STD_N) {
-		rate_idx = -1;	/* VHT: not advertised */
+		/* VHT: the six bytes are VHT-SIG-A1/A2 */
+		const u8 *p = plcp->raw;
+		u32 a1 = p[0] | (p[1] << 8) | (p[2] << 16);
+		u32 a2 = p[3] | (p[4] << 8) | (p[5] << 16);
+		u8 nsts = ((a1 >> 10) & 0x7) + 1;
+
+		status.encoding = RX_ENC_VHT;
+		if ((a1 & 0x3) == 1)
+			status.bw = RATE_INFO_BW_40;
+		else if ((a1 & 0x3) == 2)
+			status.bw = RATE_INFO_BW_80;
+		if (a1 & 0x8) {
+			status.enc_flags |= 1 << RX_ENC_FLAG_STBC_SHIFT;
+			nsts /= 2;
+		}
+		status.nss = max_t(u8, nsts, 1);
+		if (a2 & 0x1)
+			status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
+		if (a2 & 0x4)
+			status.enc_flags |= RX_ENC_FLAG_LDPC;
+		rate_idx = ((a2 >> 4) & 0xf) <= 9 ? (a2 >> 4) & 0xf : -1;
 	} else if (phystat0 & B43_RX_PHYST0_OFDM)
 		rate_idx = b43_plcp_get_bitrate_idx_ofdm(plcp,
 					!!(chanstat & B43_RX_CHAN_5GHZ));
@@ -1101,11 +1184,13 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
 		report->status.ampdu_ack_len = status->acked ? 1 : 0;
 	}
 	if ((report->flags & IEEE80211_TX_CTL_AMPDU) &&
-	    (report->status.rates[0].flags & IEEE80211_TX_RC_MCS)) {
+	    (report->status.rates[0].flags &
+	     (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))) {
 		/* Sent with two rate blocks: attempts at each */
 		report->status.rates[0].count = status->frame_count;
 		if (status->fb_count && report->status.rates[1].idx >= 0 &&
-		    (report->status.rates[1].flags & IEEE80211_TX_RC_MCS))
+		    (report->status.rates[1].flags &
+		     (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS)))
 			report->status.rates[1].count = status->fb_count;
 		else
 			report->status.rates[1].idx = -1;

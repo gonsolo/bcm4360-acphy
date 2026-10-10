@@ -380,6 +380,10 @@ static bool b43_ac_ht = true;
 module_param_named(ac_ht, b43_ac_ht, bool, 0444);
 MODULE_PARM_DESC(ac_ht, "AC-PHY: advertise HT20 (2 streams, no short GI) on 2.4 GHz (notes/137, 138)");
 
+static bool b43_ac_vht;
+module_param_named(ac_vht, b43_ac_vht, bool, 0444);
+MODULE_PARM_DESC(ac_vht, "AC-PHY: advertise VHT (2 streams, 80 MHz) on 5 GHz. Experimental; needs ac_5ghz=1 ac_5g_80=1 and an AP on channels 100-112 (notes/143)");
+
 static struct ieee80211_supported_band b43_band_2GHz_ac = {
 	.band		= NL80211_BAND_2GHZ,
 	.channels	= b43_2ghz_chantable,
@@ -5822,6 +5826,20 @@ static int b43_setup_bands(struct b43_wldev *dev,
 			/* The AP refuses a station without HT here (status 18) */
 			if (b43_ac_ht)
 				b43_band_5GHz_acphy.ht_cap = b43_band_2GHz_ac.ht_cap;
+			if (b43_ac_ht && b43_ac_vht) {
+				struct ieee80211_sta_vht_cap *vht =
+					&b43_band_5GHz_acphy.vht_cap;
+
+				/* mac80211 wants 40 MHz capability before it
+				 * uses 80 MHz */
+				b43_band_5GHz_acphy.ht_cap.cap |=
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+				vht->vht_supported = true;
+				vht->cap = IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
+				/* MCS 0-9 on one and two streams */
+				vht->vht_mcs.rx_mcs_map = cpu_to_le16(0xfffa);
+				vht->vht_mcs.tx_mcs_map = cpu_to_le16(0xfffa);
+			}
 			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_acphy;
 		}
 	} else {
