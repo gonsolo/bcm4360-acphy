@@ -51,3 +51,14 @@ The runs spread widely (one whole round was slow at every index; both adapters s
 Legacy rates at the same spot do not care: index 20 gives 8.5 / 15.9 up and 9.8 / 8.7 down, index 64 gives 15.3 / 13.4 up and 10.6 / 10.2 down.
 
 **Default now `ac_txidx=20`**, inside the range the stock power loop used here (0x14–0x26). Next to the router index 20 showed some runs with failed frames (above); a fixed index is a compromise until there is real power control.
+
+## 15-minute soak at range, HT + A-MPDU, index 20
+
+Basement, -62..-70 dBm, 26 rounds of 20 s upload + 10 s download, stick pinged every 0.5 s on the same channel.
+
+- Upload 6.1–28.5 Mbit/s, mean 21.4 (legacy here: 8.5–15.9).
+- Download 2.6–11.2 Mbit/s, mean 7.5 (legacy here: 8.7–10.6). Worse than legacy: the AP sends us HT frames one by one because we decline its block ack sessions (RX aggregation is not implemented).
+- total: pkts 1039014 retries 377763 failed 1481
+- No b43 error, no deauth. Stick: 1701 of 1704 pings.
+
+HT + A-MPDU is stable at range and faster up, slower down. Not the default until RX aggregation works.
