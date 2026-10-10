@@ -75,7 +75,7 @@ while true; do
 				date +%s >> "$ATTEMPTS_FILE"
 				rmmod b43 2>> "$LOG"
 				sleep 2
-				bash "$P/tools/b43_boot.sh" ac_replay=1 dma32=1 ac_por=63 nohwcrypt=1 >> "$LOG" 2>&1
+				bash "$P/tools/b43_boot.sh" ac_replay=0 dma32=1 ac_por=7 nohwcrypt=1 >> "$LOG" 2>&1
 			else
 				echo "$(date) $IF disconnected but $MAX_PER_HOUR/hour cap reached, not reloading" >> "$LOG"
 			fi

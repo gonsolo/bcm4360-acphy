@@ -376,9 +376,9 @@ static struct ieee80211_supported_band b43_band_2GHz = {
 	.n_bitrates	= b43_g_ratetable_size,
 };
 
-static bool b43_ac_ht;
+static bool b43_ac_ht = true;
 module_param_named(ac_ht, b43_ac_ht, bool, 0444);
-MODULE_PARM_DESC(ac_ht, "AC-PHY: advertise HT20 (2 streams, no aggregation, no short GI) on 2.4 GHz, default off: no throughput gain yet (notes/124)");
+MODULE_PARM_DESC(ac_ht, "AC-PHY: advertise HT20 (2 streams, no short GI) on 2.4 GHz (notes/137, 138)");
 
 static struct ieee80211_supported_band b43_band_2GHz_ac = {
 	.band		= NL80211_BAND_2GHZ,
@@ -5628,6 +5628,12 @@ static int b43_op_ampdu_action(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_ampdu_params *params)
 {
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+
+	/* Only the AC-PHY path builds session frames */
+	if (!wl->current_dev || wl->current_dev->phy.type != B43_PHYTYPE_AC)
+		return -EOPNOTSUPP;
+
 	switch (params->action) {
 	case IEEE80211_AMPDU_TX_START:
 		return b43_ac_ampdu ? IEEE80211_AMPDU_TX_START_IMMEDIATE : -EOPNOTSUPP;

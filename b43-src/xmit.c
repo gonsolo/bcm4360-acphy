@@ -248,7 +248,7 @@ MODULE_PARM_DESC(ac_httx, "AC-PHY experiment (notes/123): send unicast data fram
 static uint b43_ac_ampdu_mpdus = 4;
 module_param_named(ac_ampdu_mpdus, b43_ac_ampdu_mpdus, uint, 0644);
 MODULE_PARM_DESC(ac_ampdu_mpdus, "AC-PHY: MPDUs per aggregate in the cache info, 0 = stock 32; long aggregates lose their later MPDUs (notes/137)");
-bool b43_ac_ampdu;
+bool b43_ac_ampdu = true;
 module_param_named(ac_ampdu, b43_ac_ampdu, bool, 0444);
 MODULE_PARM_DESC(ac_ampdu, "AC-PHY: block ack sessions, the microcode builds the A-MPDUs (notes/137)");
 
