@@ -837,12 +837,28 @@ static bool b43_ac_5g_80;
 module_param_named(ac_5g_80, b43_ac_5g_80, bool, 0644);
 static uint b43_ac_por;
 
-/* wl's 80 MHz state exists for one block only: channels 100-112, centre 106 */
+/* Centre channel of the 80 MHz block a 5 GHz primary belongs to, 0 if none */
+static unsigned int b43_phy_ac_80mhz_centre(unsigned int channel)
+{
+	static const u8 centre[] = { 42, 58, 106, 122, 138, 155 };
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(centre); i++)
+		if (channel >= centre[i] - 6u && channel <= centre[i] + 6u &&
+		    (channel - (centre[i] - 6u)) % 4 == 0)
+			return centre[i];
+	return 0;
+}
+
+/*
+ * 80 MHz mode: wl's captured 80 MHz state (taken on the block 100-112, centre
+ * 106), retuned to the centre of the primary's block. Only 100-112 is tested.
+ */
 static bool b43_phy_ac_is_80mhz(struct b43_wldev *dev, unsigned int channel)
 {
 	return b43_ac_5g_80 && b43_ac_por &&
 	       b43_current_band(dev->wl) == NL80211_BAND_5GHZ &&
-	       channel >= 100 && channel <= 112;
+	       b43_phy_ac_80mhz_centre(channel);
 }
 
 /*
@@ -853,8 +869,11 @@ static bool b43_phy_ac_is_80mhz(struct b43_wldev *dev, unsigned int channel)
  */
 u16 b43_phy_ac_chanspec(struct b43_wldev *dev, unsigned int channel)
 {
-	if (b43_phy_ac_is_80mhz(dev, channel))
-		return 0xe000 | (((channel - 100) / 4) << 8) | 106;
+	if (b43_phy_ac_is_80mhz(dev, channel)) {
+		unsigned int centre = b43_phy_ac_80mhz_centre(channel);
+
+		return 0xe000 | (((channel - (centre - 6)) / 4) << 8) | centre;
+	}
 	return channel | 0x1000 |
 	       (b43_current_band(dev->wl) == NL80211_BAND_5GHZ ? 0xc000 : 0);
 }
@@ -1706,6 +1725,31 @@ static void b43_phy_ac_replay_win116(struct b43_wldev *dev)
 		ARRAY_SIZE(b43_ac_win116_ops));
 }
 
+/*
+ * Farrow resampler for an 80 MHz channel centred on @freq (MHz), Alessio
+ * Ferri's formula: ratio = round(f * 2^18 / 45), deltaphase =
+ * round(0xb40000000 / f). For 5530 MHz it gives exactly wl's captured words.
+ */
+static void b43_phy_ac_farrow_80(struct b43_wldev *dev, unsigned int freq)
+{
+	u32 ratio = DIV_ROUND_CLOSEST_ULL((u64)freq << 18, 45);
+	u32 dphase = DIV_ROUND_CLOSEST_ULL(0xb40000000ull, freq);
+	u16 mu = 0x0004 | (((ratio >> 24) & 0x3) << 7);
+
+	b43_phy_write(dev, 0x019a, ratio & 0xffff);
+	b43_phy_write(dev, 0x019b, (ratio >> 16) & 0xff);
+	b43_phy_write(dev, 0x019c, 0x0b40);
+	b43_phy_write(dev, 0x0199, mu);
+	b43_phy_write(dev, 0x01a1, ratio & 0xffff);
+	b43_phy_write(dev, 0x01a2, (ratio >> 16) & 0xff);
+	b43_phy_write(dev, 0x01a3, 0x0b40);
+	b43_phy_write(dev, 0x01a0, mu);
+	b43_phy_write(dev, 0x1603, dphase & 0xffff);
+	b43_phy_write(dev, 0x1602, dphase >> 16);
+	b43_phy_write(dev, 0x1607, dphase & 0xffff);
+	b43_phy_write(dev, 0x1606, dphase >> 16);
+}
+
 static void b43_phy_ac_tune(struct b43_wldev *dev,
 			    const struct b43_radio_2069_chan *e,
 			    unsigned int channel)
@@ -1783,18 +1827,25 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		/* Test: keep wl's 80 MHz setup (synthesizer on its 80 MHz centre,
 		 * PHY in 80 MHz mode) and set the core's PHY bandwidth to 80 MHz,
 		 * toggling force-gated-clock around the change like wl. */
+		unsigned int ctr = b43_ac_5g_ctr ? b43_ac_5g_ctr :
+				   b43_phy_ac_80mhz_centre(new_channel);
+
 		b43_phy_ac_apply_por5g(dev);
-		if (b43_ac_5g_ctr) {
-			const struct b43_radio_2069_chan *c = b43_radio_2069_find_chan(dev, b43_ac_5g_ctr);
+		if (ctr != 106 || b43_ac_5g_ctr) {	/* ac_5g_ctr=106 forces the retune for testing */
+			/* Another block than wl's: synthesizer, the per-channel
+			 * PHY words (wl leaves 0x371 at 0 in 80 MHz mode) and
+			 * the resampler for the new centre. Calibration results
+			 * and the rpcal fill stay those of channel 106. */
+			const struct b43_radio_2069_chan *c = b43_radio_2069_find_chan(dev, ctr);
 
 			if (c) {
 				save = b43_phy_read(dev, 0x19e);
 				b43_phy_set(dev, 0x19e, 0x3);
-				b43_phy_ac_tune(dev, c, b43_ac_5g_ctr);
+				b43_phy_ac_tune(dev, c, ctr);
 				b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
-				for (i = 0; i < 6; i++)
+				for (i = 1; i < 6; i++)
 					b43_phy_write(dev, B43_PHY_AC_BW1A + i, c->bw[i]);
-				b43_phy_ac_set_farrow(dev, b43_ac_5g_ctr);
+				b43_phy_ac_farrow_80(dev, 5000 + 5 * ctr);
 			}
 		}
 		ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
