@@ -208,3 +208,17 @@ The baseband multiplier (table 0x0c, 0x63/0x67 and 0x73/0x77, both cores) can be
 | 0x04 (-24) | 114, then deauth | | | |
 
 Two-stream fails at every level, so the AP is not overloaded. And the link has little margin: 12 dB less kills 64-QAM, 15 dB less hurts legacy, at 1 m from the AP. The transmitted signal is weak or dirty (no TX IQ/LO calibration, or the PA/gain setup). Two-stream is a separate fault in how the frame is built or sent.
+
+## The second TX chain does not transmit
+
+Per-core test, muting one core's bbmult cells (0x63/0x73 = core 0, 0x67/0x77 = core 1) and sending 40 legacy pings with each `ac_txcore` mask:
+
+| ac_txcore | core 0 muted | core 1 muted |
+|---|---|---|
+| 1 | 45 failed | 0 |
+| 2 | 40 failed | 0 |
+| 3 | 42 failed | 0 |
+
+Whatever the mask says, everything the AP hears comes from core 0; core 1 adds nothing. HT with mask 2 fails at every MCS (0–5 tested), HT with mask 3 works through core 0. So two-stream fails because the second stream is never radiated. The earlier "each TX core works alone" was wrong: legacy frames with mask 2 still leave through core 0. RX on both chains works (the AP's MCS 12–15 arrive).
+
+The ucode TX core table (shm 0x05d4–0x05dc, here `0001 0207 0207 0307 0007`; Alessio writes plain masks) makes no difference. Next: the core 1 TX path in the radio and RF sequencer (PA, pad, mixer power-up, FEM control lines).
