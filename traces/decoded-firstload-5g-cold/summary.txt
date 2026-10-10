@@ -1,0 +1,12 @@
+source traces/wl-firstload-5g-20261010-175159.trace (tracefs)
+events 282322, BAR0 base ffffd18200188000, d11 window 18001000
+final: phy 323 radio 163 table entries 3142 shm words 1096 cc 18 wrapper 4
+pmu: chipctl 0, regctl 1, pllctl 2
+cc_w 269
+mmio_w 6792
+other_core_w 124
+other_win 8
+phy_w 158803
+radio_w 5610
+shm_w 14497
+tbl_w 24475

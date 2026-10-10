@@ -19,3 +19,25 @@ Ways forward:
 1. A wl reference from a cold boot that goes straight to 5 GHz (MMIO trace plus a final radio/PHY/table dump). Needs the user: wl has to be loaded.
 2. Alessio's driver has a validated 5 GHz bring-up on routers; port its 5 GHz radio/PHY init blocks as was done for 2.4 GHz.
 3. Before either: on a cold boot, diff what our 5 GHz radio list covers against the full 2.4 GHz wl radio dump (`traces/wl-final-radio-2g-ch6.txt`) to list radio registers wl touches but our 5 GHz table lacks.
+
+## Same day: wl once, and b43 receives on 5 GHz
+
+wl builds for 7.2.9 with the broadcom-sta of nixpkgs master (rpmfusion patches 036–038 for kernels 7.1/7.2); the local nixpkgs stops at 035. `tools/wl_firstload_capture.sh` unbinds b43/bcma, traces wl's first load of the boot with tracefs kprobes and connects it to the 5 GHz BSS: wl links at 5560 MHz, -45 dBm, 780 Mbit/s. Trace: `traces/wl-firstload-5g-20261010-175159.trace.xz`, decoded in `traces/decoded-firstload-5g-cold/`.
+
+Then `rmmod wl`, b43 again, monitor on 5560 MHz, tcpdump 8 s:
+
+| b43 load | frames on 5560 |
+|---|---|
+| cold boot (all variants, table above) | 0 |
+| after wl, 20 MHz path | 68 |
+| after wl, 80 MHz path | 68 |
+| after wl and one more plain b43 reload (`ac_por=7`) | 69 |
+
+So one wl run puts the chip into a state in which our unchanged driver receives on 5 GHz, and the state survives b43 reloads.
+
+What it is not:
+- Not a register wl writes only on a first load: the final PHY/radio/table/SHM/chipcommon/PMU/wrapper state of the new trace has the same register set as the 2026-09-26 trace (323 PHY, 163 radio, 3142 table entries, 18 chipcommon), values differ only in calibration results.
+- Not PMU regctl[0] bit 21 (the only chipcommon difference debugfs shows): clearing it live, with a retune, keeps 5 GHz RX; and `apply_por5g` writes it and chipcontrol on every 5 GHz switch anyway.
+- Not visible in the radio on 2.4 GHz: registers 0x000–0x3ff on channel 11 are the same before and after wl except 0x04e, 0x050, 0x241.
+
+Saved for the comparison after the next cold boot (`traces/5g-state-after-wl/`): radio 0x000–0x9ff, PHY, tables and chipcommon of b43 on channel 11 in the working state. Next: the same dumps from a cold boot, diff, and then set the differing state by hand until 5 GHz receives.
