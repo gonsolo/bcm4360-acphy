@@ -1195,10 +1195,6 @@ done:
 	mdelay(30);
 }
 
-#include "phy_ac_por.h"
-static bool b43_ac_por_tail = true;
-module_param_named(ac_por_tail, b43_ac_por_tail, bool, 0644);
-MODULE_PARM_DESC(ac_por_tail, "AC-PHY: after phyinit also write the rest of wl's first-load PHY state (entries 72-289): 26 dB more RX level (notes/136)");
 static uint b43_ac_phyinit = 1;
 module_param_named(ac_phyinit, b43_ac_phyinit, uint, 0644);
 
@@ -1334,6 +1330,9 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	b43_phy_set(dev, 0x040a, 0x0100);
 	b43_phy_write(dev, 0x0414, 0x0555);
 	b43_phy_ac_coeff_bank_init(dev);
+	/* RX gain control, all cores (his rxgainctrl setup). Without it the
+	 * receive level is 26 dB down: -66 instead of -40 dBm (notes/136). */
+	b43_phy_write(dev, 0x1726, 0x000c);
 	b43_phy_write(dev, 0x0197, 0x0014);	/* channel_setup */
 	b43_phy_write(dev, 0x0198, 0x0010);
 }
@@ -1375,14 +1374,6 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 	 * (notes/130-135). Only the PHY register writes are left. */
 	if (b43_ac_phyinit)
 		b43_phy_ac_phyinit(dev);
-	if (b43_ac_por_tail) {
-		unsigned int i;
-
-		for (i = 72; i < ARRAY_SIZE(b43_ac_por_phy); i++)
-			if (b43_ac_por_phy[i][0] != 0xffff)
-				b43_phy_write(dev, b43_ac_por_phy[i][0],
-					      b43_ac_por_phy[i][1]);
-	}
 	/* Hardware TX power control: 0x70 bits 15:13 enable it, 0x71 holds the
 	 * averaging window, 0x72 the rest of its configuration. Off by
 	 * default: next to the AP the loop's power makes 28 % of the frames

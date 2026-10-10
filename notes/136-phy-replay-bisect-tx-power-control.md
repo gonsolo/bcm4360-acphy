@@ -170,3 +170,14 @@ stick measures the same 2.4 GHz BSS at -35 dBm. Three findings, each reproduced 
 
 Result, no BSSID lock: signal avg -39 dBm, 0 scans in 75 s, 0 TX failures, 18-21 up / 15-18 down.
 A-MPDU work parked on branch wip-ampdu (session header 0x45c0 / cache info breaks the link).
+
+## The RX level is one write: PHY 0x1726 = 0x000c (2026-10-10)
+
+Bisect of the table tail (entries 72-289) on beacon signal avg after a re-init (controls: tail -39, no tail -66 dBm,
+twice). No single 18-entry chunk matters, and either half alone gives -39: the register is written twice,
+entry 144 (0x1726, the all-cores alias) and entry 188 (0x0726, core 0), both 0x000c; each alone gives -40.
+It is the write that closes the RX gain control setup in Alessio's driver (0x173b = 0x2c, 0x1726 = 0x0c).
+Now in b43_phy_ac_phyinit(); the tail and phy_ac_por.h are removed again. Without the tail: -39..-41 dBm on
+three re-inits, 18/18 Mbit/s, 0 scans in 40 s. TX retries are the same with and without the tail in alternating
+runs (96-142 per 300 pings either way); an earlier lower count (0-9) was a different moment, not the tail.
+2.4 GHz PHY replay left: none. Constants of unknown meaning: 0x1739, 0x016b, 0x0175, 0x03c4, 0x0197/98.
