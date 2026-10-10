@@ -822,7 +822,7 @@ static uint b43_ac_5g_ctr;
 module_param_named(ac_5g_ctr, b43_ac_5g_ctr, uint, 0644);
 MODULE_PARM_DESC(ac_5g_ctr, "AC-PHY test: with ac_5g_80, retune the 80 MHz setup to this block-centre channel (106, 122, ...)");
 
-static bool b43_ac_init_state;
+static bool b43_ac_init_state = true;
 module_param_named(ac_init_state, b43_ac_init_state, bool, 0444);
 MODULE_PARM_DESC(ac_init_state, "AC-PHY: apply wl's captured state at PHY init (else on the first switch to channel 6)");
 static bool b43_ac_state_once;
@@ -1195,6 +1195,10 @@ done:
 	mdelay(30);
 }
 
+#include "phy_ac_por.h"
+static bool b43_ac_por_tail = true;
+module_param_named(ac_por_tail, b43_ac_por_tail, bool, 0644);
+MODULE_PARM_DESC(ac_por_tail, "AC-PHY: after phyinit also write the rest of wl's first-load PHY state (entries 72-289): 26 dB more RX level (notes/136)");
 static uint b43_ac_phyinit = 1;
 module_param_named(ac_phyinit, b43_ac_phyinit, uint, 0644);
 
@@ -1334,6 +1338,10 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x0198, 0x0010);
 }
 
+static bool b43_ac_txpwrctl;
+module_param_named(ac_txpwrctl, b43_ac_txpwrctl, bool, 0644);
+MODULE_PARM_DESC(ac_txpwrctl, "AC-PHY: enable the hardware TX power control loop (PHY 0x70 = 0xe500)");
+
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
 
@@ -1367,10 +1375,19 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 	 * (notes/130-135). Only the PHY register writes are left. */
 	if (b43_ac_phyinit)
 		b43_phy_ac_phyinit(dev);
+	if (b43_ac_por_tail) {
+		unsigned int i;
+
+		for (i = 72; i < ARRAY_SIZE(b43_ac_por_phy); i++)
+			if (b43_ac_por_phy[i][0] != 0xffff)
+				b43_phy_write(dev, b43_ac_por_phy[i][0],
+					      b43_ac_por_phy[i][1]);
+	}
 	/* Hardware TX power control: 0x70 bits 15:13 enable it, 0x71 holds the
-	 * averaging window, 0x72 the rest of its configuration. Without these
-	 * three, upload collapses to 1-9 Mbit/s (bisected, notes/136). */
-	b43_phy_write(dev, 0x0070, 0xe500);
+	 * averaging window, 0x72 the rest of its configuration. Off by
+	 * default: next to the AP the loop's power makes 28 % of the frames
+	 * fail (upload 1-2 Mbit/s against 21 with 0x70 = 0x0100, notes/136). */
+	b43_phy_write(dev, 0x0070, b43_ac_txpwrctl ? 0xe500 : 0x0100);
 	b43_phy_write(dev, 0x0071, 0x04c8);
 	b43_phy_write(dev, 0x0072, 0x400d);
 	b43dbg(dev->wl, "phy_ac: applied first-load state 0x%x\n",
