@@ -191,3 +191,20 @@ changes: commits a39b8f3 (full replay) and 0ba45ae (where notes/123 measured MCS
 same way today, with and without ac_init_state, with and without TX power control and the table tail.
 What differs from 2026-10-07 is the place: the notebook is next to the router now (stick -35..-46 dBm, then -60).
 Open: overload of the AP's receiver at this range, or a two-stream TX fault that only shows here. Test: move away.
+
+## Two-stream TX is not overload: lowering the amplitude makes it worse
+
+The baseband multiplier (table 0x0c, 0x63/0x67 and 0x73/0x77, both cores) can be written live through debugfs `b43ac/phy` (0x00d, 0x00e, 0x00f); no write gate needed. Current TX gain: table 7 `ff00/07cf/00a7`, bbmult 0x3f. Failed frames of ~150 pings, next to the router:
+
+| bbmult | legacy | MCS 7 | MCS 8 | MCS 15 |
+|---|---|---|---|---|
+| 0x3f (0 dB) | 0 | 1 | all | all |
+| 0x2d (-3) | 1 | 0 | all | all |
+| 0x20 (-6) | 0 | 1 | all | all |
+| 0x16 (-9) | 0 | 2 | all | all |
+| 0x10 (-12) | 2 | all | all | all |
+| 0x0b (-15) | 55 | all | all | all |
+| 0x08 (-18) | 57 | all | all | all |
+| 0x04 (-24) | 114, then deauth | | | |
+
+Two-stream fails at every level, so the AP is not overloaded. And the link has little margin: 12 dB less kills 64-QAM, 15 dB less hurts legacy, at 1 m from the AP. The transmitted signal is weak or dirty (no TX IQ/LO calibration, or the PA/gain setup). Two-stream is a separate fault in how the frame is built or sent.
