@@ -14,21 +14,30 @@ of anyone getting: real hardware, real reception, real association.
 ## Status (2026-10-10)
 
 **Current entry points:** `notes/136-phy-replay-bisect-tx-power-control.md`
-(init work) and `notes/117-alessio-driver-live-test-hangs.md` (the other
-AC-PHY driver, retested).
+(init, RX level, second TX chain), `notes/137-ampdu-tx-works.md` (A-MPDU)
+and `notes/117-alessio-driver-live-test-hangs.md` (the other AC-PHY
+driver, retested).
 
-- **2.4 GHz works** on kernel 7.2.9: associates, holds, ~20 Mbit/s up and
-  ~17 Mbit/s down, 0% ping loss. The remaining periodic ping loss is
-  mac80211 background-scan hops, not driver init (notes/136).
+- **2.4 GHz works** on kernel 7.2.9, next to the router: -39 dBm, 0% ping
+  loss, about 20 Mbit/s up and 17 down at legacy rates (the default).
+- **HT20 with A-MPDU TX works** behind `ac_ht=1 ac_ampdu=1` (off by
+  default): MCS 0-15 on both chains, about 30 Mbit/s up over a 15-minute
+  soak, 36-43 in short runs. The microcode builds the aggregates; the
+  driver requeues MPDUs it gives up on. Aggregates are limited to 4 MPDUs:
+  longer ones lose their later MPDUs, which points at the transmit signal.
 - **Init is real code, not a replay.** The 290-write PHY replay table is
-  replaced by `b43_phy_ac_phyinit()` (named blocks mode_init,
-  set_reg_on_reset, coeff_bank_init, following Alessio's driver), and the
-  radio table is cut to 21 named writes. A register dump matches the old
-  replay on all 72 critical registers.
-- **Not done:** the code is hard-wired to 2.4 GHz / 20 MHz; 40/80 MHz
-  branches, 5 GHz init (still a table, `phy_ac_por5g.h`) and 5 GHz RX are
-  open; five PHY words (0x1739, 0x016b, 0x0175, 0x03c4, 0x0197/98 values)
-  are still constants of unknown meaning.
+  replaced by `b43_phy_ac_phyinit()` (named blocks, following Alessio's
+  driver), the radio table is cut to 21 named writes. Three single writes
+  mattered most: PHY `0x1726 = 0x000c` (26 dB of RX level), chipcommon
+  `chipcontrol` bit 3 (without it the second TX chain does not radiate),
+  and hardware TX power control off (it fails about 28% of frames at 1 m).
+- **Not done:** TX calibration (only about 12 dB of TX margin at 1 m) and
+  a real TX power setting; RX aggregation; 40 MHz is coded but untested;
+  5 GHz init is still a table (`phy_ac_por5g.h`) and 5 GHz TX does not
+  work; hardware encryption is off (`nohwcrypt=1`); five PHY words
+  (0x1739, 0x016b, 0x0175, 0x03c4, 0x0197/98 values) are constants of
+  unknown meaning; the test parameters and debugfs have to go before any
+  upstreaming.
 - Older bisect/boot history (kernel regression hunt, notes/76-102) is kept
   in the notes.
 
