@@ -222,6 +222,7 @@ struct b43_txstatus {
 	u16 seq;		/* Sequence number */
 	u8 phy_stat;		/* PHY TX status */
 	u8 frame_count;		/* Frame transmit count */
+	u8 fb_count;		/* AC: attempts at the fallback rate */
 	u8 rts_count;		/* RTS transmit count */
 	u8 supp_reason;		/* Suppression reason */
 	/* flags */

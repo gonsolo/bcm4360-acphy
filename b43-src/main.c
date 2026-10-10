@@ -1496,6 +1496,8 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
 			else
 				n = v2 & 0xff;
 			stat.frame_count = min(n, 15u);
+			if (b43_ac_ampdu)
+				stat.fb_count = min(((v2 >> 16) & 0xff) + (v3 & 0xff) + ((v3 >> 16) & 0xff), 15u);
 			b43dbg(dev->wl, "AC txstatus %08x %08x %08x %08x / %08x %08x %08x %08x\n",
 			       v0, v1, v2, v3, w0, w1, w2, w3);
 			if (b43_ac_ampdu && mpdus > 1) {
@@ -1505,6 +1507,7 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
 
 				/* the attempt count covers the whole aggregate */
 				stat.frame_count = min(DIV_ROUND_UP(n, mpdus), 15u);
+				stat.fb_count = min(DIV_ROUND_UP(((v2 >> 16) & 0xff) + (v3 & 0xff) + ((v3 >> 16) & 0xff), mpdus), 15u);
 				for (i = 0; i < mpdus; i++) {
 					stat.cookie = cookie;
 					stat.acked = !!(bitmap & (1ULL << i));

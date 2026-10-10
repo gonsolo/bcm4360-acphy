@@ -34,6 +34,13 @@
  * into separate slots. */
 #define TX_SLOTS_PER_FRAME	2
 
+static uint b43_ac_ampdu_requeue = 4;
+module_param_named(ac_ampdu_requeue, b43_ac_ampdu_requeue, uint, 0644);
+MODULE_PARM_DESC(ac_ampdu_requeue, "AC-PHY: times an unacknowledged session frame is put back on the ring, 0 = never");
+static uint b43_ac_txslots = B43_TXRING_SLOTS;
+module_param_named(ac_txslots, b43_ac_txslots, uint, 0444);
+MODULE_PARM_DESC(ac_txslots, "TX ring slots, two per frame (diagnostic: keep queued A-MPDU frames inside the block ack window)");
+
 static u32 b43_dma_address(struct b43_dma *dma, dma_addr_t dmaaddr,
 			   enum b43_addrtype addrtype)
 {
@@ -875,7 +882,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 
 	ring->nr_slots = B43_RXRING_SLOTS;
 	if (for_tx)
-		ring->nr_slots = B43_TXRING_SLOTS;
+		ring->nr_slots = clamp(b43_ac_txslots, 16u, (uint)B43_TXRING_SLOTS) & ~1u;
 
 	ring->meta = kcalloc(ring->nr_slots, sizeof(struct b43_dmadesc_meta),
 			     GFP_KERNEL);
@@ -1481,6 +1488,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 	static const struct b43_txstatus fake; /* filled with 0 */
 	const struct b43_txstatus *txstat;
 	int slot, firstused;
+	struct sk_buff *requeue = NULL;
 	bool frame_succeed;
 	int skip;
 	static u8 err_out1;
@@ -1583,6 +1591,26 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			else
 				txstat = status;
 
+			/* A session frame the microcode gave up on goes back
+			 * on the ring, as the stock driver requeues it; the
+			 * block ack window lets it follow later frames. */
+			if (b43_ac_ampdu_requeue && !skip && !txstat->acked &&
+			    (info->flags & IEEE80211_TX_CTL_AMPDU) &&
+			    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+				u32 n = (meta->skb->mark >> 16) == 0xb430 ?
+					meta->skb->mark & 0xff : 0;
+
+				if (n < b43_ac_ampdu_requeue) {
+					struct ieee80211_hdr *hdr = (void *)meta->skb->data;
+
+					meta->skb->mark = 0xb4300000 | (n + 1);
+					hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_RETRY);
+					requeue = meta->skb;
+					meta->skb = B43_DMA_PTR_POISON;
+					ring->used_slots--;
+					break;
+				}
+			}
 			frame_succeed = b43_fill_txstatus_report(dev, info,
 								 txstat);
 #ifdef CONFIG_B43_DEBUG
@@ -1620,6 +1648,12 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 		slot = next_slot(ring, slot);
 		if (skip > 0)
 			--skip;
+	}
+	if (requeue && dma_tx_fragment(ring, requeue)) {
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(requeue);
+
+		b43_fill_txstatus_report(dev, info, status);
+		ieee80211_tx_status_skb(dev->wl->hw, requeue);
 	}
 	if (ring->stopped) {
 		B43_WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME);
