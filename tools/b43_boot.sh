@@ -21,10 +21,10 @@ fi
 
 # Wait for the bcma bus to expose the 802.11 core before loading b43.
 for _ in $(seq 50); do
-	[ -e /sys/bus/bcma/devices/bcma0:1 ] && break
+	ls -d /sys/bus/bcma/devices/bcma*:1 >/dev/null 2>&1 && break
 	sleep 0.1
 done
-[ -e /sys/bus/bcma/devices/bcma0:1 ] || { echo "bcma0:1 never appeared"; exit 1; }
+ls -d /sys/bus/bcma/devices/bcma*:1 >/dev/null 2>&1 || { echo "bcma core never appeared"; exit 1; }
 
 # One module per kernel (vermagic). Prefer the Nix-built one (boot.extraModulePackages installs it
 # under extra/, notes/115), else the hand build b43-src-builds/b43-<uname -r>.ko, else the in-tree
