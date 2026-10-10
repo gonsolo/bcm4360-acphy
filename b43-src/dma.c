@@ -34,6 +34,9 @@
  * into separate slots. */
 #define TX_SLOTS_PER_FRAME	2
 
+static bool b43_ac_dmaburst = true;
+module_param_named(ac_dmaburst, b43_ac_dmaburst, bool, 0444);
+MODULE_PARM_DESC(ac_dmaburst, "AC-PHY: DMA burst length and prefetch as the stock driver sets them");
 static uint b43_ac_ampdu_requeue = 4;
 module_param_named(ac_ampdu_requeue, b43_ac_ampdu_requeue, uint, 0644);
 MODULE_PARM_DESC(ac_ampdu_requeue, "AC-PHY: times an unacknowledged session frame is put back on the ring, 0 = never");
@@ -695,6 +698,13 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			    & B43_DMA64_TXADDREXT_MASK;
 			if (!parity)
 				value |= B43_DMA64_TXPARITYDISABLE;
+			/* Burst length, prefetch control and threshold as the
+			 * stock driver sets them (TX control 0x03780841).
+			 * Without them the engine moves about 6 MB/s and every
+			 * link tops out near 50 Mbit/s (notes/143). */
+			if (b43_ac_dmaburst &&
+			    ring->dev->phy.type == B43_PHYTYPE_AC)
+				value |= 0x03780040;
 			if (ring->dev->dma.ptr_is_addr) {
 				ring->ptr_base = lower_32_bits(ring->dmabase);
 				value |= b43_dma_read(ring, B43_DMA64_TXCTL) &
@@ -742,6 +752,10 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			    & B43_DMA64_RXADDREXT_MASK;
 			if (!parity)
 				value |= B43_DMA64_RXPARITYDISABLE;
+			/* stock RX control: 0x036c0851 */
+			if (b43_ac_dmaburst &&
+			    ring->dev->phy.type == B43_PHYTYPE_AC)
+				value |= 0x036c0000;
 			if (ring->dev->dma.ptr_is_addr) {
 				ring->ptr_base = lower_32_bits(ring->dmabase);
 				value |= b43_dma_read(ring, B43_DMA64_RXCTL) &
