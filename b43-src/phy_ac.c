@@ -1448,6 +1448,9 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	b43_phy_ac_wide_tables_2g(dev);
 }
 
+static bool b43_ac_5g_coeff = true;
+module_param_named(ac_5g_coeff, b43_ac_5g_coeff, bool, 0644);
+MODULE_PARM_DESC(ac_5g_coeff, "AC-PHY: on 5 GHz set the width-dependent filter bank after wl's 80 MHz state (diagnostic)");
 static bool b43_ac_txpwrctl = true;
 module_param_named(ac_txpwrctl, b43_ac_txpwrctl, bool, 0644);
 MODULE_PARM_DESC(ac_txpwrctl, "AC-PHY: enable the hardware TX power control loop (PHY 0x70 = 0xe500)");
@@ -1781,6 +1784,9 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 			bcma_aread32(dev->dev->bdev, BCMA_IOCTL));
 	} else if (is_5ghz && b43_ac_por) {
 		b43_phy_ac_apply_por5g(dev);
+		/* wl's state is its 80 MHz one: filters for our width */
+		if (b43_ac_5g_coeff)
+			b43_phy_ac_coeff_bank_init(dev);
 		/* wl's state tunes to its 80 MHz centre; tune our channel. */
 		save = b43_phy_read(dev, 0x19e);
 		b43_phy_set(dev, 0x19e, 0x3);

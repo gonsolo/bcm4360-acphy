@@ -17,3 +17,13 @@ Open:
 - Download: the AP falls to MCS 0 towards us, so reception of HT frames on 5 GHz is poor although beacons arrive at -51 dBm. The PHY/radio state is wl's 80 MHz snapshot retuned to one 20 MHz channel; RX filters, the bandwidth-dependent registers and the 0x14 entries for 20 MHz are candidates.
 - Confirm from a cold boot.
 - 40/80 MHz and VHT; other channels than 112 (rpcal fill, VCO block); `ac_5ghz` stays off by default.
+
+## Download on 5 GHz: narrowed, not fixed
+
+- `b43_phy_ac_coeff_bank_init()` now runs after wl's 80 MHz state on a 20 MHz 5 GHz channel (`ac_5g_coeff`, default on). Upload became steady: 51.0–52.3 Mbit/s in eight runs (before 31–48).
+- Download stays at 18.3–19.3 Mbit/s (one run 38.5 right after connecting).
+- An RX block ack session exists (TID 0), so the AP may aggregate.
+- Table 0x14 entry 0x33 with the 20 MHz value (`e800 0084 d182`) or the 80 MHz one: no difference.
+- Microcode statistics over 15 s of download: 13195 frame starts carrying 24870 data frames (1.9 per PPDU), 3039 RTS from the AP, 1197 bad FCS (9 % of the starts), 6 bad PLCP. Throughput equals the data frames received, so our block acks arrive; the AP itself chooses slow rates (rx bitrate samples MCS 0–3), short aggregates and RTS. That is what an AP does when the faster frames are not acknowledged: our reception of the higher HT rates on 5 GHz is poor.
+
+Candidates: the receive side of wl's 80 MHz snapshot does not fit a 20 MHz channel (RX IQ compensation and filters calibrated for the 80 MHz centre, 30 MHz away); or do it the other way round and run the snapshot as what it is, 80 MHz.
