@@ -138,12 +138,30 @@ static int b43_ac_dbg_cc_show(struct seq_file *s, void *unused)
 		seq_printf(s, "%03x %-14s %08x\n", regs[i].off, regs[i].name,
 			   bcma_cc_read32(cc, regs[i].off));
 	for (i = 0; i < ARRAY_SIZE(ind); i++)
-		for (j = 0; j < 8; j++) {
+		for (j = 0; j < 16; j++) {
 			bcma_cc_write32(cc, ind[i].addr, j);
 			bcma_cc_read32(cc, ind[i].addr);
 			seq_printf(s, "%s[%d] %08x\n", ind[i].name, j,
 				   bcma_cc_read32(cc, ind[i].data));
 		}
+	/* PMU resource tables: dependency mask and up/down timer per resource */
+	for (j = 0; j < 16; j++) {
+		bcma_cc_write32(cc, 0x620, j);
+		seq_printf(s, "res[%d] dep %08x updn %08x\n", j,
+			   bcma_cc_read32(cc, 0x624), bcma_cc_read32(cc, 0x628));
+	}
+	/* raw chipcommon, without JTAG (0x30-0x3c) and the UART/flash blocks */
+	for (j = 0x000; j < 0x700; j += 4) {
+		if ((j >= 0x030 && j < 0x040) || (j >= 0x200 && j < 0x600))
+			continue;
+		seq_printf(s, "raw %03x %08x\n", j, bcma_cc_read32(cc, j));
+	}
+	for (j = 0; j < 5; j++) {
+		static const u16 w[] = { 0x160, 0x164, 0x408, 0x500, 0x800 };
+
+		seq_printf(s, "wrap %03x %08x\n", w[j],
+			   bcma_aread32(dev->dev->bdev, w[j]));
+	}
 	mutex_unlock(&dev->wl->mutex);
 	{
 		struct ssb_sprom *sp = dev->dev->bus_sprom;

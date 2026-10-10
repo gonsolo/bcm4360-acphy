@@ -41,3 +41,18 @@ What it is not:
 - Not visible in the radio on 2.4 GHz: registers 0x000–0x3ff on channel 11 are the same before and after wl except 0x04e, 0x050, 0x241.
 
 Saved for the comparison after the next cold boot (`traces/5g-state-after-wl/`): radio 0x000–0x9ff, PHY, tables and chipcommon of b43 on channel 11 in the working state. Next: the same dumps from a cold boot, diff, and then set the differing state by hand until 5 GHz receives.
+
+## After the next cold boot: what the residue is not
+
+Cold boot again: 5560 MHz 0 frames. wl once more (`tools/wl_firstload_capture.sh`, second trace `wl-firstload-5g-20261010-19*.trace`, linked at 702 Mbit/s), then b43: 69 frames. Reproducible.
+
+Compared, working state against cold state:
+
+- **Radio 0x000–0x9ff on channel 11**: equal except 0x028/0x228/0x428 (3601 working, 2601 cold), 0x035/0x235/0x435 (0241, 0141), 0x050, 0x241, 0x414. Neither wl nor b43 ever writes 0x028/0x035. Writing the cold values into them in the working state (on 5560) does not stop reception: read-only results or irrelevant.
+- **Chipcommon, full** (debugfs `cc` now dumps raw 0x000–0x1fc and 0x600–0x6fc, PMU chipctl/regctl/pllctl 0–15, resource tables, wrapper 0x160/0x164/0x408/0x500/0x800): during working 5 GHz reception against cold, only status-like words differ: 0x018 (0 against 0x80f), 0x060 GPIO in, 0x078, 0x168/0x16c (ECI input/event, 0x9060/0 against 0x9063/0xbf00), 0x1e0 clock status, timers. PMU resource tables, pllctl, chipctl are equal.
+- **cc 0x140/0x144** is a strobed pair: wl writes 0x140=0, 0x144=data, 0x140=0x40000000, with data 0x200, 0x200, 0x1000, 0x1200 (before radio power-up) and 0xf200 (on 5 GHz). `phy_ac_por5g.h` replays the final values in address order, strobe before data, so nothing is latched. Latching 0xf200 by hand from the cold state did not bring 5 GHz RX back, so this is not sufficient alone; the replay order is still wrong.
+- **cc 0x088/0x08c** (GPIO timer value and timer output mask): `apply_por5g` writes 0x000a0000 and 7, a blink state of wl captured as "final". After wl unloads they are 0x00ff00ff and 0. Reception works with the replayed values after wl, so not the cause either, but it should not be replayed.
+
+Also learned: PHY registers survive a b43 reload. A 2.4 GHz dump taken after 5 GHz tests in the same boot still shows 0x073b = 0x2c from the 5 GHz table (0x18 straight after boot). Our load does not reset the PHY, so the order of experiments within one boot matters, and "clean init" is not clean.
+
+Not compared yet: PHY and radio state while tuned to 5 GHz, working against cold. Reading them there hung the machine once (notes/112).
