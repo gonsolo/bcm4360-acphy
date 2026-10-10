@@ -415,6 +415,9 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_bss_conf *conf,
 				    u64 changed);
 extern bool b43_ac_ampdu;
+static bool b43_ac_ampdu_rx = true;
+module_param_named(ac_ampdu_rx, b43_ac_ampdu_rx, bool, 0644);
+MODULE_PARM_DESC(ac_ampdu_rx, "AC-PHY: accept the peer's block ack sessions (with ac_ampdu=1)");
 
 static int b43_ratelimit(struct b43_wl *wl)
 {
@@ -5635,8 +5638,13 @@ static int b43_op_ampdu_action(struct ieee80211_hw *hw,
 		return 0;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		return 0;
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		/* The microcode deaggregates and sends the block acks,
+		 * mac80211 reorders. */
+		return b43_ac_ampdu_rx ? 0 : -EOPNOTSUPP;
 	default:
-		return -EOPNOTSUPP;	/* RX aggregation: not yet */
+		return -EOPNOTSUPP;
 	}
 }
 

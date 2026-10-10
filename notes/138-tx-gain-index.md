@@ -62,3 +62,14 @@ Basement, -67..-73 dBm, 26 rounds of 20 s upload + 10 s download, stick pinged e
 - No b43 error, no deauth. Stick: 1701 of 1704 pings.
 
 HT + A-MPDU is stable at range and faster up, slower down. Not the default until RX aggregation works.
+
+## RX aggregation, and the soak with both directions aggregated
+
+Accepting the AP's block ack sessions (`IEEE80211_AMPDU_RX_START/STOP` return 0, `ac_ampdu_rx`, default on with `ac_ampdu=1`) is all RX aggregation needs: the microcode deaggregates and sends the block acks, mac80211 reorders. Download at range went from 7.5 to 16–20 Mbit/s in the first runs.
+
+15-minute soak, basement, signal range -75 -67  dBm, gain index 20:
+
+- 32 rounds. Upload 21.0-39.7 Mbit/s, mean 30.1. Download 7.23-27.3 Mbit/s, mean 20.4.
+- total: pkts 1654027 retries 427520 failed 607
+- stick: 405 packets transmitted, 387 received, +2 errors, 4.44444% packet loss, time 214633ms
+- b43 errors: 24  stick deauths: 0  b43 deauth/disassoc: 0
