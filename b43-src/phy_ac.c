@@ -52,8 +52,7 @@ static ssize_t b43_ac_dbg_read(struct file *f, char __user *ubuf, size_t len,
 		val = b43_read16(dev, addr);
 	else if (which == 2)
 		val = b43_shm_read16(dev, B43_SHM_SHARED, addr);
-	else
-		{
+	else {
 		bool susp = which == 0;
 
 		if (susp)
@@ -332,12 +331,12 @@ static const struct file_operations b43_ac_dbg_phydump_fops = {
 
 /* PHY tables wl writes during init: id, entries, 32-bit wide. notes/121 */
 static const struct { u16 id, n; bool w32; } b43_ac_dump_tbls[] = {
-	{0x01,128,0},{0x02,38,0},{0x03,256,1},{0x04,256,0},{0x05,22,1},
-	{0x07,1092,0},{0x0a,96,0},{0x0b,23,0},{0x0c,120,0},{0x0e,160,1},
-	{0x10,1463,1},{0x21,24,1},
-	{0x40,128,0},{0x41,128,1},{0x42,128,0},{0x44,42,0},{0x45,42,0},{0x47,64,1},{0x48,64,1},
-	{0x60,128,0},{0x61,128,1},{0x62,128,0},{0x64,42,0},{0x65,42,0},{0x67,64,1},{0x68,64,1},
-	{0x80,128,0},{0x81,128,1},{0x82,128,0},{0x87,64,1},{0x88,64,1},
+	{0x01, 128, 0}, {0x02, 38, 0}, {0x03, 256, 1}, {0x04, 256, 0}, {0x05, 22, 1},
+	{0x07, 1092, 0}, {0x0a, 96, 0}, {0x0b, 23, 0}, {0x0c, 120, 0}, {0x0e, 160, 1},
+	{0x10, 1463, 1}, {0x21, 24, 1},
+	{0x40, 128, 0}, {0x41, 128, 1}, {0x42, 128, 0}, {0x44, 42, 0}, {0x45, 42, 0}, {0x47, 64, 1}, {0x48, 64, 1},
+	{0x60, 128, 0}, {0x61, 128, 1}, {0x62, 128, 0}, {0x64, 42, 0}, {0x65, 42, 0}, {0x67, 64, 1}, {0x68, 64, 1},
+	{0x80, 128, 0}, {0x81, 128, 1}, {0x82, 128, 0}, {0x87, 64, 1}, {0x88, 64, 1},
 };
 
 static int b43_ac_dbg_tbldump_show(struct seq_file *s, void *unused)
@@ -3563,8 +3562,7 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 			b43_phy_ac_replay_ch6(dev);
 		if (b43_ac_init_state && b43_ac_por)
 			b43_phy_ac_apply_por(dev);
-	}
-	else
+	} else
 		b43err(dev->wl, "phy_ac: no table set for PHY rev %u\n",
 		       dev->phy.rev);
 
