@@ -73,3 +73,12 @@ Accepting the AP's block ack sessions (`IEEE80211_AMPDU_RX_START/STOP` return 0,
 - total: pkts 1654027 retries 427520 failed 607
 - stick: 405 packets transmitted, 387 received, +2 errors, 4.44444% packet loss, time 214633ms
 - b43 errors: 24  stick deauths: 0  b43 deauth/disassoc: 0
+
+The first soak logged one burst of "DMA queue overflow" with 24 warnings at dma.c (b43_dma_tx on a full ring) within 40 ms: a requeued MPDU took the two slots its status had just freed and the handler woke the queue anyway. Now the queue stays stopped in that case. The stick's ping stopped after 214 s because the stick tried to roam to the 5 GHz BSS and lost its IPv4 address for 3 s; not b43.
+
+Rerun with the fix, same spot, signal range -75 -68  dBm:
+
+- 27 rounds. Upload 23.9-43.5 Mbit/s, mean 32.5. Download 10.6-25.9 Mbit/s, mean 19.3.
+- total: pkts 1755953 retries 298575 failed 1260
+- stick: 1441 packets transmitted, 1403 received, +5 errors, 2.63706% packet loss, time 765732ms
+- b43 errors: 0  stick deauths: 0  b43 deauth/disassoc: 0

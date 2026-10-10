@@ -1646,11 +1646,22 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 		if (skip > 0)
 			--skip;
 	}
-	if (requeue && dma_tx_fragment(ring, requeue)) {
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(requeue);
+	if (requeue) {
+		if (dma_tx_fragment(ring, requeue)) {
+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(requeue);
 
-		b43_fill_txstatus_report(dev, info, status);
-		ieee80211_tx_status_skb(dev->wl->hw, requeue);
+			b43_fill_txstatus_report(dev, info, status);
+			ieee80211_tx_status_skb(dev->wl->hw, requeue);
+		} else if (free_slots(ring) < TX_SLOTS_PER_FRAME) {
+			/* The requeued frame took the slots this status freed:
+			 * the ring is still full, keep the queue stopped. */
+			if (!ring->stopped) {
+				b43_stop_queue(dev, ring->queue_prio);
+				dev->wl->tx_queue_stopped[ring->queue_prio] = true;
+				ring->stopped = true;
+			}
+			return;
+		}
 	}
 	if (ring->stopped) {
 		B43_WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME);
