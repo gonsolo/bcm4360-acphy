@@ -15,6 +15,7 @@
 */
 
 #include "xmit.h"
+#include "phy_ac.h"
 #include "phy_common.h"
 #include "dma.h"
 #include "pio.h"
@@ -268,7 +269,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	bool is_ofdm = b43_is_ofdm_rate(rate);
 	unsigned int len = skb->len + FCS_LEN;
 	u8 *ri = h + B43_TXH_AC_RATE(0);
-	u16 mac_lo = 0, phy0, idx = 0, chanspec;
+	u16 mac_lo = 0, phy0, idx = 0, chanspec, subband;
 	int ht_mcs = -1;
 	/* Only HT rates go out as session frames: a legacy probe frame with the
 	 * aggregate header fails at every attempt (notes/137). */
@@ -299,9 +300,9 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	if (ieee80211_is_beacon(wlhdr->frame_control))
 		mac_lo |= 0x0200;	/* ignore PMQ */
 
-	chanspec = dev->phy.channel | 0x1000;	/* 20 MHz */
-	if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
-		chanspec |= 0xc000;
+	chanspec = b43_phy_ac_chanspec(dev, dev->phy.channel);
+	/* A 20 MHz frame inside an 80 MHz channel names its subband (word 1) */
+	subband = (chanspec & 0x3800) == 0x2000 ? (chanspec >> 8) & 0x7 : 0;
 
 	if (agg) {
 		/* MPDU of a block ack session, as the stock driver posts it
@@ -347,7 +348,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 
 		phy0 = 2 | 0x0004 | (((mcs > 7 ? 3 : b43_ac_txcore) & 0xf) << 6);
 		put_unaligned_le16(phy0, ri + 0x00);
-		put_unaligned_le16(0, ri + 0x02);
+		put_unaligned_le16(subband, ri + 0x02);
 		put_unaligned_le16(mcs, ri + 0x04);
 		plcp[0] = mcs;
 		plcp[1] = len & 0xff;
@@ -358,7 +359,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
 	} else {
 	put_unaligned_le16(phy0, ri + 0x00);
-	put_unaligned_le16(0, ri + 0x02);
+	put_unaligned_le16(subband, ri + 0x02);
 	put_unaligned_le16(idx, ri + 0x04);
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06), len, rate);
 	put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
@@ -373,6 +374,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		put_unaligned_le16(0, ri + 0x10);
 		ri += 0x14;
 		put_unaligned_le16(2 | 0x0004 | (((mcs > 7 ? 3 : b43_ac_txcore) & 0xf) << 6), ri + 0x00);
+		put_unaligned_le16(subband, ri + 0x02);
 		put_unaligned_le16(mcs, ri + 0x04);
 		ri[0x06] = mcs;
 		ri[0x07] = len & 0xff;
@@ -840,6 +842,9 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 
 		macstat = get_unaligned_le16(h + 0x10);
 		mactime = get_unaligned_le16(h + 0x14);
+		/* 80 MHz chanspec: centre channel and the primary's position */
+		if ((cs & 0x3800) == 0x2000)
+			cs = (cs & 0xff00) | ((cs & 0xff) - 6 + 4 * ((cs >> 8) & 0x7));
 		chanstat = ((cs & 0xff) << B43_RX_CHAN_ID_SHIFT) | B43_PHYTYPE_N;
 		if ((cs & 0xc000) == 0xc000)
 			chanstat |= B43_RX_CHAN_5GHZ;

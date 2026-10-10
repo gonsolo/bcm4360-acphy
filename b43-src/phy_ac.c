@@ -835,6 +835,29 @@ MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (experiment
 
 static bool b43_ac_5g_80;
 module_param_named(ac_5g_80, b43_ac_5g_80, bool, 0644);
+static uint b43_ac_por;
+
+/* wl's 80 MHz state exists for one block only: channels 100-112, centre 106 */
+static bool b43_phy_ac_is_80mhz(struct b43_wldev *dev, unsigned int channel)
+{
+	return b43_ac_5g_80 && b43_ac_por &&
+	       b43_current_band(dev->wl) == NL80211_BAND_5GHZ &&
+	       channel >= 100 && channel <= 112;
+}
+
+/*
+ * The 11ac chanspec of a primary channel as the microcode and the TX header
+ * take it: channel, 0x1000 for 20 MHz, 0xc000 on 5 GHz. In 80 MHz mode the
+ * centre channel, 0x2000 for the width and the primary's position in the
+ * block in bits 10:8 (wl on channel 112: 0xe36a).
+ */
+u16 b43_phy_ac_chanspec(struct b43_wldev *dev, unsigned int channel)
+{
+	if (b43_phy_ac_is_80mhz(dev, channel))
+		return 0xe000 | (((channel - 100) / 4) << 8) | 106;
+	return channel | 0x1000 |
+	       (b43_current_band(dev->wl) == NL80211_BAND_5GHZ ? 0xc000 : 0);
+}
 MODULE_PARM_DESC(ac_5g_80, "AC-PHY test: on 5 GHz keep wl's 80 MHz setup instead of re-tuning to 20 MHz");
 static uint b43_ac_5g_ctr;
 module_param_named(ac_5g_ctr, b43_ac_5g_ctr, uint, 0644);
@@ -977,7 +1000,6 @@ static void b43_phy_ac_txcal_measure_setup_exit(struct b43_wldev *dev,
 			const struct b43_phy_ac_txcal_setupsave *save);
 static void b43_phy_ac_txcal_resetcca(struct b43_wldev *dev);
 
-static uint b43_ac_por;
 module_param_named(ac_por, b43_ac_por, uint, 0644);
 /* ac_por bits beyond the first-load classes: 0x40 skip vcocal after the
  * radio class, 0x80 wl MAC timing regs, 0x100 wl final radio regs. */
@@ -1755,7 +1777,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 			b43_phy_ac_apply_por(dev);
 		phy_ac->wl_state_applied = true;
 	}
-	if (is_5ghz && b43_ac_por && b43_ac_5g_80) {
+	if (b43_phy_ac_is_80mhz(dev, new_channel)) {
 		u32 ioctl;
 
 		/* Test: keep wl's 80 MHz setup (synthesizer on its 80 MHz centre,
@@ -1802,7 +1824,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	 * scan sweep, notes/53) - but not when ac_5g_80 keeps wl's captured
 	 * 80 MHz state instead of retuning per-channel, a different PHY mode
 	 * this table was never shown to apply to. */
-	if (b43_ac_farrow && !(is_5ghz && b43_ac_5g_80))
+	if (b43_ac_farrow && !b43_phy_ac_is_80mhz(dev, new_channel))
 		b43_phy_ac_set_farrow(dev, new_channel);
 
 	if (is_5ghz && new_channel == 116 && b43_ac_win116)
