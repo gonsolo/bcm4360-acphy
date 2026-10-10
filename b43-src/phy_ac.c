@@ -1329,6 +1329,10 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	/* FEM table 2 / sub 1 setup (his b43_phy_ac_fem2_sub1_setup) */
 	b43_phy_set(dev, 0x040a, 0x0100);
 	b43_phy_write(dev, 0x0414, 0x0555);
+	/* Second TX chain: without this bit core 1 does not radiate and
+	 * two-stream rates fail completely (notes/136). */
+	if (dev->dev->bus_type == B43_BUS_BCMA)
+		bcma_cc_set32(&dev->dev->bdev->bus->drv_cc, BCMA_CC_CHIPCTL, 0x00000008);
 	b43_phy_ac_coeff_bank_init(dev);
 	/* RX gain control, all cores (his rxgainctrl setup). Without it the
 	 * receive level is 26 dB down: -66 instead of -40 dBm (notes/136). */

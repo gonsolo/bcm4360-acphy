@@ -222,3 +222,16 @@ Per-core test, muting one core's bbmult cells (0x63/0x73 = core 0, 0x67/0x77 = c
 Whatever the mask says, everything the AP hears comes from core 0; core 1 adds nothing. HT with mask 2 fails at every MCS (0–5 tested), HT with mask 3 works through core 0. So two-stream fails because the second stream is never radiated. The earlier "each TX core works alone" was wrong: legacy frames with mask 2 still leave through core 0. RX on both chains works (the AP's MCS 12–15 arrive).
 
 The ucode TX core table (shm 0x05d4–0x05dc, here `0001 0207 0207 0307 0007`; Alessio writes plain masks) makes no difference. Next: the core 1 TX path in the radio and RF sequencer (PA, pad, mixer power-up, FEM control lines).
+
+## Fix: chipcommon chipcontrol bit 3
+
+Radio registers (0x000–0x17f vs 0x200–0x37f) and per-core PHY registers are symmetric, tables are identical to the 2026-10-07 dump, and writing back the PHY registers that differ from that day changed nothing. What differs is chipcommon `chipcontrol` (0x28): 0 here. Alessio's `fem2_sub1_setup` ends with `bcma_cc_set32(CHIPCTL, 0x8)`; I had ported its two PHY writes but not this one. Setting the bit live (`echo '28 8' > b43ac/cc`): core 1 alone sends MCS 0, MCS 8 and 15 are acked, 0 failed. On 2026-10-07 the bit was presumably still set from an earlier wl load in that boot; it survives a module reload, a cold boot clears it.
+
+Now in `b43_phy_ac_phyinit()`. Clean load (bit cleared before rmmod), next to the router, iperf3 8 s, two runs each:
+
+| | up | down | TX rate |
+|---|---|---|---|
+| `ac_ht=1` | 22.0 / 22.3 | 15.7 / 15.5 | MCS 13–15 |
+| legacy | 19.8 / 19.9 | 17.3 | 54 |
+
+HT works again but gains little without aggregation, and download is 10 % lower. `ac_ht` stays off by default until A-MPDU.
