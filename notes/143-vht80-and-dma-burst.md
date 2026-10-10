@@ -32,3 +32,12 @@ iperf3 next to the router, VHT80, after the change:
 b43 and the stick now reach the same numbers, so the remaining limit is the test path (the router's bridging or the iperf host), about 55 Mbit/s down and 70–80 up. The link itself cannot be measured further against this setup.
 
 2.4 GHz with the DMA change: up 48.6, 35.9, 33.9; down 34.6, 42.1 (one load, not compared carefully yet).
+
+## 15-minute soak, VHT80
+
+Next to the router (-50 dBm), `ac_5ghz=1 ac_5g_80=1 ac_vht=1`, 4 MPDUs per aggregate, 20 s upload + 10 s download per round, stick pinged every 0.5 s on the same channel:
+
+- 27 rounds. Upload 54.4-74.4 Mbit/s, mean 68.6. Download 51.7-57.7 Mbit/s, mean 55.1.
+- total: pkts 3835141 retries 433414 failed 25
+- stick: 1779 packets transmitted, 1779 received, 0% packet loss, time 899823ms
+- b43 errors: 0  stick deauths: 0  b43 deauth/disassoc: 0
