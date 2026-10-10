@@ -181,3 +181,13 @@ Now in b43_phy_ac_phyinit(); the tail and phy_ac_por.h are removed again. Withou
 three re-inits, 18/18 Mbit/s, 0 scans in 40 s. TX retries are the same with and without the tail in alternating
 runs (96-142 per 300 pings either way); an earlier lower count (0-9) was a different moment, not the tail.
 2.4 GHz PHY replay left: none. Constants of unknown meaning: 0x1739, 0x016b, 0x0175, 0x03c4, 0x0197/98.
+
+## HT retest at the right RX level: two-stream TX fails completely (2026-10-10)
+
+Legacy vs ac_ht=1, three alternating loads: legacy 17-18 up / 17.5-18 down; HT 0.5-0.6 up, AP sends us MCS 12-15.
+Forced rates (ac_httx, 150 pings): MCS 0, 3, 7 as legacy (32-44 retries, 0 failed); MCS 8 and 15: all 150 failed.
+Each TX core alone and both together work at legacy rates (ac_txcore 1/2/3). Not the replay cuts and not today's
+changes: commits a39b8f3 (full replay) and 0ba45ae (where notes/123 measured MCS 0-15 all acked) fail MCS 8 the
+same way today, with and without ac_init_state, with and without TX power control and the table tail.
+What differs from 2026-10-07 is the place: the notebook is next to the router now (stick -35..-46 dBm, then -60).
+Open: overload of the AP's receiver at this range, or a two-stream TX fault that only shows here. Test: move away.
