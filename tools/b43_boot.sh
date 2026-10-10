@@ -29,7 +29,11 @@ ls -d /sys/bus/bcma/devices/bcma*:1 >/dev/null 2>&1 || { echo "bcma core never a
 # One module per kernel (vermagic). Prefer the Nix-built one (boot.extraModulePackages installs it
 # under extra/, notes/115), else the hand build b43-src-builds/b43-<uname -r>.ko, else the in-tree
 # build output (built for the kernel it was last made against).
-KO=/run/booted-system/kernel-modules/lib/modules/$(uname -r)/extra/b43.ko   # modinfo -n would pick the in-tree module
+# The current generation first, so a nixos-rebuild switch takes effect without a reboot; it has a
+# module for the running kernel only if the kernel did not change. modinfo -n would pick the
+# in-tree module.
+KO=/run/current-system/kernel-modules/lib/modules/$(uname -r)/extra/b43.ko
+[ -e "$KO" ] || KO=/run/booted-system/kernel-modules/lib/modules/$(uname -r)/extra/b43.ko
 if [ ! -e "$KO" ]; then
 	KO="$PROJ/b43-src-builds/b43-$(uname -r).ko"
 	[ -e "$KO" ] || KO="$PROJ/b43-src/b43.ko"
