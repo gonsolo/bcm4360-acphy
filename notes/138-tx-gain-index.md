@@ -29,3 +29,25 @@ Upload next to the router, A-MPDU on, 8 s runs:
 - But at index 16–20, and later at 32 too, runs with 50–390 failed frames appear (frames that fail all 4 requeues), next to runs with none. The spread between runs is larger than the difference between indices, so 1 m from the AP does not decide this.
 
 Conclusion: no default change. The gain index, and after it power control, have to be tuned at a distance where the link is rate-limited by signal, not next to the router.
+
+## At range (basement, -65..-68 dBm, AP on channel 1): index 64 is nearly dead for HT
+
+Same test, A-MPDU on, 4 MPDUs per aggregate, upload Mbit/s per 8 s run:
+
+| index | runs |
+|---|---|
+| 64 (old) | 0 (22 packets, all failed), 0 (173 packets, 155 failed) |
+| 48 | 7.7, 5.9 |
+| 32 | 22.5, 15.5, 8.7 |
+| 24 | 14.3, 21.0 |
+| 20 | 27.8, 3.8, 22.5 |
+| 16 | 3.9, 26.9 |
+| 12 | 7.3, 29.4 |
+| 8 | 29.5, 4.6, 30.1 |
+| 0 | 19.3, 13.2 (90 failed) |
+
+The runs spread widely (one whole round was slow at every index; both adapters share channel 1 here), but the order is clear: 64 does not carry HT at this range, 8–24 does, 0 is past the optimum.
+
+Legacy rates at the same spot do not care: index 20 gives 8.5 / 15.9 up and 9.8 / 8.7 down, index 64 gives 15.3 / 13.4 up and 10.6 / 10.2 down.
+
+**Default now `ac_txidx=20`**, inside the range the stock power loop used here (0x14–0x26). Next to the router index 20 showed some runs with failed frames (above); a fixed index is a compromise until there is real power control.

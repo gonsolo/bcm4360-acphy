@@ -894,9 +894,9 @@ struct b43_phy_ac_txcal_gainsave {
 	u16 tbl0xc[B43_PHY_AC_TXCAL_MAX_CORES];
 };
 
-static int b43_ac_txidx = -1;
+static int b43_ac_txidx = 20;
 module_param_named(ac_txidx, b43_ac_txidx, int, 0644);
-MODULE_PARM_DESC(ac_txidx, "AC-PHY: fixed 2.4 GHz TX gain table index, 0 = highest gain, applied on a channel switch; -1 (default) leaves the reset value, which is index 64. The stock power loop ran at 20-38 here (notes/138)");
+MODULE_PARM_DESC(ac_txidx, "AC-PHY: fixed 2.4 GHz TX gain table index, 0 = highest gain, applied on a channel switch; -1 leaves the reset value, index 64, which is too weak beyond a few metres. The stock power loop ran at 20-38 here (notes/138)");
 static void b43_phy_ac_txpwr_by_index(struct b43_wldev *dev, unsigned int idx);
 
 static void b43_phy_ac_txcal_save_gaintbl(struct b43_wldev *dev,
