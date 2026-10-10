@@ -245,6 +245,13 @@ static int b43_ac_httx;
 module_param_named(ac_httx, b43_ac_httx, int, 0644);
 MODULE_PARM_DESC(ac_httx, "AC-PHY experiment (notes/123): send unicast data frames as HT20 at MCS (ac_httx - 1), 0 = off, runtime switchable");
 
+static uint b43_ac_ampdu_hdr = 3;
+module_param_named(ac_ampdu_hdr, b43_ac_ampdu_hdr, uint, 0644);
+MODULE_PARM_DESC(ac_ampdu_hdr, "AC-PHY: bit 0 MAC control 0x45c0 on session frames, bit 1 the cache info (diagnostic)");
+bool b43_ac_ampdu;
+module_param_named(ac_ampdu, b43_ac_ampdu, bool, 0444);
+MODULE_PARM_DESC(ac_ampdu, "AC-PHY: block ack sessions, the microcode builds the A-MPDUs (notes/137)");
+
 static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 				 struct sk_buff *skb,
 				 struct ieee80211_tx_info *info, u16 cookie)
@@ -292,8 +299,20 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
 		chanspec |= 0xc000;
 
+	if (info->flags & IEEE80211_TX_CTL_AMPDU) {
+		/* MPDU of a block ack session: MAC control 0x45c0, nothing in
+		 * 0x04, and the cache info the stock driver leaves at +0x64
+		 * (rxtx-1s-ht20-40-80.zip): 32 MPDUs at the primary and the
+		 * fallback rate, duration 5414 us, window 63, max length 0x14 */
+		static const u8 cache[8] = { 0x50, 0x04, 0x20, 0x20, 0x26, 0x15, 0x3f, 0x14 };
+
+		if (b43_ac_ampdu_hdr & 1)
+			mac_lo = 0x45c0;
+		if (b43_ac_ampdu_hdr & 2)
+			memcpy(h + 0x64, cache, sizeof(cache));
+	}
 	put_unaligned_le16(mac_lo, h + 0x02);
-	put_unaligned_le16(0x0002, h + 0x04);	/* fixed rate */
+	put_unaligned_le16(((info->flags & IEEE80211_TX_CTL_AMPDU) && (b43_ac_ampdu_hdr & 1)) ? 0 : 0x0002, h + 0x04);	/* fixed rate */
 	put_unaligned_le16(chanspec, h + 0x06);
 	h[0x08] = ieee80211_hdrlen(wlhdr->frame_control);
 	put_unaligned_le16(len, h + 0x0a);
@@ -1043,6 +1062,11 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
 			/* ...but we expected an ACK. */
 			frame_success = false;
 		}
+	}
+	if (status->ampdu_len) {
+		report->flags |= IEEE80211_TX_STAT_AMPDU;
+		report->status.ampdu_len = status->ampdu_len;
+		report->status.ampdu_ack_len = status->ampdu_ack_len;
 	}
 	if (status->frame_count == 0) {
 		/* The frame was not transmitted at all. */

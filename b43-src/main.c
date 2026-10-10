@@ -414,6 +414,7 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *conf,
 				    u64 changed);
+extern bool b43_ac_ampdu;
 
 static int b43_ratelimit(struct b43_wl *wl)
 {
@@ -1467,10 +1468,14 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
 			u32 v3 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
 			unsigned int n;
 
-			b43_read32(dev, B43_MMIO_XMITSTAT_0);
-			b43_read32(dev, B43_MMIO_XMITSTAT_1);
-			b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
-			b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
+			/* second package: words 1 and 2 are the block ack bitmap */
+			u32 w0 = b43_read32(dev, B43_MMIO_XMITSTAT_0);
+			u32 w1 = b43_read32(dev, B43_MMIO_XMITSTAT_1);
+			u32 w2 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
+			u32 w3 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
+			unsigned int mpdus = (v0 >> 8) & 0x7f, i;
+			u64 bitmap = ((u64)w2 << 32) | w1;
+
 			memset(&stat, 0, sizeof(stat));
 			stat.cookie = v0 >> 16;
 			stat.seq = v1 & 0xffff;
@@ -1491,8 +1496,23 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
 			else
 				n = v2 & 0xff;
 			stat.frame_count = min(n, 15u);
-			b43dbg(dev->wl, "AC txstatus %08x %08x %08x %08x\n",
-			       v0, v1, v2, v3);
+			b43dbg(dev->wl, "AC txstatus %08x %08x %08x %08x / %08x %08x %08x %08x\n",
+			       v0, v1, v2, v3, w0, w1, w2, w3);
+			if (b43_ac_ampdu && mpdus > 1) {
+				/* A-MPDU: one status for @mpdus frames with consecutive cookies */
+				u16 cookie = stat.cookie;
+				unsigned int acked = hweight64(bitmap & (mpdus >= 64 ? ~0ULL : (1ULL << mpdus) - 1));
+
+				for (i = 0; i < mpdus; i++) {
+					stat.cookie = cookie;
+					stat.acked = !!(bitmap & (1ULL << i));
+					stat.ampdu_len = i ? 0 : mpdus;
+					stat.ampdu_ack_len = i ? 0 : acked;
+					b43_handle_txstatus(dev, &stat);
+					cookie = b43_dma_cookie_advance(dev, cookie, 1);
+				}
+				continue;
+			}
 			b43_handle_txstatus(dev, &stat);
 			continue;
 		}
@@ -5599,6 +5619,25 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
 	return 0;
 }
 
+static int b43_op_ampdu_action(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_ampdu_params *params)
+{
+	switch (params->action) {
+	case IEEE80211_AMPDU_TX_START:
+		return b43_ac_ampdu ? IEEE80211_AMPDU_TX_START_IMMEDIATE : -EOPNOTSUPP;
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, params->sta->addr, params->tid);
+		return 0;
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		return 0;
+	default:
+		return -EOPNOTSUPP;	/* RX aggregation: not yet */
+	}
+}
+
 static const struct ieee80211_ops b43_hw_ops = {
 	.add_chanctx = ieee80211_emulate_add_chanctx,
 	.remove_chanctx = ieee80211_emulate_remove_chanctx,
@@ -5621,6 +5660,7 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.stop			= b43_op_stop,
 	.set_tim		= b43_op_beacon_set_tim,
 	.sta_notify		= b43_op_sta_notify,
+	.ampdu_action		= b43_op_ampdu_action,
 	.sw_scan_start		= b43_op_sw_scan_start_notifier,
 	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
 	.get_survey		= b43_op_get_survey,
@@ -6067,6 +6107,8 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, MFP_CAPABLE);
+	if (b43_ac_ampdu)
+		ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_MESH_POINT) |
