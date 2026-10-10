@@ -38,3 +38,15 @@ Upload next to the router, iperf3 8 s, requeue on:
 Retries grow with the aggregate length: the later MPDUs of a long frame are lost. That points at the transmit signal (drift over the frame; no TX calibration yet, see the 12 dB margin in notes/136), not at the aggregation logic. Default `ac_ampdu_mpdus=4` until that is fixed. Download with sessions: 19.1–19.7 (legacy 17.3).
 
 Reference: legacy 20, HT without aggregation 22 Mbit/s up.
+
+## Cleanup and 15-minute soak
+
+Diagnostic variants removed (`ac_ampdu_hdr`, `ac_txslots`, the per-frame print). Left: `ac_ampdu` (load time, off), `ac_ampdu_mpdus` (4), `ac_ampdu_requeue` (4). Fallback attempts are reported only for frames sent with two rate blocks; on fixed-rate frames bits 23:16 of status word 2 are the constant 1 of notes/110.
+
+Soak next to the router, generation 29, udev override active: 33 rounds of 20 s upload + 10 s download over b43, ping to the router over the stick every 0.5 s.
+
+- Upload 22.8–37.0 Mbit/s, mean about 30. Download 14.9–19.7.
+- 1,926,853 packets, 418,802 retries (22 %), 262 failed (0.014 %).
+- Signal -34..-39 dBm. No b43 error, no deauth, in 15 minutes.
+- Stick: 1726/1726 pings, no deauth. The reload before the test did not touch it either.
+- 10 of the 33 download runs did not start: the `iperf3 -s -1` loop on pampelmuse was not listening again yet. Not the driver.
