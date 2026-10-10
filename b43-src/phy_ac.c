@@ -894,6 +894,11 @@ struct b43_phy_ac_txcal_gainsave {
 	u16 tbl0xc[B43_PHY_AC_TXCAL_MAX_CORES];
 };
 
+static int b43_ac_txidx = -1;
+module_param_named(ac_txidx, b43_ac_txidx, int, 0644);
+MODULE_PARM_DESC(ac_txidx, "AC-PHY: fixed 2.4 GHz TX gain table index, 0 = highest gain, applied on a channel switch; -1 (default) leaves the reset value, which is index 64. The stock power loop ran at 20-38 here (notes/138)");
+static void b43_phy_ac_txpwr_by_index(struct b43_wldev *dev, unsigned int idx);
+
 static void b43_phy_ac_txcal_save_gaintbl(struct b43_wldev *dev,
 					   struct b43_phy_ac_txcal_gainsave *save,
 					   const u16 new_gain[][4]);
@@ -2206,6 +2211,10 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 			b43_radio_read(dev, 0x1e), b43_radio_read(dev, 0x170));
 	}
 
+
+	if (!is_5ghz && b43_ac_txidx >= 0)
+		b43_phy_ac_txpwr_by_index(dev, b43_ac_txidx);
+
 	return 0;
 }
 
@@ -2503,6 +2512,26 @@ static void b43_phy_ac_table_write16(struct b43_wldev *dev, u16 id, u16 offset,
 	b43_phy_write(dev, B43_PHY_AC_TABLE_ID, id);
 	b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, offset);
 	b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1, value);
+}
+
+/* Set the TX gain of both cores from the 2.4 GHz gain table, as the stock
+ * driver's txpwr_by_index does with hardware power control off. */
+static void b43_phy_ac_txpwr_by_index(struct b43_wldev *dev, unsigned int idx)
+{
+	const u16 *e = b43_phy_ac_txgain_2g[min(idx, 127u)];
+	u16 bbmult = e[0] & 0x00ff;
+	u16 g0 = (e[0] >> 8) | ((e[1] & 0x00ff) << 8);
+	u16 g1 = (e[1] >> 8) | ((e[2] & 0x00ff) << 8);
+	u16 g2 = e[2] >> 8;
+	u8 core, cores = b43_phy_ac_num_cores(dev);
+
+	for (core = 0; core < cores && core < 3; core++) {
+		b43_phy_ac_table_write16(dev, 7, core + 0x100, g0);
+		b43_phy_ac_table_write16(dev, 7, core + 0x103, g1);
+		b43_phy_ac_table_write16(dev, 7, core + 0x106, g2);
+		b43_phy_ac_table_write16(dev, 0xc, 0x63 + 4 * core, bbmult);
+		b43_phy_ac_table_write16(dev, 0xc, 0x73 + 4 * core, bbmult);
+	}
 }
 
 /* decompiled-cal/FUN_00199491.c: per-core table-0xC offset for the single
