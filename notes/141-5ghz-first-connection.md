@@ -27,3 +27,10 @@ Open:
 - Microcode statistics over 15 s of download: 13195 frame starts carrying 24870 data frames (1.9 per PPDU), 3039 RTS from the AP, 1197 bad FCS (9 % of the starts), 6 bad PLCP. Throughput equals the data frames received, so our block acks arrive; the AP itself chooses slow rates (rx bitrate samples MCS 0–3), short aggregates and RTS. That is what an AP does when the faster frames are not acknowledged: our reception of the higher HT rates on 5 GHz is poor.
 
 Candidates: the receive side of wl's 80 MHz snapshot does not fit a 20 MHz channel (RX IQ compensation and filters calibrated for the 80 MHz centre, 30 MHz away); or do it the other way round and run the snapshot as what it is, 80 MHz.
+
+## Confirmed from a cold boot (generation 31, wl never loaded)
+
+- Boot module (HT20, A-MPDU, hardware power control by default) on 2.4 GHz at -45 dBm: up 49.1 / 48.5, down 39.2 / 39.6 Mbit/s.
+- Reload with `ac_5ghz=1`: `scan freq 5560 passive` finds the 5 GHz BSS at -52 dBm; association, WPA handshake and DHCP work; up 51.2 / 13.2, down 18.0 / 16.4 Mbit/s.
+
+So 5 GHz no longer depends on wl having run. The 2.4 GHz download is lower than in the soak of notes/140 (mean 52.6), which ran in a boot where wl had left its PHY register state behind and at -36..-40 dBm; not separated yet.
