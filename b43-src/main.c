@@ -1503,6 +1503,8 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
 				u16 cookie = stat.cookie;
 				unsigned int acked = hweight64(bitmap & (mpdus >= 64 ? ~0ULL : (1ULL << mpdus) - 1));
 
+				/* the attempt count covers the whole aggregate */
+				stat.frame_count = min(DIV_ROUND_UP(n, mpdus), 15u);
 				for (i = 0; i < mpdus; i++) {
 					stat.cookie = cookie;
 					stat.acked = !!(bitmap & (1ULL << i));

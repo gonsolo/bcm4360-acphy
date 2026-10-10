@@ -245,7 +245,7 @@ static int b43_ac_httx;
 module_param_named(ac_httx, b43_ac_httx, int, 0644);
 MODULE_PARM_DESC(ac_httx, "AC-PHY experiment (notes/123): send unicast data frames as HT20 at MCS (ac_httx - 1), 0 = off, runtime switchable");
 
-static uint b43_ac_ampdu_hdr = 3;
+static uint b43_ac_ampdu_hdr = 7;
 module_param_named(ac_ampdu_hdr, b43_ac_ampdu_hdr, uint, 0644);
 MODULE_PARM_DESC(ac_ampdu_hdr, "AC-PHY: bit 0 MAC control 0x45c0 on session frames, bit 1 the cache info (diagnostic)");
 bool b43_ac_ampdu;
@@ -304,7 +304,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		 * 0x04, and the cache info the stock driver leaves at +0x64
 		 * (rxtx-1s-ht20-40-80.zip): 32 MPDUs at the primary and the
 		 * fallback rate, duration 5414 us, window 63, max length 0x14 */
-		static const u8 cache[8] = { 0x50, 0x04, 0x20, 0x20, 0x26, 0x15, 0x3f, 0x14 };
+		static const u8 cache[8] = { 0x00, 0x00, 0x20, 0x20, 0x26, 0x15, 0x3f, 0x14 };
 
 		if (b43_ac_ampdu_hdr & 1)
 			mac_lo = 0x45c0;
@@ -317,6 +317,8 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	h[0x08] = ieee80211_hdrlen(wlhdr->frame_control);
 	put_unaligned_le16(len, h + 0x0a);
 	put_unaligned_le16(cookie, h + 0x0c);
+	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && (b43_ac_ampdu_hdr & 4))
+		put_unaligned_le16(le16_to_cpu(wlhdr->seq_ctrl), h + 0x0e);	/* as the stock driver: the session needs the sequence number */
 
 	/* Rate entry 0: frame type, always-set bit 2, TX core 0 mask. */
 	phy0 = (is_ofdm ? 1 : 0) | 0x0004 | ((b43_ac_txcore & 0xf) << 6);
@@ -1063,10 +1065,11 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
 			frame_success = false;
 		}
 	}
-	if (status->ampdu_len) {
+	if (report->flags & IEEE80211_TX_CTL_AMPDU) {
+		/* minstrel_ht ignores session frames without this; one report per MPDU */
 		report->flags |= IEEE80211_TX_STAT_AMPDU;
-		report->status.ampdu_len = status->ampdu_len;
-		report->status.ampdu_ack_len = status->ampdu_ack_len;
+		report->status.ampdu_len = 1;
+		report->status.ampdu_ack_len = status->acked ? 1 : 0;
 	}
 	if (status->frame_count == 0) {
 		/* The frame was not transmitted at all. */
