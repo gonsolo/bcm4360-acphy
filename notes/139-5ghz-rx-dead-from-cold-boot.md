@@ -44,7 +44,7 @@ Saved for the comparison after the next cold boot (`traces/5g-state-after-wl/`):
 
 ## After the next cold boot: what the residue is not
 
-Cold boot again: 5560 MHz 0 frames. wl once more (`tools/wl_firstload_capture.sh`, second trace `wl-firstload-5g-20261010-19*.trace`, linked at 702 Mbit/s), then b43: 69 frames. Reproducible.
+Cold boot again: 5560 MHz 0 frames. wl once more (`tools/wl_firstload_capture.sh`, second trace `wl-firstload-5g-20261010-182437.trace`, not committed, linked at 702 Mbit/s), then b43: 69 frames. Reproducible.
 
 Compared, working state against cold state:
 
