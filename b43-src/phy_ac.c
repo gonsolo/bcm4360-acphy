@@ -1046,8 +1046,16 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 	};
 	unsigned int i;
 
+	static const u16 fill11[3] = { 0xbf25, 0x0071, 0x4002 };
+
 	for (i = 0; i < ARRAY_SIZE(ext); i++)
 		b43_phy_ac_table_write48(dev, 0x14, 0x30 + i, ext[i]);
+	/* The 5 GHz TX gain table, and the rpcal fill wl used on channel 112
+	 * (the twelve head cells and the zero tail are band independent). */
+	for (i = 0; i < 128; i++)
+		b43_phy_ac_table_write48(dev, 0x20, i, b43_phy_ac_txgain_5g[i]);
+	for (i = 12; i < 460; i++)
+		b43_phy_ac_table_write48(dev, 0x11, i, fill11);
 }
 
 /* wl's 5 GHz first-load state (80 MHz, channel 112 primary): radio, PHY,
@@ -1078,7 +1086,10 @@ static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
 			      b43_ac_por5g_tbl[i].val & 0xffff);
 	}
-	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_shm); i++)
+	/* wl's SHM (it holds its key and session state: with it the WPA
+	 * handshake fails on 5 GHz) and its chipcommon/PMU words (blink timers
+	 * and other transient values) only on request, ac_por bits 8/16/32 */
+	for (i = 0; (b43_ac_por & B43_AC_POR_SHM) && i < ARRAY_SIZE(b43_ac_por5g_shm); i++)
 		/* not the chanspec (wl's 80 MHz one): it comes back in every RX
 		 * header and mac80211 drops beacons tagged with the wrong channel */
 		if (b43_ac_por5g_shm[i].routing != 0xffff &&
@@ -1087,7 +1098,8 @@ static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 			b43_shm_write16(dev, b43_ac_por5g_shm[i].routing,
 					b43_ac_por5g_shm[i].off,
 					b43_ac_por5g_shm[i].val);
-	if (dev->dev->bus_type == B43_BUS_BCMA) {
+	if (dev->dev->bus_type == B43_BUS_BCMA &&
+	    (b43_ac_por & (B43_AC_POR_CC | B43_AC_POR_PMU))) {
 		struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
 
 		for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_cc); i++)

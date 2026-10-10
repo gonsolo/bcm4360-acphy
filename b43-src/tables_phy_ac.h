@@ -26,5 +26,6 @@ extern const struct b43_phy_ac_tbl b43_phy_ac_vendor_tbls[];
 extern const unsigned int b43_phy_ac_vendor_tbls_n;
 
 extern const u16 b43_phy_ac_txgain_2g[128][3];
+extern const u16 b43_phy_ac_txgain_5g[128][3];
 
 #endif /* B43_TABLES_PHY_AC_H_ */

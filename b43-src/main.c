@@ -5819,6 +5819,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
 		/* Experimental: without ac_5ghz, a software scan hitting a 5 GHz
 		 * channel gets -EOPNOTSUPP and can abort the whole scan. */
 		if (have_5ghz_phy && b43_ac_5ghz)
+			/* The AP refuses a station without HT here (status 18) */
+			if (b43_ac_ht)
+				b43_band_5GHz_acphy.ht_cap = b43_band_2GHz_ac.ht_cap;
 			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_acphy;
 	} else {
 		if (have_5ghz_phy)
