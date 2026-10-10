@@ -1412,6 +1412,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
+	b43_get_priv_tx_info(info)->requeues = 0;
 	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 		/* The multicast ring will be sent after the DTIM */
 		ring = dev->dma.tx_ring_mcast;
@@ -1608,13 +1609,13 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			if (b43_ac_ampdu_requeue && !skip && !txstat->acked &&
 			    (info->flags & IEEE80211_TX_CTL_AMPDU) &&
 			    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
-				u32 n = (meta->skb->mark >> 16) == 0xb430 ?
-					meta->skb->mark & 0xff : 0;
+				struct b43_private_tx_info *pi =
+					b43_get_priv_tx_info(info);
 
-				if (n < b43_ac_ampdu_requeue) {
+				if (pi->requeues < b43_ac_ampdu_requeue) {
 					struct ieee80211_hdr *hdr = (void *)meta->skb->data;
 
-					meta->skb->mark = 0xb4300000 | (n + 1);
+					pi->requeues++;
 					hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_RETRY);
 					requeue = meta->skb;
 					meta->skb = B43_DMA_PTR_POISON;
