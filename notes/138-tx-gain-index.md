@@ -54,7 +54,7 @@ Legacy rates at the same spot do not care: index 20 gives 8.5 / 15.9 up and 9.8 
 
 ## 15-minute soak at range, HT + A-MPDU, index 20
 
-Basement, -62..-70 dBm, 26 rounds of 20 s upload + 10 s download, stick pinged every 0.5 s on the same channel.
+Basement, -67..-73 dBm, 26 rounds of 20 s upload + 10 s download, stick pinged every 0.5 s on the same channel.
 
 - Upload 6.1–28.5 Mbit/s, mean 21.4 (legacy here: 8.5–15.9).
 - Download 2.6–11.2 Mbit/s, mean 7.5 (legacy here: 8.7–10.6). Worse than legacy: the AP sends us HT frames one by one because we decline its block ack sessions (RX aggregation is not implemented).
