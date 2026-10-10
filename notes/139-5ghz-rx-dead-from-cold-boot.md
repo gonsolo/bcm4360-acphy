@@ -81,7 +81,7 @@ Bisect in the working state, monitor on 5560 MHz, 8 s:
 | 0x33 = `e800 0084 d182` (wl's 20 MHz init) or `e800 0084 d351` (2.4 GHz) | 68 |
 | all restored | 68–69 |
 
-`b43_phy_ac_rfseq_ext_5g()` now writes 0x30 `0fd2 0096 0000`, 0x31 `0fc2 0086 0000`, 0x32 `0fd2 0086 0000`, 0x33 `0800 0086 d182` on every 5 GHz switch. With the table zeroed beforehand the new driver receives 69 frames. Still to confirm from a real cold boot.
+`b43_phy_ac_rfseq_ext_5g()` now writes 0x30 `0fd2 0096 0000`, 0x31 `0fc2 0086 0000`, 0x32 `0fd2 0086 0000`, 0x33 `0800 0086 0000` (wl's last write; earlier in its sequence the third word is d182) on every 5 GHz switch. With the table zeroed beforehand the new driver receives 69 frames. Still to confirm from a real cold boot.
 
 Reading PHY and radio on 5 GHz in blocks of 0x80/0x40 with a sync before each (`tools/dump_phy_radio_blocks.sh`) did not hang; dumps of the working state are in `traces/5g-state-after-wl/on5560/`.
 

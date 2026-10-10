@@ -25,6 +25,7 @@ PHY_SEL, PHY_DATA = 0x3fc, 0x3fe
 RADIO_SEL, RADIO_DATA = 0x3d8, 0x3da
 SHM_CTL, SHM_DATA, SHM_DATA_HI = 0x160, 0x164, 0x166
 TBL_ID, TBL_OFF, TBL_D1, TBL_D2 = 0x00d, 0x00e, 0x00f, 0x010
+TBL_DW = 0x011  # wide (48-bit) entries: three writes per entry, low word first
 CC_BASE, WRAP_BASE = 0x3000, 0x1000
 
 
@@ -105,7 +106,7 @@ def main():
 
     phy_sel = radio_sel = None
     shm_ctl = None
-    tbl = {"id": 0, "off": 0, "hi": None}
+    tbl = {"id": 0, "off": 0, "hi": None, "wide": []}
     win1 = None  # PCI config 0x80: BAR0 window 1 target
 
     def phy_write(reg, val, ts):
@@ -114,10 +115,23 @@ def main():
         stats["phy_w"] += 1
         if reg == TBL_ID:
             tbl["id"] = val
+            tbl["wide"] = []
         elif reg == TBL_OFF:
             tbl["off"] = val
+            tbl["wide"] = []
         elif reg == TBL_D2:
             tbl["hi"] = val
+            return
+        elif reg == TBL_DW:
+            tbl["wide"].append(val)
+            if len(tbl["wide"]) == 3:
+                w0, w1, w2 = tbl["wide"]
+                v = w0 | (w1 << 16) | (w2 << 32)
+                tables[(tbl["id"], tbl["off"])] = (48, v)
+                seq.append((ts, "tbl", tbl["id"], tbl["off"], 48, v))
+                stats["tbl_w"] += 1
+                tbl["off"] += 1
+                tbl["wide"] = []
             return
         elif reg == TBL_D1:
             if tbl["hi"] is not None:

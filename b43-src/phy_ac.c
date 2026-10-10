@@ -985,6 +985,48 @@ MODULE_PARM_DESC(ac_por, "AC-PHY diagnostic: after the ch6 replay also apply wl'
 
 #include "phy_ac_por5g.h"
 
+/* One 48-bit PHY table entry: three words through the third data port. */
+static void b43_phy_ac_table_write48(struct b43_wldev *dev, u16 id, u16 offset,
+				     const u16 *w)
+{
+	b43_phy_write(dev, B43_PHY_AC_TABLE_ID, id);
+	b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, offset);
+	b43_phy_write(dev, 0x011, w[0]);
+	b43_phy_write(dev, 0x011, w[1]);
+	b43_phy_write(dev, 0x011, w[2]);
+}
+
+/*
+ * The 48-bit tables wl loads on 2.4 GHz and the trace decoder missed
+ * (notes/139): the TX gain table 0x20, which hardware TX power control
+ * indexes; the RF sequencer extension entry 0x33; and table 0x11, twelve
+ * fixed cells, then 448 cells of the SROM's rpcal coefficient (here the
+ * value wl computed for this board on 2.4 GHz), then four zero cells.
+ */
+static void b43_phy_ac_wide_tables_2g(struct b43_wldev *dev)
+{
+	static const u16 ext33[3] = { 0xe800, 0x0084, 0xd351 };
+	static const u16 head11[12][3] = {
+		{ 0x005b, 0, 0 }, { 0x8250, 0, 0 }, { 0xc338, 0, 0 },
+		{ 0x4527, 1, 0 }, { 0xa6a1, 1, 0 }, { 0x081b, 2, 0 },
+		{ 0x8a18, 2, 0 }, { 0x2c96, 3, 0 }, { 0x8e17, 3, 0 },
+		{ 0x101b, 4, 0 }, { 0x0020, 0, 0 }, { 0x0020, 0, 0 },
+	};
+	static const u16 fill11[3] = { 0xd602, 0x007e, 0x4002 };
+	static const u16 zero[3] = { 0, 0, 0 };
+	unsigned int i;
+
+	for (i = 0; i < 128; i++)
+		b43_phy_ac_table_write48(dev, 0x20, i, b43_phy_ac_txgain_2g[i]);
+	b43_phy_ac_table_write48(dev, 0x14, 0x33, ext33);
+	for (i = 0; i < 12; i++)
+		b43_phy_ac_table_write48(dev, 0x11, i, head11[i]);
+	for (i = 12; i < 460; i++)
+		b43_phy_ac_table_write48(dev, 0x11, i, fill11);
+	for (i = 460; i < 464; i++)
+		b43_phy_ac_table_write48(dev, 0x11, i, zero);
+}
+
 /*
  * RF sequencer extension (PHY table 0x14), entries 0x30-0x33, as wl writes
  * them on 5 GHz. The entries are 48 bits wide and go through the third data
@@ -1000,16 +1042,12 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 		{ 0x0fd2, 0x0096, 0x0000 },
 		{ 0x0fc2, 0x0086, 0x0000 },
 		{ 0x0fd2, 0x0086, 0x0000 },
-		{ 0x0800, 0x0086, 0xd182 },
+		{ 0x0800, 0x0086, 0x0000 },
 	};
-	unsigned int i, j;
+	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(ext); i++) {
-		b43_phy_write(dev, B43_PHY_AC_TABLE_ID, 0x14);
-		b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, 0x30 + i);
-		for (j = 0; j < 3; j++)
-			b43_phy_write(dev, 0x011, ext[i][j]);
-	}
+	for (i = 0; i < ARRAY_SIZE(ext); i++)
+		b43_phy_ac_table_write48(dev, 0x14, 0x30 + i, ext[i]);
 }
 
 /* wl's 5 GHz first-load state (80 MHz, channel 112 primary): radio, PHY,
@@ -1395,9 +1433,10 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	b43_phy_write(dev, 0x1726, 0x000c);
 	b43_phy_write(dev, 0x0197, 0x0014);	/* channel_setup */
 	b43_phy_write(dev, 0x0198, 0x0010);
+	b43_phy_ac_wide_tables_2g(dev);
 }
 
-static bool b43_ac_txpwrctl;
+static bool b43_ac_txpwrctl = true;
 module_param_named(ac_txpwrctl, b43_ac_txpwrctl, bool, 0644);
 MODULE_PARM_DESC(ac_txpwrctl, "AC-PHY: enable the hardware TX power control loop (PHY 0x70 = 0xe500)");
 
