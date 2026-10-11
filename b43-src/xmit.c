@@ -321,7 +321,8 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 	u16 mac_lo = 0, phy0, idx = 0, chanspec, subband;
 	int ht_mcs = -1;
 	/* Only HT rates go out as session frames: a legacy probe frame with the
-	 * aggregate header fails at every attempt (notes/137). */
+	 * aggregate header fails at every attempt (notes/137).
+	 */
 	bool vht = info->control.rates[0].flags & IEEE80211_TX_RC_VHT_MCS;
 	bool agg = (info->flags & IEEE80211_TX_CTL_AMPDU) &&
 		   (info->control.rates[0].flags &
@@ -362,7 +363,8 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		 * (we encrypt in software; the stock 50 04 makes the microcode
 		 * encrypt again), MPDUs per aggregate at the primary and the
 		 * fallback rate, duration 5414 us, window 63, max length 0x14.
-		 * Without the cache info the AP deauthenticates us. */
+		 * Without the cache info the AP deauthenticates us.
+		 */
 		static const u8 cache[8] = { 0x00, 0x00, 0x20, 0x20, 0x26, 0x15, 0x3f, 0x14 };
 
 		mac_lo = 0x45c0;
@@ -388,7 +390,8 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		ht_mcs = info->control.rates[0].idx;
 	else if (vht && !agg)
 		/* A VHT frame always goes out as an A-MPDU; outside a session
-		 * send the HT20 rate of the same stream count instead */
+		 * send the HT20 rate of the same stream count instead
+		 */
 		ht_mcs = min_t(int, ieee80211_rate_get_vht_mcs(&info->control.rates[0]), 7) +
 			 8 * (ieee80211_rate_get_vht_nss(&info->control.rates[0]) - 1);
 	else if (b43_ac_httx > 0 && b43_ac_httx <= 16 && ieee80211_is_data(wlhdr->frame_control) &&
@@ -516,7 +519,8 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	    (wlhdr->duration_id == cpu_to_le16(0))) {
 		/* If the fallback rate equals the normal rate or the
 		 * dur_id field contains an AID, CFP magic or 0,
-		 * use the original dur_id field. */
+		 * use the original dur_id field.
+		 */
 		txhdr->dur_fb = wlhdr->duration_id;
 	} else {
 		txhdr->dur_fb = ieee80211_generic_frame_duration(
@@ -539,7 +543,8 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			 * in a short timeframe after machine resume before
 			 * we were able to reconfigure keys.
 			 * Drop this packet completely. Do not transmit it
-			 * unencrypted to avoid leaking information. */
+			 * unencrypted to avoid leaking information.
+			 */
 			return -ENOKEY;
 		}
 
@@ -898,7 +903,8 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	}
 	if (dev->phy.type == B43_PHYTYPE_AC) {
 		/* AC ucode (rev 40+) header: RxStatus1 @0x10, TSF @0x14,
-		 * 11ac-style chanspec @0x16, per-antenna power @0x09/0x0a. */
+		 * 11ac-style chanspec @0x16, per-antenna power @0x09/0x0a.
+		 */
 		const u8 *h = _rxhdr;
 		u16 cs = get_unaligned_le16(h + 0x16);
 		s8 p0 = h[0x09], p1 = h[0x0a];
@@ -932,7 +938,8 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		 * port programs no hardware keys on AC, and it shows up even on
 		 * unprotected EAPOL frames (notes/50). Dropping here killed
 		 * 4-way handshake message 3 and DHCP replies; mac80211's own
-		 * software decryption still rejects anything really corrupt. */
+		 * software decryption still rejects anything really corrupt.
+		 */
 		if (dev->phy.type == B43_PHYTYPE_AC && b43_ac_decerr_pass) {
 			if (b43_ac_decerr_logged < 8) {
 				b43_ac_decerr_logged++;
@@ -1016,7 +1023,8 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	if (dev->phy.type == B43_PHYTYPE_AC &&
 	    (phystat0 & B43_RX_PHYST0_FTYPE) == B43_RX_PHYST0_PRE_N) {
 		/* HT frame: the six bytes before the frame are HT-SIG: MCS and
-		 * 40 MHz bit in byte 0, coding/STBC/short GI in byte 3. */
+		 * 40 MHz bit in byte 0, coding/STBC/short GI in byte 3.
+		 */
 		const u8 *sig = plcp->raw;
 
 		status.encoding = RX_ENC_HT;
@@ -1058,7 +1066,8 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		rate_idx = b43_plcp_get_bitrate_idx_cck(plcp);
 	if (unlikely(rate_idx == -1)) {
 		/* PLCP seems to be corrupted.
-		 * Drop the frame, if we are not interested in corrupted frames. */
+		 * Drop the frame, if we are not interested in corrupted frames.
+		 */
 		if (!(dev->wl->filter_flags & FIF_PLCPFAIL))
 			goto drop;
 	}
@@ -1101,7 +1110,8 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	case B43_PHYTYPE_LP:
 	case B43_PHYTYPE_HT:
 		/* chanid is the SHM channel cookie. Which is the plain
-		 * channel number in b43. */
+		 * channel number in b43.
+		 */
 		if (chanstat & B43_RX_CHAN_5GHZ)
 			status.band = NL80211_BAND_5GHZ;
 		else
@@ -1153,7 +1163,8 @@ void b43_handle_txstatus(struct b43_wldev *dev,
 
 /* Fill out the mac80211 TXstatus report based on the b43-specific
  * txstatus report data. This returns a boolean whether the frame was
- * successfully transmitted. */
+ * successfully transmitted.
+ */
 bool b43_fill_txstatus_report(struct b43_wldev *dev,
 			      struct ieee80211_tx_info *report,
 			      const struct b43_txstatus *status)
@@ -1163,7 +1174,8 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
 
 	/* preserve the confiured retry limit before clearing the status
 	 * The xmit function has overwritten the rc's value with the actual
-	 * retry limit done by the hardware */
+	 * retry limit done by the hardware
+	 */
 	retry_limit = report->status.rates[0].count;
 	ieee80211_tx_info_clear_status(report);
 

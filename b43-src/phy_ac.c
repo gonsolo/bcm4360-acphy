@@ -182,7 +182,8 @@ static int b43_ac_dbg_cc_show(struct seq_file *s, void *unused)
 			   sp->fem.ghz5.antswlut);
 		/* Stock bcma has no SROM rev 11 extractor, so the lines above
 		 * are rev 8 offsets applied to a rev 11 image. Decode the rev 11
-		 * words here (offsets: Alessio Ferri's patch 0001, notes/112). */
+		 * words here (offsets: Alessio Ferri's patch 0001, notes/112).
+		 */
 		if (sp->revision == 11) {
 #define SP11(o) (bcma_read16(cc->core, BCMA_CC_SPROM + (o)) & 0xffff)
 			u16 txrx = SP11(0xa8), f1 = SP11(0xaa), f2 = SP11(0xac);
@@ -237,7 +238,8 @@ static const struct file_operations b43_ac_dbg_cc_fops = {
 };
 
 /* Raw SPROM words, straight from the ChipCommon SPROM shadow (0x800..0xbff).
- * Read-only; for sharing with other AC-PHY reverse engineers (notes/105). */
+ * Read-only; for sharing with other AC-PHY reverse engineers (notes/105).
+ */
 static int b43_ac_dbg_sprom_show(struct seq_file *s, void *unused)
 {
 	struct b43_wldev *dev = b43_ac_dbg_dev;
@@ -815,13 +817,15 @@ module_param_named(ac_replay, b43_ac_replay, bool, 0444);
 MODULE_PARM_DESC(ac_replay, "AC-PHY diagnostic: apply the vendor driver's channel 6 PHY/radio state");
 
 /* See notes/62: wl's real hostflags (HOSTF2/HOSTF3), which this port
- * never writes at all. Test flag, default off - unconfirmed live. */
+ * never writes at all. Test flag, default off - unconfirmed live.
+ */
 static bool b43_ac_hostflags;
 module_param_named(ac_hostflags, b43_ac_hostflags, bool, 0644);
 MODULE_PARM_DESC(ac_hostflags, "AC-PHY test: write wl's real HOSTF2/HOSTF3 value (notes/62)");
 
 /* See notes/64: HOSTF1 (SHM 0x5E), also never written. Test flag,
- * default off - a reasoned guess (EDCF|ACIW), not a captured wl value. */
+ * default off - a reasoned guess (EDCF|ACIW), not a captured wl value.
+ */
 static bool b43_ac_hostf1;
 module_param_named(ac_hostf1, b43_ac_hostf1, bool, 0644);
 MODULE_PARM_DESC(ac_hostf1, "AC-PHY test: write HOSTF1 EDCF|ACIW (notes/64, guess not captured)");
@@ -1020,7 +1024,8 @@ static void b43_phy_ac_txcal_resetcca(struct b43_wldev *dev);
 
 module_param_named(ac_por, b43_ac_por, uint, 0644);
 /* ac_por bits beyond the first-load classes: 0x40 skip vcocal after the
- * radio class, 0x80 wl MAC timing regs, 0x100 wl final radio regs. */
+ * radio class, 0x80 wl MAC timing regs, 0x100 wl final radio regs.
+ */
 MODULE_PARM_DESC(ac_por, "AC-PHY diagnostic: after the ch6 replay also apply wl's first-load state (bitmask: 1 radio, 2 phy, 4 tables, 8 shm, 16 chipcommon, 32 pmu)");
 
 #include "phy_ac_por5g.h"
@@ -1091,7 +1096,8 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 	for (i = 0; i < ARRAY_SIZE(ext); i++)
 		b43_phy_ac_table_write48(dev, 0x14, 0x30 + i, ext[i]);
 	/* The 5 GHz TX gain table, and the rpcal fill wl used on channel 112
-	 * (the twelve head cells and the zero tail are band independent). */
+	 * (the twelve head cells and the zero tail are band independent).
+	 */
 	for (i = 0; i < 128; i++)
 		b43_phy_ac_table_write48(dev, 0x20, i, b43_phy_ac_txgain_5g[i]);
 	for (i = 12; i < 460; i++)
@@ -1099,7 +1105,8 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 }
 
 /* wl's 5 GHz first-load state (80 MHz, channel 112 primary): radio, PHY,
- * tables, SHM. Chipcommon/PMU are band independent (2.4 GHz state). */
+ * tables, SHM. Chipcommon/PMU are band independent (2.4 GHz state).
+ */
 static uint b43_ac_por5g_nr = ~0U, b43_ac_por5g_np = ~0U, b43_ac_por5g_nt = ~0U, b43_ac_por5g_p0;
 module_param_named(ac_por5g_nr, b43_ac_por5g_nr, uint, 0644);
 module_param_named(ac_por5g_np, b43_ac_por5g_np, uint, 0644);
@@ -1138,10 +1145,12 @@ static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 	}
 	/* wl's SHM (it holds its key and session state: with it the WPA
 	 * handshake fails on 5 GHz) and its chipcommon/PMU words (blink timers
-	 * and other transient values) only on request, ac_por bits 8/16/32 */
+	 * and other transient values) only on request, ac_por bits 8/16/32
+	 */
 	for (i = 0; (b43_ac_por & B43_AC_POR_SHM) && i < ARRAY_SIZE(b43_ac_por5g_shm); i++)
 		/* not the chanspec (wl's 80 MHz one): it comes back in every RX
-		 * header and mac80211 drops beacons tagged with the wrong channel */
+		 * header and mac80211 drops beacons tagged with the wrong channel
+		 */
 		if (b43_ac_por5g_shm[i].routing != 0xffff &&
 		    !(b43_ac_por5g_shm[i].routing == B43_SHM_SHARED &&
 		      b43_ac_por5g_shm[i].off == B43_SHM_SH_CHAN))
@@ -1466,7 +1475,8 @@ static void b43_phy_ac_coeff_bank_init(struct b43_wldev *dev)
 static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 {
 	/* His b43_radio_2069_init() prologue (0x0415/040e/040c/0408/0417/0416)
-	 * and the end state of the power-on (0x0408 = 0x0c02, 0x0417 = 4) */
+	 * and the end state of the power-on (0x0408 = 0x0c02, 0x0417 = 4)
+	 */
 	b43_phy_write(dev, 0x1739, 0x0000);
 	b43_phy_write(dev, 0x0415, 0x0000);
 	b43_phy_write(dev, 0x040e, 0x0000);
@@ -1486,12 +1496,14 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	b43_phy_set(dev, 0x040a, 0x0100);
 	b43_phy_write(dev, 0x0414, 0x0555);
 	/* Second TX chain: without this bit core 1 does not radiate and
-	 * two-stream rates fail completely (notes/136). */
+	 * two-stream rates fail completely (notes/136).
+	 */
 	if (dev->dev->bus_type == B43_BUS_BCMA)
 		bcma_cc_set32(&dev->dev->bdev->bus->drv_cc, BCMA_CC_CHIPCTL, 0x00000008);
 	b43_phy_ac_coeff_bank_init(dev);
 	/* RX gain control, all cores (his rxgainctrl setup). Without it the
-	 * receive level is 26 dB down: -66 instead of -40 dBm (notes/136). */
+	 * receive level is 26 dB down: -66 instead of -40 dBm (notes/136).
+	 */
 	b43_phy_write(dev, 0x1726, 0x000c);
 	b43_phy_write(dev, 0x0197, 0x0014);	/* channel_setup */
 	b43_phy_write(dev, 0x0198, 0x0010);
@@ -1510,7 +1522,8 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 
 	/* Radio state the hardware TX power loop needs (TSSI / power detector
 	 * path, per-core 0x01a-0x01f / 0x21a-0x21f, notes/136). Without it PHY 0x640/0x840 freeze at index 0 and
-	 * the loop never reaches its target. */
+	 * the loop never reaches its target.
+	 */
 	b43_radio_write(dev, 0x0548, 0x0001);
 	b43_radio_write(dev, 0x0549, 0x0000);
 	b43_radio_write(dev, 0x054a, 0x0000);
@@ -1535,13 +1548,15 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 
 	/* Everything else wl's first-load state contained (radio, tables, SHM,
 	 * chipcommon, PMU) is now real init code or proven unnecessary
-	 * (notes/130-135). Only the PHY register writes are left. */
+	 * (notes/130-135). Only the PHY register writes are left.
+	 */
 	if (b43_ac_phyinit)
 		b43_phy_ac_phyinit(dev);
 	/* Hardware TX power control: 0x70 bits 15:13 enable it, 0x71 holds the
 	 * averaging window, 0x72 the rest of its configuration. Off by
 	 * default: next to the AP the loop's power makes 28 % of the frames
-	 * fail (upload 1-2 Mbit/s against 21 with 0x70 = 0x0100, notes/136). */
+	 * fail (upload 1-2 Mbit/s against 21 with 0x70 = 0x0100, notes/136).
+	 */
 	b43_phy_write(dev, 0x0070, b43_ac_txpwrctl ? 0xe500 : 0x0100);
 	b43_phy_write(dev, 0x0071, 0x04c8);
 	b43_phy_write(dev, 0x0072, 0x400d);
@@ -1614,7 +1629,8 @@ static void b43_phy_ac_resetcca(struct b43_wldev *dev)
  * follow the BW registers.
  */
 /* Final per-core RF control state of wl (first-load trace) that our init
- * doesn't reach; diagnostic until the owning init step is ported. */
+ * doesn't reach; diagnostic until the owning init step is ported.
+ */
 static void b43_phy_ac_rfctrl_wl(struct b43_wldev *dev)
 {
 	static const u16 regs[][2] = {
@@ -1821,7 +1837,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	/* wl's captured state is applied on channel 6; our own tuning then
 	 * works for the other 2.4 GHz channels. Without ac_state_once this
 	 * re-runs on every return to channel 6, e.g. after each off-channel
-	 * scan step while associated. */
+	 * scan step while associated.
+	 */
 	if (!b43_ac_init_state && new_channel == 6 &&
 	    !(b43_ac_state_once && phy_ac->wl_state_applied)) {
 		if (b43_ac_replay)
@@ -1835,7 +1852,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 		/* Test: keep wl's 80 MHz setup (synthesizer on its 80 MHz centre,
 		 * PHY in 80 MHz mode) and set the core's PHY bandwidth to 80 MHz,
-		 * toggling force-gated-clock around the change like wl. */
+		 * toggling force-gated-clock around the change like wl.
+		 */
 		unsigned int ctr = b43_ac_5g_ctr ? b43_ac_5g_ctr :
 				   b43_phy_ac_80mhz_centre(new_channel);
 
@@ -1843,7 +1861,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		/* Synthesizer, the per-channel PHY words (wl leaves 0x371 at 0 in
 		 * 80 MHz mode) and the resampler for the block centre; same result
 		 * as wl's own tuning on centre 106 (notes/144). Calibration results
-		 * and the rpcal fill stay those of channel 106. */
+		 * and the rpcal fill stay those of channel 106.
+		 */
 		{
 			const struct b43_radio_2069_chan *c = b43_radio_2069_find_chan(dev, ctr);
 
@@ -1883,7 +1902,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	 * 20 MHz table on 5 GHz channels too (confirmed against its 5 GHz
 	 * scan sweep, notes/53) - but not when ac_5g_80 keeps wl's captured
 	 * 80 MHz state instead of retuning per-channel, a different PHY mode
-	 * this table was never shown to apply to. */
+	 * this table was never shown to apply to.
+	 */
 	if (b43_ac_farrow && !b43_phy_ac_is_80mhz(dev, new_channel))
 		b43_phy_ac_set_farrow(dev, new_channel);
 
@@ -1897,7 +1917,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 		/* vendor FUN_001aeb3a (real channel/PLL tuning) fires this,
 		 * unconditionally, before anything else in the tune - untested
-		 * standalone. See notes/11. */
+		 * standalone. See notes/11.
+		 */
 		b43_phy_ac_force_rfseq(dev, 2);
 		b43_phy_ac_rxcore_setstate(dev, (1 << cores) - 1);
 	}
@@ -2705,7 +2726,8 @@ static void b43_phy_ac_table_write16(struct b43_wldev *dev, u16 id, u16 offset,
 }
 
 /* Set the TX gain of both cores from the 2.4 GHz gain table, as the stock
- * driver's txpwr_by_index does with hardware power control off. */
+ * driver's txpwr_by_index does with hardware power control off.
+ */
 static void b43_phy_ac_txpwr_by_index(struct b43_wldev *dev, unsigned int idx)
 {
 	const u16 *e = b43_phy_ac_txgain_2g[min(idx, 127u)];
@@ -2936,7 +2958,8 @@ static void b43_phy_ac_txcal_read_radiosave(struct b43_wldev *dev,
 		save->r1f[core] = b43_radio_read(dev, 0x1f | c9);
 		save->r24[core] = b43_radio_read(dev, 0x24 | c9);
 		/* Assuming phy+0x16e == 0 (see block comment above): the
-		 * saved/restored register here is (0x170|c9), not (c9|0x184). */
+		 * saved/restored register here is (0x170|c9), not (c9|0x184).
+		 */
 		save->r170_or_184[core] = b43_radio_read(dev, 0x170 | c9);
 	}
 }
@@ -3551,7 +3574,8 @@ static void b43_phy_ac_replay_ch6(struct b43_wldev *dev)
 /* SHM 0x7C (ucode word 0x3E): TX lifetime in 256us units. While a frame
  * waits in the main loop (deferral/backoff/retry) the ucode arms a deadline
  * of now + this value and completes the frame with supp_reason=5 (LIFE)
- * once it passes; 0 expires it on the arming pass. wl writes 0x0320. */
+ * once it passes; 0 expires it on the arming pass. wl writes 0x0320.
+ */
 static int b43_ac_txlifetime = -1;
 module_param_named(ac_txlifetime, b43_ac_txlifetime, int, 0644);
 MODULE_PARM_DESC(ac_txlifetime, "AC-PHY: TX lifetime written to SHM 0x7C in 256us units (-1: leave unset)");
@@ -3567,7 +3591,8 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 		b43_phy_ac_tables_init(dev);
 		b43_phy_ac_first_init(dev);
 		/* wl's captured state, once; the channel switch that follows
-		 * init tunes the radio for the requested channel. */
+		 * init tunes the radio for the requested channel.
+		 */
 		if (b43_ac_init_state && b43_ac_replay)
 			b43_phy_ac_replay_ch6(dev);
 		if (b43_ac_init_state && b43_ac_por)
@@ -3590,7 +3615,8 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 	 * captured HOSTF2/HOSTF3 (traces/wl-init-20260927-184726.trace,
 	 * bits 16-47: SKCFPUP|N40W|ANTSELEN|MLADVW|PR45960W plus several
 	 * bits b43.h has no name for - written as a raw OR, not decoded
-	 * bit-by-bit). Test flag, default off. */
+	 * bit-by-bit). Test flag, default off.
+	 */
 	if (b43_ac_hostflags)
 		b43_hf_write(dev, b43_hf_read(dev) | 0xb0518c050000ULL);
 
@@ -3609,7 +3635,8 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 	 * MAC suspended" - literally this port's whole story) and
 	 * B43_HF_ACIW ("shift bits by 2 on PHY CRS" - notes/58's CRS|TXF
 	 * finding). Separate flag from ac_hostflags since it's a guess, not
-	 * a captured value; default off. */
+	 * a captured value; default off.
+	 */
 	if (b43_ac_hostf1)
 		b43_hf_write(dev, b43_hf_read(dev) | B43_HF_EDCF | B43_HF_ACIW);
 
@@ -3663,7 +3690,8 @@ MODULE_PARM_DESC(ac_ackwatchdog,
 		 "degraded for several consecutive 15s windows (0 to disable)");
 
 /* Minimum frames sent in a window before its ACK ratio means anything -
- * an idle or lightly-loaded link shouldn't trip this on a small sample. */
+ * an idle or lightly-loaded link shouldn't trip this on a small sample.
+ */
 #define B43_AC_ACKWD_MIN_FRAMES	20
 /* Trigger when fewer than 1/this fraction of frames got ACKed. */
 #define B43_AC_ACKWD_BAD_RATIO	2
@@ -3673,7 +3701,8 @@ MODULE_PARM_DESC(ac_ackwatchdog,
 /* Returns true if it restarted the controller, in which case the caller
  * must not touch any more registers (same discipline as the existing
  * firmware-watchdog and fatal-DMA-error restart call sites in main.c,
- * which both return immediately after calling b43_controller_restart()). */
+ * which both return immediately after calling b43_controller_restart()).
+ */
 static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
 {
 	struct b43_phy_ac *ac = dev->phy.ac;
@@ -3682,7 +3711,8 @@ static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
 	if (!b43_ac_ackwatchdog)
 		return false;
 	/* Only meaningful once actually associated: scanning/monitor mode
-	 * naturally has a low ACK ratio (broadcast probes aren't ACKed). */
+	 * naturally has a low ACK ratio (broadcast probes aren't ACKed).
+	 */
 	if (is_zero_ether_addr(dev->wl->bssid))
 		return false;
 
@@ -3699,7 +3729,8 @@ static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
 
 	/* u16 wraparound is fine here: unsigned subtraction still gives the
 	 * right delta as long as at most one wrap happened since last read,
-	 * which a 16-bit ucode counter over a 15s window will not exceed. */
+	 * which a 16-bit ucode counter over a 15s window will not exceed.
+	 */
 	d_all = txallfrm - ac->last_txallfrm;
 	d_ack = txackfrm - ac->last_txackfrm;
 	ac->last_txallfrm = txallfrm;
@@ -3713,7 +3744,8 @@ static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
 		 * would otherwise reset the streak every time a quiet window
 		 * happened to fall between two genuinely bad ones, making this
 		 * watchdog far less likely to ever trigger during exactly the
-		 * kind of bursty-traffic degradation it exists to catch. */
+		 * kind of bursty-traffic degradation it exists to catch.
+		 */
 		return false;
 	}
 
@@ -3731,14 +3763,16 @@ static bool b43_phy_ac_check_ack_watchdog(struct b43_wldev *dev)
 			       ac->ack_ratio_bad_windows);
 			/* Re-baseline once the restart brings the core back
 			 * up, rather than judging the first post-restart
-			 * window against pre-restart counters. */
+			 * window against pre-restart counters.
+			 */
 			ac->ack_ratio_valid = false;
 			/* Not b43_controller_restart(): that quietly reinits
 			 * the hardware without telling mac80211, which leaves
 			 * this recurring trigger's connections stuck
 			 * association-stale (observed live: no re-DHCP, no
 			 * re-handshake, just a silently reset radio). This
-			 * needs the full ieee80211_restart_hw()-driven path. */
+			 * needs the full ieee80211_restart_hw()-driven path.
+			 */
 			b43_controller_restart_full(dev, "AC-PHY ACK ratio degraded");
 			return true;
 		}
@@ -3800,7 +3834,8 @@ static void b43_phy_ac_op_pwork_15sec(struct b43_wldev *dev)
 		return;
 
 	/* See notes/38: wl's real watchdog runs a periodic bulk RX-ring
-	 * refill sweep this port never had; do the equivalent here. */
+	 * refill sweep this port never had; do the equivalent here.
+	 */
 	b43_dma_rx_retry_poisoned(dev);
 
 	if (!b43_ac_diag)

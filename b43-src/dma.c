@@ -31,7 +31,8 @@
 
 /* Required number of TX DMA slots per TX frame.
  * This currently is 2, because we put the header and the ieee80211 frame
- * into separate slots. */
+ * into separate slots.
+ */
 #define TX_SLOTS_PER_FRAME	2
 
 static bool b43_ac_dmaburst = true;
@@ -561,7 +562,8 @@ static bool b43_dma_mapping_error(struct b43_dmaring *ring,
 		break;
 	case B43_DMA_64BIT:
 		/* Currently we can't have addresses beyond
-		 * 64bit in the kernel. */
+		 * 64bit in the kernel.
+		 */
 		break;
 	}
 
@@ -701,7 +703,8 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			/* Burst length, prefetch control and threshold as the
 			 * stock driver sets them (TX control 0x03780841).
 			 * Without them the engine moves about 6 MB/s and every
-			 * link tops out near 50 Mbit/s (notes/143). */
+			 * link tops out near 50 Mbit/s (notes/143).
+			 */
 			if (b43_ac_dmaburst &&
 			    ring->dev->phy.type == B43_PHYTYPE_AC)
 				value |= 0x03780040;
@@ -1138,7 +1141,8 @@ int b43_dma_init(struct b43_wldev *dev)
 
 	/* Engines that accept low ring-address bits use bus addresses in the
 	 * index/status registers (same probe as the vendor driver and
-	 * brcmsmac's _dma_descriptor_align()). */
+	 * brcmsmac's _dma_descriptor_align()).
+	 */
 	dma->ptr_is_addr = false;
 	if (type == B43_DMA_64BIT) {
 		u16 ringlo = b43_dmacontroller_base(type, 0) + B43_DMA64_TXRINGLO;
@@ -1337,7 +1341,8 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 
 	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 		/* Tell the firmware about the cookie of the last
-		 * mcast frame, so it can clear the more-data bit in it. */
+		 * mcast frame, so it can clear the more-data bit in it.
+		 */
 		b43_shm_write16(ring->dev, B43_SHM_SHARED,
 				B43_SHM_SH_MCASTCOOKIE, cookie);
 	}
@@ -1357,7 +1362,8 @@ static inline int should_inject_overflow(struct b43_dmaring *ring)
 #ifdef CONFIG_B43_DEBUG
 	if (unlikely(b43_debug(ring->dev, B43_DBG_DMAOVERFLOW))) {
 		/* Check if we should inject another ringbuffer overflow
-		 * to test handling of this situation in the stack. */
+		 * to test handling of this situation in the stack.
+		 */
 		unsigned long next_overflow;
 
 		next_overflow = ring->last_injected_overflow + HZ;
@@ -1417,7 +1423,8 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		/* The multicast ring will be sent after the DTIM */
 		ring = dev->dma.tx_ring_mcast;
 		/* Set the more-data bit. Ucode will clear it on
-		 * the last frame for us. */
+		 * the last frame for us.
+		 */
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 	} else {
 		/* Decide by priority where to put this frame. */
@@ -1431,7 +1438,8 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		/* We get here only because of a bug in mac80211.
 		 * Because of a race, one packet may be queued after
 		 * the queue is stopped, thus we got called when we shouldn't.
-		 * For now, just refuse the transmit. */
+		 * For now, just refuse the transmit.
+		 */
 		if (b43_debug(dev, B43_DBG_DMAVERBOSE))
 			b43err(dev->wl, "Packet after queue stopped\n");
 		err = -ENOSPC;
@@ -1440,7 +1448,8 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 
 	if (WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME)) {
 		/* If we get here, we have a real error with the queue
-		 * full, but queues not stopped. */
+		 * full, but queues not stopped.
+		 */
 		b43err(dev->wl, "DMA queue overflow\n");
 		err = -ENOSPC;
 		goto out;
@@ -1448,13 +1457,15 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 
 	/* Assign the queue number to the ring (if not already done before)
 	 * so TX status handling can use it. The queue to ring mapping is
-	 * static, so we don't need to store it per frame. */
+	 * static, so we don't need to store it per frame.
+	 */
 	ring->queue_prio = skb_get_queue_mapping(skb);
 
 	err = dma_tx_fragment(ring, skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
-		 * anymore and must not transmit it unencrypted. */
+		 * anymore and must not transmit it unencrypted.
+		 */
 		ieee80211_free_txskb(dev->wl->hw, skb);
 		err = 0;
 		goto out;
@@ -1512,7 +1523,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 
 	/* Sanity check: TX packets are processed in-order on one ring.
 	 * Check if the slot deduced from the cookie really is the first
-	 * used slot. */
+	 * used slot.
+	 */
 	firstused = ring->current_slot - ring->used_slots + 1;
 	if (firstused < 0)
 		firstused = ring->nr_slots + firstused;
@@ -1605,7 +1617,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 
 			/* A session frame the microcode gave up on goes back
 			 * on the ring, as the stock driver requeues it; the
-			 * block ack window lets it follow later frames. */
+			 * block ack window lets it follow later frames.
+			 */
 			if (b43_ac_ampdu_requeue && !skip && !txstat->acked &&
 			    (info->flags & IEEE80211_TX_CTL_AMPDU) &&
 			    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
@@ -1635,7 +1648,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			ieee80211_tx_status_skb(dev->wl->hw, meta->skb);
 
 			/* skb will be freed by ieee80211_tx_status_skb().
-			 * Poison our pointer. */
+			 * Poison our pointer.
+			 */
 			meta->skb = B43_DMA_PTR_POISON;
 		} else {
 			/* No need to call free_descriptor_buffer here, as
@@ -1654,7 +1668,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 
 		if (meta->is_last_fragment && !skip) {
 			/* This is the last scatter-gather
-			 * fragment of the frame. We are done. */
+			 * fragment of the frame. We are done.
+			 */
 			break;
 		}
 		slot = next_slot(ring, slot);
@@ -1669,7 +1684,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			ieee80211_tx_status_skb(dev->wl->hw, requeue);
 		} else if (free_slots(ring) < TX_SLOTS_PER_FRAME) {
 			/* The requeued frame took the slots this status freed:
-			 * the ring is still full, keep the queue stopped. */
+			 * the ring is still full, keep the queue stopped.
+			 */
 			if (!ring->stopped) {
 				b43_stop_queue(dev, ring->queue_prio);
 				dev->wl->tx_queue_stopped[ring->queue_prio] = true;
@@ -1687,7 +1703,8 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 		dev->wl->tx_queue_stopped[ring->queue_prio] = false;
 	} else {
 		/* If the driver queue is running wake the corresponding
-		 * mac80211 queue. */
+		 * mac80211 queue.
+		 */
 		b43_wake_queue(dev, ring->queue_prio);
 		if (b43_debug(dev, B43_DBG_DMAVERBOSE)) {
 			b43dbg(dev->wl, "Woke up TX ring %d\n", ring->index);
@@ -1740,7 +1757,8 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 	}
 	if (unlikely(b43_rx_buffer_is_poisoned(ring, skb))) {
 		/* Something went wrong with the DMA.
-		 * The device did not touch the buffer and did not overwrite the poison. */
+		 * The device did not touch the buffer and did not overwrite the poison.
+		 */
 		b43dbg(ring->dev->wl, "DMA RX: Dropping poisoned buffer.\n");
 		dmaaddr = meta->dmaaddr;
 		goto drop_recycle_buffer;
@@ -1780,7 +1798,8 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
 		 * unlike a real frame arriving, nothing else will ever retry
 		 * this specific slot on its own - flag it so
 		 * b43_dma_rx_retry_poisoned() (pwork_15sec) gives it another
-		 * try later from a context that can use GFP_KERNEL. */
+		 * try later from a context that can use GFP_KERNEL.
+		 */
 		meta->rx_refill_failed = true;
 		goto drop_recycle_buffer;
 	}
@@ -1857,7 +1876,8 @@ void b43_dma_rx_retry_poisoned(struct b43_wldev *dev)
 		 * to read it safely, and NOT the same thing as checking
 		 * b43_rx_buffer_is_poisoned() (see the field's comment in
 		 * dma.h): most idle slots are legitimately, harmlessly
-		 * poisoned simply because no frame has landed there yet. */
+		 * poisoned simply because no frame has landed there yet.
+		 */
 		if (!meta->rx_refill_failed)
 			continue;
 
@@ -1867,7 +1887,8 @@ void b43_dma_rx_retry_poisoned(struct b43_wldev *dev)
 		 * exact slot until the ring wraps all the way around" timing
 		 * margin that already makes dma_rx()'s own in-place reactive
 		 * refill safe applies here too; this isn't a new risk
-		 * category, just the same swap done later. */
+		 * category, just the same swap done later.
+		 */
 		old_skb = meta->skb;
 		old_dmaaddr = meta->dmaaddr;
 		if (setup_rx_descbuffer(ring, desc, meta, GFP_KERNEL) == 0) {
@@ -1878,7 +1899,8 @@ void b43_dma_rx_retry_poisoned(struct b43_wldev *dev)
 			fixed++;
 		} else {
 			/* Allocation failed again; meta is untouched (still
-			 * the old buffer, flag stays set for next time). */
+			 * the old buffer, flag stays set for next time).
+			 */
 			sync_descbuffer_for_device(ring, old_dmaaddr,
 						   ring->rx_buffersize);
 		}
@@ -1980,7 +2002,8 @@ static void direct_fifo_rx(struct b43_wldev *dev, enum b43_dmatype type,
 }
 
 /* Enable/Disable Direct FIFO Receive Mode (PIO) on a RX engine.
- * This is called from PIO code, so DMA structures are not available. */
+ * This is called from PIO code, so DMA structures are not available.
+ */
 void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
 			    unsigned int engine_index, bool enable)
 {
