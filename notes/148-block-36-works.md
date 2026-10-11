@@ -9,3 +9,6 @@ Router on channel 36 (80 MHz, centre 5210). b43 loaded with `ac_5ghz=1 ac_5g_80=
 - Monitor mode on this block decodes beacons but not the stick's VHT-MCS9 2SS frames; that is a limit of monitor-mode reception at that rate, not of the association (the connection itself runs MCS 9). Pokes of wl's PHY/table differences (notes/147) made no difference to it and were not needed for the link.
 
 Not done: other blocks (only 36 and 112 tested), 20/40 MHz, DFS blocks beyond 112 untested, 5 GHz not enabled by default (`ac_5ghz=0`).
+
+## Block 52-64 (centre 5290, router on channel 52, DFS)
+Same procedure. Connects at rx MCS 8 / tx MCS 9 (2SS, 80 MHz), -56 dBm; iperf up 84-90, down 57-62. 5-minute soak with two scans: 1.25 M frames, 652 failed (0.05 %), no errors, stick 590/590. So three blocks work: 36-48 (centre 42), 52-64 (centre 58), 100-112 (centre 106, wl replay). Untested: 116-128, 132-144, 149-161; 20/40 MHz.
