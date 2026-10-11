@@ -1830,11 +1830,11 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 				   b43_phy_ac_80mhz_centre(new_channel);
 
 		b43_phy_ac_apply_por5g(dev);
-		if (ctr != 106 || b43_ac_5g_ctr) {	/* ac_5g_ctr=106 forces the retune for testing */
-			/* Another block than wl's: synthesizer, the per-channel
-			 * PHY words (wl leaves 0x371 at 0 in 80 MHz mode) and
-			 * the resampler for the new centre. Calibration results
-			 * and the rpcal fill stay those of channel 106. */
+		/* Synthesizer, the per-channel PHY words (wl leaves 0x371 at 0 in
+		 * 80 MHz mode) and the resampler for the block centre; same result
+		 * as wl's own tuning on centre 106 (notes/144). Calibration results
+		 * and the rpcal fill stay those of channel 106. */
+		{
 			const struct b43_radio_2069_chan *c = b43_radio_2069_find_chan(dev, ctr);
 
 			if (c) {
