@@ -8,10 +8,10 @@ P=/home/gonsolo/bcm4360-acphy
 steps="0,0,0 163,0,0 163,318,0 163,318,100 163,318,300 163,318,600 163,318,1200 163,318,2000 163,318,3142"
 [ -n "$1" ] && steps="$*"
 for st in $steps; do
-	IFS=, read r p t <<< "$st"
+	IFS=, read r p t p0 <<< "$st"
 	sync
 	nmcli connection delete b43-5g >/dev/null 2>&1
-	bash $S/ld.sh ac_5ghz=1 ac_5g_80=1 ac_vht=1 ac_por5g_nr=$r ac_por5g_np=$p ac_por5g_nt=$t >/dev/null 2>&1
+	bash $S/ld.sh ac_5ghz=1 ac_5g_80=1 ac_vht=1 ac_por5g_nr=$r ac_por5g_np=$p ac_por5g_nt=$t ac_por5g_p0=${p0:-0} >/dev/null 2>&1
 	l=$(bash $S/c5.sh 2>&1 | grep -E "Connected|Not connected|rx bitrate" | tr '\n\t' '  ' | cut -c1-110)
 	if ip -4 -br a show wlp3s0b1 | grep -q 192; then
 		u=$(bash $S/up.sh 2>&1 | tail -1 | cut -c1-40); d=$(bash $S/ud.sh 2>&1 | tail -1 | cut -c1-40)

@@ -13,3 +13,9 @@ Second cold boot, throughput (Mbit/s up/down):
 So of wl's captured 5 GHz state only the 318 PHY words are needed; the 163 radio words, the 3142 table entries (plus SHM, chipcommon, PMU, which were already off) are not. rfseq extension (table 0x14), the wide tables and the generic retune are our own code.
 
 Next: another cold boot, same chain on the PHY words (np = 20, 40, 80, 160, 318) to see which ones matter, then write those as init code.
+
+## PHY words, third and fourth cold boot (router on 52)
+Nested steps over the PHY words only (no radio words, no tables): 20, 40, 80, 120 words -> not connected; 160 or more -> connected, download 41-46 Mbit/s.
+Finer: 124, 128, 132 -> not connected; **136 -> connected**. So the missing piece is among words 133-136 of the list:
+0x0947=0, 0x0160=0x007b, 0x0402=0x0002, 0x0401=0x7733 (the end state of wl's rxcore_setstate/RF-sequencer kicks, together with something from words 1-132, since 132 words alone fail).
+Next: `ac_por5g_p0` (first PHY word) with np=137 on a cold boot: p0=133, 120, 100, 60, 0 (nested) shows whether words 133-136 are enough without the earlier ones.
