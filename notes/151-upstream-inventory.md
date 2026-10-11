@@ -32,3 +32,6 @@ phy_ac.c 43, main.c 9, xmit.c 5, dma.c 2. Keep as real features: `ac_ht`, `ac_vh
 6. b43: A-MPDU TX/RX.
 7. b43: 5 GHz, 80 MHz/VHT (after the ablation).
 Each needs real hardware test notes; the firmware (832.127, 2014) is not redistributable and must stay a user-supplied blob.
+
+## 5. Constraint on removing parameters
+The boot service in /etc/nixos passes `ac_replay=0 dma32=1 ac_por=7 nohwcrypt=1`. Removing `ac_replay` or `ac_por` from the module makes the load fail ("Unknown parameter"), so those two must stay (as no-ops) until the owner changes the service. A cleanup branch that deleted them was started and dropped for that reason.
