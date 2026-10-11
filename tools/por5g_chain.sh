@@ -18,5 +18,6 @@ for st in $steps; do
 		u=$(bash $S/up.sh 2>&1 | tail -1 | cut -c1-40); d=$(bash $S/ud.sh 2>&1 | tail -1 | cut -c1-40)
 	else u=; d=; fi
 	echo "step $st: $l | $u | $d"
+	sleep 30
 done
 nmcli connection delete b43-5g >/dev/null 2>&1
