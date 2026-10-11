@@ -1100,22 +1100,30 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 
 /* wl's 5 GHz first-load state (80 MHz, channel 112 primary): radio, PHY,
  * tables, SHM. Chipcommon/PMU are band independent (2.4 GHz state). */
+static uint b43_ac_por5g_nr = ~0U, b43_ac_por5g_np = ~0U, b43_ac_por5g_nt = ~0U;
+module_param_named(ac_por5g_nr, b43_ac_por5g_nr, uint, 0644);
+module_param_named(ac_por5g_np, b43_ac_por5g_np, uint, 0644);
+module_param_named(ac_por5g_nt, b43_ac_por5g_nt, uint, 0644);
+MODULE_PARM_DESC(ac_por5g_nr, "AC-PHY test: apply only the first N radio words of wl's 5 GHz state (ablation, notes/149)");
+MODULE_PARM_DESC(ac_por5g_np, "AC-PHY test: only the first N PHY words of wl's 5 GHz state");
+MODULE_PARM_DESC(ac_por5g_nt, "AC-PHY test: only the first N table entries of wl's 5 GHz state");
+
 static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 {
 	unsigned int i;
 
 	b43_phy_ac_rfseq_ext_5g(dev);
 
-	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_radio); i++)
+	for (i = 0; i < min_t(unsigned int, ARRAY_SIZE(b43_ac_por5g_radio), b43_ac_por5g_nr); i++)
 		if (b43_ac_por5g_radio[i][0] != 0xffff)
 			b43_radio_write(dev, b43_ac_por5g_radio[i][0],
 					b43_ac_por5g_radio[i][1]);
 	b43_radio_2069_vcocal(dev);
-	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_phy); i++)
+	for (i = 0; i < min_t(unsigned int, ARRAY_SIZE(b43_ac_por5g_phy), b43_ac_por5g_np); i++)
 		if (b43_ac_por5g_phy[i][0] != 0xffff)
 			b43_phy_write(dev, b43_ac_por5g_phy[i][0],
 				      b43_ac_por5g_phy[i][1]);
-	for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_tbl); i++) {
+	for (i = 0; i < min_t(unsigned int, ARRAY_SIZE(b43_ac_por5g_tbl), b43_ac_por5g_nt); i++) {
 		if (b43_ac_por5g_tbl[i].id == 0xffff)
 			continue;
 		b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_por5g_tbl[i].id);
