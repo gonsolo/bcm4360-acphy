@@ -254,10 +254,6 @@ enum {
 #define B43_SHM_SH_HOSTF4		0x0078	/* Hostflags 4 for ucode options */
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
 #define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5 Ghz channel */
-/* ucode macstat counters (rev 40+ AC firmware; also present on older ucode) */
-#define B43_SHM_SH_TXALLFRM		0x00E0	/* Total frames transmitted */
-#define B43_SHM_SH_TXACKFRM		0x00E6	/* ACK frames we transmitted (for received unicast) */
-#define B43_SHM_SH_RXACKUCAST		0x011C	/* ACKs received for our unicast frames */
 #define  B43_SHM_SH_CHAN_40MHZ		0x0200	/* Bit set, if 40 Mhz channel width */
 #define B43_SHM_SH_MACHW_L		0x00C0	/* Location where the ucode expects the MAC capabilities */
 #define B43_SHM_SH_MACHW_H		0x00C2	/* Location where the ucode expects the MAC capabilities */
@@ -557,22 +553,6 @@ enum {
 #define B43_IRQ_TIMEOUT			0x80000000
 
 #define B43_IRQ_ALL			0xFFFFFFFF
-/* AC-PHY only: interrupt sources wl's real IRQ mask enables that no
- * mainline b43 PHY type has ever named (bits 21-23), plus TIMER0 and
- * CCA_MEASURE_OK (both already named but not in B43_IRQ_MASKTEMPLATE)
- * and TIMEOUT. Diffed live against a real wl association trace
- * (traces/wl-init-20260927-184726.trace) - notes/61. Names are
- * placeholders; real semantics unconfirmed. */
-#define B43_IRQ_AC_UNK21		0x00200000
-#define B43_IRQ_AC_UNK22		0x00400000
-#define B43_IRQ_AC_UNK23		0x00800000
-#define B43_IRQ_AC_EXTRA_MASK		(B43_IRQ_TIMER0 | \
-					 B43_IRQ_CCA_MEASURE_OK | \
-					 B43_IRQ_AC_UNK21 | \
-					 B43_IRQ_AC_UNK22 | \
-					 B43_IRQ_AC_UNK23 | \
-					 B43_IRQ_TIMEOUT)
-
 #define B43_IRQ_MASKTEMPLATE		(B43_IRQ_TBTT_INDI | \
 					 B43_IRQ_ATIM_END | \
 					 B43_IRQ_PMQ | \
@@ -896,11 +876,6 @@ struct b43_wldev {
 	unsigned int periodic_state;
 
 	struct work_struct restart_work;
-	/* Separate from restart_work: a full ieee80211_restart_hw()-driven
-	 * recovery that forces mac80211 to redo association/DHCP afterward,
-	 * for triggers where the quiet register-level restart_work reinit
-	 * isn't enough (see b43_controller_restart_full in main.c). */
-	struct work_struct full_restart_work;
 
 	/* encryption/decryption */
 	u16 ktp;		/* Key table pointer */

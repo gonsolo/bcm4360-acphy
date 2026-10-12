@@ -36,14 +36,6 @@ struct b43_phy_ac {
 	bool chan_set;
 	bool last_5ghz;
 	bool radio_on;
-	/* wl's captured state was applied since the last core init. */
-	bool wl_state_applied;
-
-	/* ACK-ratio health check (pwork_15sec), see b43_phy_ac_check_ack_ratio. */
-	u16 last_txallfrm;
-	u16 last_txackfrm;
-	bool ack_ratio_valid;
-	u8 ack_ratio_bad_windows;
 };
 
 extern const struct b43_phy_operations b43_phyops_ac;
