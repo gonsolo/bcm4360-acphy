@@ -1081,6 +1081,23 @@ static void b43_phy_ac_wide_tables_2g(struct b43_wldev *dev)
  * a driver reload and a PCI bus reset, which is why 5 GHz received after wl
  * had run once in the same boot (notes/139).
  */
+/* The second sequencer's command lists (table 7 @ 0x30/0x40/0x50, cores 0-2)
+ * on 5 GHz: no leading 0x2a, and 0xb0/0xb1/0xb2 where 2.4 GHz has 0x2b
+ * (notes/154). With wl's PHY words off the link needs these. Opcodes after
+ * Alessio Ferri's tree where known.
+ */
+static const u16 b43_rfseq2_c0_5g[] = { 0x07, 0x0a, 0x00, 0x08, 0xb0, 0xb1, 0x1f, 0x1f };
+static const u16 b43_rfseq2_c1_5g[] = { 0x07, 0x08, 0x0c, 0x0e, 0xb0, 0xb2, 0x1f, 0x1f };
+static const u16 b43_rfseq2_c2_5g[] = { 0x07, 0x08, 0x0e, 0xb0, 0xb1, 0x1f, 0x1f, 0x1f };
+static const struct b43_phy_ac_tbl b43_rfseq2_5g_tbls[] = {
+	{ b43_rfseq2_c0_5g, 8, 7, 0x30, 16 },
+	{ b43_rfseq2_c1_5g, 8, 7, 0x40, 16 },
+	{ b43_rfseq2_c2_5g, 8, 7, 0x50, 16 },
+};
+
+static void b43_phy_ac_write_table(struct b43_wldev *dev,
+				   const struct b43_phy_ac_tbl *t);
+
 static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 {
 	static const u16 ext[4][3] = {
@@ -1095,6 +1112,8 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 
 	for (i = 0; i < ARRAY_SIZE(ext); i++)
 		b43_phy_ac_table_write48(dev, 0x14, 0x30 + i, ext[i]);
+	for (i = 0; i < ARRAY_SIZE(b43_rfseq2_5g_tbls); i++)
+		b43_phy_ac_write_table(dev, &b43_rfseq2_5g_tbls[i]);
 	/* The 5 GHz TX gain table, and the rpcal fill wl used on channel 112
 	 * (the twelve head cells and the zero tail are band independent).
 	 */
