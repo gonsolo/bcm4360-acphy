@@ -832,13 +832,13 @@ MODULE_PARM_DESC(ac_hostf1, "AC-PHY test: write HOSTF1 EDCF|ACIW (notes/64, gues
 
 static void b43_phy_ac_replay_ch6(struct b43_wldev *dev);
 
-bool b43_ac_5ghz;
+bool b43_ac_5ghz = true;
 module_param_named(ac_5ghz, b43_ac_5ghz, bool, 0444);
-MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (experimental)");
+MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (default on, notes/156)");
 
-static bool b43_ac_5g_80;
+static bool b43_ac_5g_80 = true;
 module_param_named(ac_5g_80, b43_ac_5g_80, bool, 0644);
-static uint b43_ac_por;
+static uint b43_ac_por = 7;
 
 /* Centre channel of the 80 MHz block a 5 GHz primary belongs to, 0 if none */
 static unsigned int b43_phy_ac_80mhz_centre(unsigned int channel)

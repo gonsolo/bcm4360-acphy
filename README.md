@@ -35,9 +35,9 @@ driver, retested).
   `chipcontrol` bit 3 (without it the second TX chain does not radiate),
   and hardware TX power control off (it fails about 28% of frames at 1 m).
 - **Not done:** TX IQ/LO calibration and real TX power control; 40 MHz is coded but untested;
-  5 GHz (VHT80 on channel 52, opt-in) runs without any of wl's state
-  (`phy_ac_por5g.h` is gone, notes/155), only channel block 100-112 and
-  the 52 block are tested; hardware encryption is off (`nohwcrypt=1`); five PHY words
+  5 GHz (VHT80, on by default since notes/156, two streams) runs without any of
+  wl's state (`phy_ac_por5g.h` is gone, notes/155); the blocks 36-48, 52-64 and
+  100-112 are tested, 20 MHz on 5 GHz receives poorly (download ~22 Mbit/s); hardware encryption is off (`nohwcrypt=1`); five PHY words
   (0x1739, 0x016b, 0x0175, 0x03c4, 0x0197/98 values) are constants of
   unknown meaning; the test parameters and debugfs have to go before any
   upstreaming.

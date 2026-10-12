@@ -380,7 +380,7 @@ static bool b43_ac_ht = true;
 module_param_named(ac_ht, b43_ac_ht, bool, 0444);
 MODULE_PARM_DESC(ac_ht, "AC-PHY: advertise HT20 (2 streams, no short GI) on 2.4 GHz (notes/137, 138)");
 
-static bool b43_ac_vht;
+static bool b43_ac_vht = true;
 module_param_named(ac_vht, b43_ac_vht, bool, 0444);
 MODULE_PARM_DESC(ac_vht, "AC-PHY: advertise VHT (2 streams, 80 MHz) on 5 GHz. Experimental; needs ac_5ghz=1 ac_5g_80=1 and an AP on channels 100-112 (notes/143)");
 

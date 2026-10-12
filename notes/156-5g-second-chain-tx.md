@@ -32,3 +32,10 @@ Upload 61-74 Mbit/s at HT MCS 15 two streams (was 35 at MCS 7), TX retries 1 % (
 problem left from notes/142 (20 MHz RX on 5 GHz; the 80 MHz mode receives fine, 63-65). 114 PHY words differ between our 20 MHz and
 80 MHz state (Farrow 0x180-0x1c6, per-core 0x6xx/0x7xx, 0x531-0x539, ...), no wl reference for 20 MHz on 5 GHz to decide which
 belong to the bandwidth and which to a missing 20 MHz setup. Open.
+
+## 5 GHz on by default (same day)
+Module defaults now `ac_5ghz=1 ac_5g_80=1 ac_vht=1 ac_por=7`; the boot service's `ac_replay=0 dma32=1 ac_por=7 nohwcrypt=1` is still accepted
+unchanged (the NixOS config is not touched). Loaded with exactly those arguments, no 5 GHz flag: NetworkManager autoconnects
+Vodafone-2A84 to the 5 GHz BSS (rx VHT-MCS 7 NSS 2, tx MCS 9), no manual profile. Soak 3 min up + 3 min down with a scan in the middle
+of each: up 72-82 Mbit/s (39 in the scan window), down 59-64 (49 in the scan window); 399 failed of 1.1 M frames (0.04 %); NM roamed
+5 GHz -> 2.4 GHz -> 5 GHz during the run (17 s apart) with traffic carrying on.
