@@ -50,4 +50,8 @@ extern const struct b43_phy_operations b43_phyops_ac;
 
 u16 b43_phy_ac_chanspec(struct b43_wldev *dev, unsigned int channel);
 
+#ifdef CONFIG_B43_PHY_AC_DEBUG
+extern bool b43_ac_force20;
+#endif
+
 #endif /* B43_PHY_AC_H_ */

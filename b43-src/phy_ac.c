@@ -846,8 +846,18 @@ static unsigned int b43_phy_ac_80mhz_centre(unsigned int channel)
  * 80 MHz mode: wl's captured 80 MHz state (taken on the block 100-112, centre
  * 106), retuned to the centre of the primary's block. Only 100-112 is tested.
  */
+#ifdef CONFIG_B43_PHY_AC_DEBUG
+bool b43_ac_force20;
+module_param_named(ac_force20, b43_ac_force20, bool, 0444);
+MODULE_PARM_DESC(ac_force20, "debug: run 5 GHz in the 20 MHz mode (HT20) even where an 80 MHz block exists");
+#endif
+
 static bool b43_phy_ac_is_80mhz(struct b43_wldev *dev, unsigned int channel)
 {
+#ifdef CONFIG_B43_PHY_AC_DEBUG
+	if (b43_ac_force20)
+		return false;
+#endif
 	return b43_current_band(dev->wl) == NL80211_BAND_5GHZ &&
 	       b43_phy_ac_80mhz_centre(channel);
 }

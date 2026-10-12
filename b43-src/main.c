@@ -5692,6 +5692,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
 		if (have_5ghz_phy) {
 			/* The AP refuses a station without HT here (status 18) */
 			b43_band_5GHz_acphy.ht_cap = b43_band_2GHz_ac.ht_cap;
+#ifdef CONFIG_B43_PHY_AC_DEBUG
+			if (!b43_ac_force20)
+#endif
 			{
 				struct ieee80211_sta_vht_cap *vht =
 					&b43_band_5GHz_acphy.vht_cap;
