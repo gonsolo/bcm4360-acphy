@@ -40,3 +40,9 @@ up 59-78, down 58-65 Mbit/s; TX retries 6-11 % (3460-4432 per 40-54k packets), f
 Stick on the same path, same minute: up 79-83, down 65-69. The path to pampelmuse tops out near 65-80 Mbit/s, so b43 is
 at the ceiling on download and close on upload; link-rate numbers (292-780 Mbit/s) are not the limit here. Second 80 MHz block
 confirmed (52-64 and 100-112), no router change needed.
+
+## 5 GHz at 20 MHz (ac_5ghz=1 only, no ac_5g_80 / ac_vht), block 100-112 primary, -56 dBm (2026-10-12)
+Cold-load, no replay: connects, HT20 on the 80 MHz AP's primary (tx MCS 13 at first, MCS 7 under load).
+2 runs each: up 35-36, down 26-27 Mbit/s (pampelmuse path ceiling ~65-80); TX retries 27 % (6.5-6.8k per 24k packets), failed 1-2.
+For comparison 2.4 GHz HT20: up 25, down 43-62. So 20 MHz on 5 GHz works as a fallback but has about 3x the retries of the
+80 MHz mode (6-11 %). 40 MHz on 5 GHz untested (needs a router channel width setting).
