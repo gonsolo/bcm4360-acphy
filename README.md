@@ -36,7 +36,7 @@ driver, retested).
 - **Not done:** TX IQ/LO calibration and real TX power control; 40 MHz is coded but untested;
   5 GHz (VHT80, on by default since notes/156, two streams) runs without any of
   wl's state (`phy_ac_por5g.h` is gone, notes/155); the blocks 36-48, 52-64 and
-  100-112 are tested, 20 MHz on 5 GHz receives poorly (download ~22 Mbit/s); hardware encryption is off (`nohwcrypt=1`); five PHY words
+  100-112 and 132-144 are tested, 20 MHz APs work as fast as the stick (notes/160); hardware encryption is off (`nohwcrypt=1`); five PHY words
   (0x1739, 0x016b, 0x0175, 0x03c4, 0x0197/98 values) are constants of
   unknown meaning. The test parameters are gone (notes/158); `ac_replay` and
   `ac_por` are still accepted and ignored for the boot service; the `b43ac`
