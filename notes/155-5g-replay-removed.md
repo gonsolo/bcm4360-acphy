@@ -33,3 +33,10 @@ Not a remaining init problem. Same explanation as notes/129 (stick: two large ex
 and b43 shows the raw ucode power byte without SROM RSSI offsets). The 5 GHz gap (20 dB) is larger than 2.4 GHz (13 dB), as
 expected for small antennas at higher frequency. The rate follows the level: next to the router (-50 dBm, notes/143) b43 ran
 tx VHT-MCS 9 NSS 2; at -67 dBm MCS 7 NSS 1 is what minstrel picks. PHY 0x173b stays (+8 dB is real gain).
+
+## Block 100-112 (router on automatic moved itself there), throughput vs stick (2026-10-12)
+Server: iperf3 on pampelmuse (192.168.0.236, started by ssh via nix-shell, stopped after). b43 at -52..-56 dBm, 3 runs:
+up 59-78, down 58-65 Mbit/s; TX retries 6-11 % (3460-4432 per 40-54k packets), failed 0.02-0.2 %; rate VHT-MCS 7 NSS 1 (tx) / MCS 6 NSS 2 (rx).
+Stick on the same path, same minute: up 79-83, down 65-69. The path to pampelmuse tops out near 65-80 Mbit/s, so b43 is
+at the ceiling on download and close on upload; link-rate numbers (292-780 Mbit/s) are not the limit here. Second 80 MHz block
+confirmed (52-64 and 100-112), no router change needed.
