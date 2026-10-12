@@ -1111,6 +1111,10 @@ static uint b43_ac_por5g_nr = ~0U, b43_ac_por5g_np = ~0U, b43_ac_por5g_nt = ~0U,
 module_param_named(ac_por5g_nr, b43_ac_por5g_nr, uint, 0644);
 module_param_named(ac_por5g_np, b43_ac_por5g_np, uint, 0644);
 module_param_named(ac_por5g_nt, b43_ac_por5g_nt, uint, 0644);
+static uint b43_ac_por5g_ts0, b43_ac_por5g_ts1;
+module_param_named(ac_por5g_ts0, b43_ac_por5g_ts0, uint, 0644);
+module_param_named(ac_por5g_ts1, b43_ac_por5g_ts1, uint, 0644);
+MODULE_PARM_DESC(ac_por5g_ts1, "AC-PHY test: skip table words [ac_por5g_ts0, ts1) of wl's state");
 static uint b43_ac_por5g_tz0, b43_ac_por5g_tz1;
 module_param_named(ac_por5g_tz0, b43_ac_por5g_tz0, uint, 0644);
 module_param_named(ac_por5g_tz1, b43_ac_por5g_tz1, uint, 0644);
@@ -1171,7 +1175,8 @@ static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 	for (i = 0; i < min_t(unsigned int, ARRAY_SIZE(b43_ac_por5g_tbl), b43_ac_por5g_nt); i++) {
 		u32 tv = (i >= b43_ac_por5g_tz0 && i < b43_ac_por5g_tz1) ? 0 : b43_ac_por5g_tbl[i].val;
 
-		if (b43_ac_por5g_tbl[i].id == 0xffff)
+		if (b43_ac_por5g_tbl[i].id == 0xffff ||
+		    (i >= b43_ac_por5g_ts0 && i < b43_ac_por5g_ts1))
 			continue;
 		b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_por5g_tbl[i].id);
 		b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, b43_ac_por5g_tbl[i].off);

@@ -8,10 +8,10 @@ P=/home/gonsolo/bcm4360-acphy
 steps="0,0,0 163,0,0 163,318,0 163,318,100 163,318,300 163,318,600 163,318,1200 163,318,2000 163,318,3142"
 [ -n "$1" ] && steps="$*"
 for st in $steps; do
-	IFS=, read r p t p0 z0 z1 <<< "$st"
+	IFS=, read r p t p0 z0 z1 s0 s1 <<< "$st"
 	sync
 	nmcli connection delete b43-5g >/dev/null 2>&1
-	bash $S/ld.sh ac_5ghz=1 ac_5g_80=1 ac_vht=1 ac_por5g_nr=$r ac_por5g_np=$p ac_por5g_nt=$t ac_por5g_p0=${p0:-0} ac_por5g_tz0=${z0:-0} ac_por5g_tz1=${z1:-0} >/dev/null 2>&1
+	bash $S/ld.sh ac_5ghz=1 ac_5g_80=1 ac_vht=1 ac_por5g_nr=$r ac_por5g_np=$p ac_por5g_nt=$t ac_por5g_p0=${p0:-0} ac_por5g_tz0=${z0:-0} ac_por5g_tz1=${z1:-0} ac_por5g_ts0=${s0:-0} ac_por5g_ts1=${s1:-0} >/dev/null 2>&1
 	[ -n "$RESET" ] && bash $P/tools/phy5g_reset.sh
 	l=$(bash $S/c5.sh 2>&1 | grep -E "Connected|Not connected|rx bitrate" | tr '\n\t' '  ' | cut -c1-110)
 	if ip -4 -br a show wlp3s0b1 | grep -q 192; then
