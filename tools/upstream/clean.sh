@@ -11,3 +11,10 @@ perl -0pi -e 's/[ \t]*\((?:see |cf\. )?notes\/[^)\n]*\)//g; s/\bSee notes\/[0-9-
 # the TX header hex dump block in xmit.c
 perl -0pi -e 's/\n\t\{\n\t\tstatic atomic_t dumped = ATOMIC_INIT\(0\).*?\n\t\}\n(\treturn 0;)/\n$1/s' xmit.c
 grep -n "notes/" *.c *.h || true
+# decompiler function names and private trace paths in comments
+perl -0pi -e 's/\(vendor FUN_[0-9a-f]+(?:, [^)]*)?\)/(as the vendor driver does it)/g; s/ \(vendor FUN_[0-9a-f]+\)/ (as the vendor driver does it)/g' phy_ac.c main.c
+perl -0pi -e 's/\(traces\/decoded-firstload-5g-cold\/tables-wide.txt\), same entry format\./captured from the vendor driver, same entry format./' tables_phy_ac.c
+perl -0pi -e 's/\(traces\/wl-init-20260927-184726.trace\) - Names are/captured from the vendor driver. Names are/' b43.h
+perl -0pi -e 's/acphychipid == 0x4360 \(this chip - see notes\/session log\)\./acphychipid == 0x4360 (the BCM4360)./' phy_ac.c
+echo "--- remaining odd references:"
+grep -n "traces/\|FUN_\|notes/\|decompil\|ghidra" *.c *.h || true
