@@ -10,3 +10,11 @@ Cold boot, router on channel 52 (80 MHz), desk signal. `RESET=1 tools/por5g_chai
 
 Open: switching back to 2.4 GHz in the same boot does not rewrite the 2.4 GHz rfseq2/txgain tables (existing issue, txgain too);
 radio words (163) not ablated yet (needs cold boot); upload retries are higher without the replay (~500 vs ~300), check on a longer run.
+
+## Back to 2.4 GHz after 5 GHz (same boot)
+Before: 2.4 GHz associated and received (RX MCS 15) but transmitted nothing useful (tx MCS 0, no traffic): the 5 GHz
+setup had overwritten the AGC, rfseq2 and TX gain tables and left the core in 80 MHz mode. Now `b43_phy_ac_restore_2g()` runs on
+a 5 -> 2.4 GHz switch: `tables_init()`, `wide_tables_2g()`, PHY 0x18b = 0, ioctl PHY BW back to 20 MHz.
+Test: load with 5 GHz on, connect 5 GHz (ch 52), then 2.4 GHz (ch 1): 25 up / 43-62 down Mbit/s via iperf3
+(ping -I with the stick on the same subnet is not a valid check).
+Still stale after a switch: the radio and PHY words of the replay (go away with the replay).

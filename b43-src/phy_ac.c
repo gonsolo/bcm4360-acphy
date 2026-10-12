@@ -1856,6 +1856,27 @@ static void b43_phy_ac_tune(struct b43_wldev *dev,
 	b43_radio_2069_vcocal(dev);
 }
 
+static void b43_phy_ac_tables_init(struct b43_wldev *dev);
+
+/* Back on 2.4 GHz after 5 GHz in the same boot: the 5 GHz setup overwrote
+ * the AGC, RF sequencer and TX gain tables and left the core in 80 MHz mode
+ * (without this 2.4 GHz associates and receives, but nothing is sent).
+ */
+static void b43_phy_ac_restore_2g(struct b43_wldev *dev)
+{
+	u32 ioctl;
+
+	b43_phy_ac_tables_init(dev);
+	b43_phy_ac_wide_tables_2g(dev);
+	b43_phy_write(dev, 0x18b, 0);
+	ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
+	if ((ioctl & B43_BCMA_IOCTL_PHY_BW) == B43_BCMA_IOCTL_PHY_BW_80MHZ) {
+		ioctl = (ioctl & ~B43_BCMA_IOCTL_PHY_BW) | B43_BCMA_IOCTL_PHY_BW_20MHZ;
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | 0x2);
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl);
+	}
+}
+
 static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 					unsigned int new_channel)
 {
@@ -1883,6 +1904,9 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 	b43_phy_set(dev, 0x19e, 0x3);
 
 	b43_phy_maskset(dev, B43_PHY_AC_BANDCTL, ~0x0100, is_5ghz ? 0x0100 : 0);
+
+	if (phy_ac->chan_set && phy_ac->last_5ghz && !is_5ghz)
+		b43_phy_ac_restore_2g(dev);
 
 	if (!phy_ac->chan_set || phy_ac->last_5ghz != is_5ghz) {
 		b43_phy_set(dev, 0x728, 0x0100);
