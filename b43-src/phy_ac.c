@@ -1028,8 +1028,6 @@ module_param_named(ac_por, b43_ac_por, uint, 0644);
  */
 MODULE_PARM_DESC(ac_por, "AC-PHY diagnostic: after the ch6 replay also apply wl's first-load state (bitmask: 1 radio, 2 phy, 4 tables, 8 shm, 16 chipcommon, 32 pmu)");
 
-#include "phy_ac_por5g.h"
-
 /* One 48-bit PHY table entry: three words through the third data port. */
 static void b43_phy_ac_table_write48(struct b43_wldev *dev, u16 id, u16 offset,
 				     const u16 *w)
@@ -1123,27 +1121,6 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 		b43_phy_ac_table_write48(dev, 0x11, i, fill11);
 }
 
-/* wl's 5 GHz first-load state (80 MHz, channel 112 primary): radio, PHY,
- * tables, SHM. Chipcommon/PMU are band independent (2.4 GHz state).
- */
-static uint b43_ac_por5g_nr = ~0U, b43_ac_por5g_np = ~0U, b43_ac_por5g_nt = ~0U, b43_ac_por5g_p0;
-module_param_named(ac_por5g_nr, b43_ac_por5g_nr, uint, 0644);
-module_param_named(ac_por5g_np, b43_ac_por5g_np, uint, 0644);
-module_param_named(ac_por5g_nt, b43_ac_por5g_nt, uint, 0644);
-static uint b43_ac_por5g_ts0, b43_ac_por5g_ts1;
-module_param_named(ac_por5g_ts0, b43_ac_por5g_ts0, uint, 0644);
-module_param_named(ac_por5g_ts1, b43_ac_por5g_ts1, uint, 0644);
-MODULE_PARM_DESC(ac_por5g_ts1, "AC-PHY test: skip table words [ac_por5g_ts0, ts1) of wl's state");
-static uint b43_ac_por5g_tz0, b43_ac_por5g_tz1;
-module_param_named(ac_por5g_tz0, b43_ac_por5g_tz0, uint, 0644);
-module_param_named(ac_por5g_tz1, b43_ac_por5g_tz1, uint, 0644);
-MODULE_PARM_DESC(ac_por5g_tz1, "AC-PHY test: write zeros instead of wl's values for table words [ac_por5g_tz0, tz1)");
-module_param_named(ac_por5g_p0, b43_ac_por5g_p0, uint, 0644);
-MODULE_PARM_DESC(ac_por5g_p0, "AC-PHY test: first PHY word of wl's 5 GHz state to apply (with ac_por5g_np the end)");
-MODULE_PARM_DESC(ac_por5g_nr, "AC-PHY test: apply only the first N radio words of wl's 5 GHz state (ablation, notes/149)");
-MODULE_PARM_DESC(ac_por5g_np, "AC-PHY test: only the first N PHY words of wl's 5 GHz state");
-MODULE_PARM_DESC(ac_por5g_nt, "AC-PHY test: only the first N table entries of wl's 5 GHz state");
-
 static void b43_phy_ac_write_table(struct b43_wldev *dev,
 				   const struct b43_phy_ac_tbl *t);
 
@@ -1176,69 +1153,20 @@ static const struct b43_phy_ac_tbl b43_ac_agc_tbls_5g[] = {
 	{ b43_ac_agc5_lim2, 10, 0x65, 0x20, 8 },
 };
 
-static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
+/* 5 GHz setup on entering 80 MHz mode: the RF sequencer extension entries,
+ * 5 GHz TX gain table and rpcal fill, the second sequencer's command lists
+ * and the AGC tables, all from this file; none of wl's first-load state
+ * (radio, PHY registers, tables, SHM, chipcommon, PMU) is replayed any more
+ * (notes/153-155).
+ */
+static void b43_phy_ac_setup_5g(struct b43_wldev *dev)
 {
 	unsigned int i;
 
 	b43_phy_ac_rfseq_ext_5g(dev);
-
-	for (i = 0; i < min_t(unsigned int, ARRAY_SIZE(b43_ac_por5g_radio), b43_ac_por5g_nr); i++)
-		if (b43_ac_por5g_radio[i][0] != 0xffff)
-			b43_radio_write(dev, b43_ac_por5g_radio[i][0],
-					b43_ac_por5g_radio[i][1]);
 	b43_radio_2069_vcocal(dev);
-	for (i = b43_ac_por5g_p0; i < min_t(unsigned int, ARRAY_SIZE(b43_ac_por5g_phy), b43_ac_por5g_np); i++)
-		if (b43_ac_por5g_phy[i][0] != 0xffff)
-			b43_phy_write(dev, b43_ac_por5g_phy[i][0],
-				      b43_ac_por5g_phy[i][1]);
-	for (i = 0; i < min_t(unsigned int, ARRAY_SIZE(b43_ac_por5g_tbl), b43_ac_por5g_nt); i++) {
-		u32 tv = (i >= b43_ac_por5g_tz0 && i < b43_ac_por5g_tz1) ? 0 : b43_ac_por5g_tbl[i].val;
-
-		if (b43_ac_por5g_tbl[i].id == 0xffff ||
-		    (i >= b43_ac_por5g_ts0 && i < b43_ac_por5g_ts1))
-			continue;
-		b43_phy_write(dev, B43_PHY_AC_TABLE_ID, b43_ac_por5g_tbl[i].id);
-		b43_phy_write(dev, B43_PHY_AC_TABLE_OFFSET, b43_ac_por5g_tbl[i].off);
-		if (b43_ac_por5g_tbl[i].width == 32)
-			b43_phy_write(dev, B43_PHY_AC_TABLE_DATA2,
-				      tv >> 16);
-		b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
-			      tv & 0xffff);
-	}
 	for (i = 0; i < ARRAY_SIZE(b43_ac_agc_tbls_5g); i++)
 		b43_phy_ac_write_table(dev, &b43_ac_agc_tbls_5g[i]);
-	/* wl's SHM (it holds its key and session state: with it the WPA
-	 * handshake fails on 5 GHz) and its chipcommon/PMU words (blink timers
-	 * and other transient values) only on request, ac_por bits 8/16/32
-	 */
-	for (i = 0; (b43_ac_por & B43_AC_POR_SHM) && i < ARRAY_SIZE(b43_ac_por5g_shm); i++)
-		/* not the chanspec (wl's 80 MHz one): it comes back in every RX
-		 * header and mac80211 drops beacons tagged with the wrong channel
-		 */
-		if (b43_ac_por5g_shm[i].routing != 0xffff &&
-		    !(b43_ac_por5g_shm[i].routing == B43_SHM_SHARED &&
-		      b43_ac_por5g_shm[i].off == B43_SHM_SH_CHAN))
-			b43_shm_write16(dev, b43_ac_por5g_shm[i].routing,
-					b43_ac_por5g_shm[i].off,
-					b43_ac_por5g_shm[i].val);
-	if (dev->dev->bus_type == B43_BUS_BCMA &&
-	    (b43_ac_por & (B43_AC_POR_CC | B43_AC_POR_PMU))) {
-		struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
-
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_cc); i++)
-			if (b43_ac_por5g_cc[i][0] != 0xffff)
-				bcma_cc_write32(cc, b43_ac_por5g_cc[i][0],
-						b43_ac_por5g_cc[i][1]);
-		for (i = 0; i < ARRAY_SIZE(b43_ac_por5g_pmu); i++) {
-			if (b43_ac_por5g_pmu[i].kind == 0)
-				bcma_chipco_chipctl_maskset(cc, b43_ac_por5g_pmu[i].idx,
-							    0, b43_ac_por5g_pmu[i].val);
-			else if (b43_ac_por5g_pmu[i].kind == 1)
-				bcma_chipco_regctl_maskset(cc, b43_ac_por5g_pmu[i].idx,
-							   0, b43_ac_por5g_pmu[i].val);
-		}
-	}
-	b43info(dev->wl, "phy_ac: applied 5 GHz first-load state\n");
 }
 
 static uint b43_ac_rfkick;
@@ -1945,7 +1873,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		unsigned int ctr = b43_ac_5g_ctr ? b43_ac_5g_ctr :
 				   b43_phy_ac_80mhz_centre(new_channel);
 
-		b43_phy_ac_apply_por5g(dev);
+		b43_phy_ac_setup_5g(dev);
 		/* The one PHY word of wl's 5 GHz state that 80 MHz RX/TX needs
 		 * (bisect of 318 words, notes/153); reg 0x18b is 0 after reset.
 		 */
@@ -1976,7 +1904,7 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		b43info(dev->wl, "phy_ac: 5 GHz 80 MHz test, ioctrl %08x\n",
 			bcma_aread32(dev->dev->bdev, BCMA_IOCTL));
 	} else if (is_5ghz && b43_ac_por) {
-		b43_phy_ac_apply_por5g(dev);
+		b43_phy_ac_setup_5g(dev);
 		/* wl's state is its 80 MHz one: filters for our width */
 		if (b43_ac_5g_coeff)
 			b43_phy_ac_coeff_bank_init(dev);
