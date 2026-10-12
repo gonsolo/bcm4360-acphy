@@ -19,3 +19,10 @@ with 973 it works: NSS 2 MCS 0/5 at 2-6 % retries, 0 failed; minstrel up 76-84 M
 
 Other table 7 cells still differ from wl's 5 GHz values (69 cells: 160-195, 249-263, 321-346, 398, 864-890, 1088-1091); not needed for
 connecting or two streams, may matter for the remaining retries.
+
+## Cell 398 (same day)
+The other 66 differing table 7 cells, applied live in six groups (160-195, 249-263, 321-346, 398, 864-890, 1088-1091) and
+measured at fixed NSS 1 MCS 7 and NSS 2 MCS 7 (two streams at MCS 7 was dead): only offset 398 (wl 0x0049, ours 0) matters. With it
+NSS 2 MCS 7 carries 22-24 Mbit/s (54 % retries, 27 failed, was 0 and dead); the other groups add nothing on top. Written
+next to 973/989. With all three, minstrel settles on VHT-MCS 6 NSS 2 (tx 526 Mbit/s), up 68-84, down 63-65 (path ceiling),
+0-3 failed per 55k frames. 5 -> 2.4 GHz switch puts 398/973/989 back (0 / 0x2d3 / 0x352), 2.4 GHz connects at MCS 14-15.

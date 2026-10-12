@@ -1121,6 +1121,7 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 	 */
 	b43_phy_ac_table_write16(dev, 7, 973, 0x03a2);
 	b43_phy_ac_table_write16(dev, 7, 989, 0x05d0);
+	b43_phy_ac_table_write16(dev, 7, 398, 0x0049);
 	/* The 5 GHz TX gain table, and the rpcal fill wl used on channel 112
 	 * (the twelve head cells and the zero tail are band independent).
 	 */
