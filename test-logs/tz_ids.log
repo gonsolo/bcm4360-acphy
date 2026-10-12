@@ -1,0 +1,33 @@
+table id 0 [0,0): works  step 163,0,3142,0,0,0: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 351.0 MBit/s VHT-MCS 4 80MHz VHT-NSS 2  | : up 80.7 Mbit/s, pkts 55938 retries 
+table id 1 [0,128): works  step 163,0,3142,0,0,128: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 79.2 Mbit/s, pkts 54822 retrie
+table id 2 [128,166): works  step 163,0,3142,0,128,166: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 6.5 MBit/s VHT-MCS 0 VHT-NSS 1  | : up 79.9 Mbit/s, pkts 55377 retries 734 
+table id 3 [166,422): works  step 163,0,3142,0,166,422: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 78.8 Mbit/s, pkts 53805 retr
+table id 4 [422,678): works  step 163,0,3142,0,422,678: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 585.0 MBit/s VHT-MCS 7 80MHz VHT-NSS 2  | : up 88.5 Mbit/s, pkts 61304 retr
+table id 5 [678,700): BREAKS  step 163,0,3142,0,678,700: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 86.0 Mbit/s, pkts 58500 retr
+table id 7 [700,911): BREAKS  step 163,0,3142,0,700,911: Not connected.  |  | 
+table id 10 [911,1007): BREAKS  step 163,0,3142,0,911,1007: Not connected.  |  | 
+table id 11 [1007,1020): works  step 163,0,3142,0,1007,1020: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 70.9 Mbit/s, pkts 48323 re
+table id 12 [1020,1083): works  step 163,0,3142,0,1020,1083: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 61.5 Mbit/s, pkts 41965 re
+table id 14 [1083,1243): works  step 163,0,3142,0,1083,1243: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 351.0 MBit/s VHT-MCS 4 80MHz VHT-NSS 2  | : up 72.1 Mbit/s, pkts 49906 re
+table id 16 [1243,1486): works  step 163,0,3142,0,1243,1486: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 81.8 Mbit/s, pkts 55892 re
+table id 33 [1486,1510): works  step 163,0,3142,0,1486,1510: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 351.0 MBit/s VHT-MCS 4 80MHz VHT-NSS 2  | : up 74.4 Mbit/s, pkts 50588 re
+table id 64 [1510,1638): works  step 163,0,3142,0,1510,1638: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 25.2 Mbit/s, pkts 17218 re
+table id 65 [1638,1766): works  step 163,0,3142,0,1638,1766: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 85.0 Mbit/s, pkts 58882 re
+table id 66 [1766,1894): works  step 163,0,3142,0,1766,1894: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 351.0 MBit/s VHT-MCS 4 80MHz VHT-NSS 2  | : up 83.6 Mbit/s, pkts 57887 re
+table id 68 [1894,1919): BREAKS  step 163,0,3142,0,1894,1919: Not connected.  |  | 
+table id 69 [1919,1942): BREAKS  step 163,0,3142,0,1919,1942: Not connected.  |  | 
+table id 71 [1942,2006): works  step 163,0,3142,0,1942,2006: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 84.4 Mbit/s, pkts 58384 re
+table id 72 [2006,2070): works  step 163,0,3142,0,2006,2070: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 76.8 Mbit/s, pkts 52294 re
+table id 96 [2070,2198): works  step 163,0,3142,0,2070,2198: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 72.5 Mbit/s, pkts 49621 re
+table id 97 [2198,2326): works  step 163,0,3142,0,2198,2326: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 351.0 MBit/s VHT-MCS 4 80MHz VHT-NSS 2  | : up 79.9 Mbit/s, pkts 54682 re
+table id 98 [2326,2454): works  step 163,0,3142,0,2326,2454: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 585.0 MBit/s VHT-MCS 7 80MHz VHT-NSS 2  | : up 73.5 Mbit/s, pkts 50411 re
+table id 100 [2454,2479): BREAKS  step 163,0,3142,0,2454,2479: Not connected.  |  | 
+table id 101 [2479,2502): BREAKS  step 163,0,3142,0,2479,2502: Not connected.  |  | 
+table id 103 [2502,2566): works  step 163,0,3142,0,2502,2566: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 77.8 Mbit/s, pkts 53928 re
+table id 104 [2566,2630): works  step 163,0,3142,0,2566,2630: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 72.1 Mbit/s, pkts 49131 re
+table id 128 [2630,2758): works  step 163,0,3142,0,2630,2758: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 585.0 MBit/s VHT-MCS 7 80MHz VHT-NSS 2  | : up 77.2 Mbit/s, pkts 53440 re
+table id 129 [2758,2886): works  step 163,0,3142,0,2758,2886: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 351.0 MBit/s VHT-MCS 4 80MHz VHT-NSS 2  | : up 75.3 Mbit/s, pkts 51338 re
+table id 130 [2886,3014): works  step 163,0,3142,0,2886,3014: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 351.0 MBit/s VHT-MCS 4 80MHz VHT-NSS 2  | : up 86.0 Mbit/s, pkts 59526 re
+table id 135 [3014,3078): works  step 163,0,3142,0,3014,3078: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 585.0 MBit/s VHT-MCS 7 80MHz VHT-NSS 2  | : up 79.0 Mbit/s, pkts 53340 re
+table id 136 [3078,3142): works  step 163,0,3142,0,3078,3142: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 75.2 Mbit/s, pkts 50778 re
+done

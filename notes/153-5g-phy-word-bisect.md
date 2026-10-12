@@ -22,3 +22,13 @@ Result: word 159 = PHY register 0x018b = 0x016c is the one essential PHY write; 
 
 Open: radio and table parts of the replay are still applied in full here; the radio state cannot be reset by a script,
 so ablating them needs a cold boot or real init code for them.
+
+## Tables (done without a reboot: zeroing instead of skipping)
+Skipping words only works from a cold state; zeroing a range of wl's table words (`ac_por5g_tz0/tz1`, state then independent of
+earlier runs; PHY replay off, the one 0x18b write, all radio words) works from any state. `tools/por5g_tz_ids.sh` zeroes one table
+id at a time (about 2 min per id, unattended). Zeroing a *half* of all tables breaks the link everywhere, so id granularity it is.
+
+Zeroing breaks the 80 MHz link (not connected): table ids **5** (22 words), **7** (211), **10** (96), **68** (25), **69** (23),
+**100** (25), **101** (23). Zeroing any of ids 1-4, 11, 12, 14, 16, 33, 64-66, 71, 72, 96-98, 103, 104, 128-130, 135, 136
+leaves it working (71-88 up / 60-67 down). That is 7 of 31 ids, 425 of 3142 words, instead of all of them.
+Log: test-logs/tz_ids.log. Next: check which of these our own init already writes, and replace the rest with real data.
