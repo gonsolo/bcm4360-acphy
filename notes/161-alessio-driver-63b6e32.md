@@ -15,3 +15,13 @@ restored afterwards), our b43-autorecover stopped meanwhile. Kernel 7.2.9, route
 - Not tested here: hardware CCMP (he runs it on his MIPS router), A-MPDU (later commits).
 - Pitfall: tests that bind a source address must use the interface's current address; with his MAC the old 192.168.0.119 route failed and the first
   "results" went over the USB stick instead.
+
+## Second round: our DMA settings on his tree, and where his download is lost
+`ALE_DMA=1 tools/build_alessio_driver.sh` adds our DMA findings (TX control |= 0x03780040, RX control |= 0x036c0000, intrcvlazy0 = 1 << 24) to his
+tree (his DMA already has the "index registers hold bus addresses" part); `ALE_VARIANT=dma tools/try_alessio_driver.sh` loads that build.
+- No change: download 2.27-3.15 Mbit/s, upload 33-47 (rate MCS 8-9, no failed frames), same PHY TX error lines while scanning 2.4 GHz.
+- Ping flood through his interface: 0 % loss (300 packets at 20 ms, 100 packets of 1400 bytes). UDP download from the LAN host:
+  20 Mbit/s offered -> 11.3 received (43 % lost); 60 Mbit/s offered -> 12.2 received (76 % lost). So the receive path loses frames above about
+  1000 packets per second; TCP collapses to 2-3 Mbit/s on top of that. No "underrun" or other RX message in the log (netconsole capture).
+- His tree does not take the "DMA bits" fix, so his slow download is something else; candidates for him: RX interrupt/ring handling under load,
+  the AC RX header handling (drops counted in `rx drop misc`), A-MPDU RX reordering (the session is accepted, the ucode deaggregates).

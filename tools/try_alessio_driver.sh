@@ -27,7 +27,7 @@ for _ in $(seq 50); do [ -e /sys/bus/bcma/devices/bcma0:1 ] && break; sleep 0.1;
 [ -e /sys/bus/bcma/devices/bcma0:1 ] || { echo "bcma0:1 never appeared"; exit 1; }
 sync
 T0=$(date +%s)
-insmod $PROJ/b43-src-builds/ale-b43-$V.ko || exit 1
+insmod $PROJ/b43-src-builds/ale-b43-$V${ALE_VARIANT:+-$ALE_VARIANT}.ko || exit 1
 timeout 20 bash -c 'until ls /sys/class/net | grep -q . && readlink /sys/class/net/*/device/driver 2>/dev/null | grep -q b43; do sleep 0.5; done'
 sleep 3
 journalctl -k --since "@$T0" --no-pager > /tmp/ale-load.log; sync
