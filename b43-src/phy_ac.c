@@ -1722,31 +1722,6 @@ static void b43_phy_ac_txpwr_by_index(struct b43_wldev *dev, unsigned int idx)
 	}
 }
 
-/* 2.4 GHz AGC tables as written by the vendor driver on this board. */
-static const u8 b43_ac_agc_lna1_gain[] = { 0xff, 0xff, 0x06, 0x0c, 0x12, 0x19 };
-static const u8 b43_ac_agc_lna1_code[] = { 1, 1, 2, 3, 4, 5 };
-static const u8 b43_ac_agc_lna1_max[] = { 0x0b, 0x0c, 0x0e, 0x20, 0x24, 0x28 };
-static const u8 b43_ac_agc_lna2_gain[] = { 0xf8, 0xf8, 0xfc, 0xff, 0x02, 0x02, 0x02 };
-static const u8 b43_ac_agc_lna2_code[] = { 1, 1, 2, 3, 4, 4, 4 };
-static const u8 b43_ac_agc_lna2_max[] = { 0, 0, 0, 3, 3, 3, 3 };
-static const u8 b43_ac_agc_elna_c0[] = { 0x0e, 0x0e };
-static const u8 b43_ac_agc_elna_c1[] = { 0x0c, 0x0c };
-
-static const struct b43_phy_ac_tbl b43_ac_agc_tbls_2g[] = {
-	{ b43_ac_agc_lna1_gain, 6, 0x44, 0x08, 8 },
-	{ b43_ac_agc_lna1_code, 6, 0x45, 0x08, 8 },
-	{ b43_ac_agc_lna1_gain, 6, 0x64, 0x08, 8 },
-	{ b43_ac_agc_lna1_code, 6, 0x65, 0x08, 8 },
-	{ b43_ac_agc_lna1_max, 6, 0x0b, 0x08, 8 },
-	{ b43_ac_agc_lna2_gain, 7, 0x44, 0x10, 8 },
-	{ b43_ac_agc_lna2_code, 7, 0x45, 0x10, 8 },
-	{ b43_ac_agc_lna2_gain, 7, 0x64, 0x10, 8 },
-	{ b43_ac_agc_lna2_code, 7, 0x65, 0x10, 8 },
-	{ b43_ac_agc_lna2_max, 7, 0x0b, 0x10, 8 },
-	{ b43_ac_agc_elna_c0, 2, 0x44, 0x00, 8 },
-	{ b43_ac_agc_elna_c1, 2, 0x64, 0x00, 8 },
-};
-
 
 static int b43_phy_ac_op_init(struct b43_wldev *dev)
 {
