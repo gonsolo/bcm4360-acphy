@@ -1096,6 +1096,9 @@ static const struct b43_phy_ac_tbl b43_rfseq2_5g_tbls[] = {
 static void b43_phy_ac_write_table(struct b43_wldev *dev,
 				   const struct b43_phy_ac_tbl *t);
 
+static void b43_phy_ac_table_write16(struct b43_wldev *dev, u16 id, u16 offset,
+				     u16 value);
+
 static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 {
 	static const u16 ext[4][3] = {
@@ -1112,6 +1115,12 @@ static void b43_phy_ac_rfseq_ext_5g(struct b43_wldev *dev)
 		b43_phy_ac_table_write48(dev, 0x14, 0x30 + i, ext[i]);
 	for (i = 0; i < ARRAY_SIZE(b43_rfseq2_5g_tbls); i++)
 		b43_phy_ac_write_table(dev, &b43_rfseq2_5g_tbls[i]);
+	/* rfseq2 timing cells of the TX chains (core 0 at 973, core 1 at 989) that
+	 * differ from the 2.4 GHz defaults: without the core 1 value no two-stream
+	 * frame is ever acknowledged (notes/156).
+	 */
+	b43_phy_ac_table_write16(dev, 7, 973, 0x03a2);
+	b43_phy_ac_table_write16(dev, 7, 989, 0x05d0);
 	/* The 5 GHz TX gain table, and the rpcal fill wl used on channel 112
 	 * (the twelve head cells and the zero tail are band independent).
 	 */
