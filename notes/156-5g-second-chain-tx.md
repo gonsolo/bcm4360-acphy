@@ -26,3 +26,9 @@ measured at fixed NSS 1 MCS 7 and NSS 2 MCS 7 (two streams at MCS 7 was dead): o
 NSS 2 MCS 7 carries 22-24 Mbit/s (54 % retries, 27 failed, was 0 and dead); the other groups add nothing on top. Written
 next to 973/989. With all three, minstrel settles on VHT-MCS 6 NSS 2 (tx 526 Mbit/s), up 68-84, down 63-65 (path ceiling),
 0-3 failed per 55k frames. 5 -> 2.4 GHz switch puts 398/973/989 back (0 / 0x2d3 / 0x352), 2.4 GHz connects at MCS 14-15.
+
+## HT20 on 5 GHz again with the fix (ac_5ghz=1 only)
+Upload 61-74 Mbit/s at HT MCS 15 two streams (was 35 at MCS 7), TX retries 1 % (was 27 %). Download still 21-24 Mbit/s: the one
+problem left from notes/142 (20 MHz RX on 5 GHz; the 80 MHz mode receives fine, 63-65). 114 PHY words differ between our 20 MHz and
+80 MHz state (Farrow 0x180-0x1c6, per-core 0x6xx/0x7xx, 0x531-0x539, ...), no wl reference for 20 MHz on 5 GHz to decide which
+belong to the bandwidth and which to a missing 20 MHz setup. Open.
