@@ -22,8 +22,7 @@ driver, retested).
 - **2.4 GHz works** on kernel 7.2.9 with HT20 and A-MPDU in both
   directions (the default since 2026-10-10): about 30 Mbit/s up and 20
   down at -70 dBm over 15-minute soaks, 36-43 up next to the router.
-  Legacy rates (`ac_ht=0 ac_ampdu=0`) give about 20/17 near and 13/10 at
-  -70 dBm. The microcode builds the aggregates and sends the block acks;
+  (Legacy rates gave about 20/17 near and 13/10 at -70 dBm.) The microcode builds the aggregates and sends the block acks;
   the driver requeues MPDUs it gives up on. TX aggregates are limited to
   4 MPDUs: longer ones lose their later MPDUs.
 - **TX gain is a fixed index** (20) of the stock 2.4 GHz gain table. The
@@ -39,8 +38,9 @@ driver, retested).
   wl's state (`phy_ac_por5g.h` is gone, notes/155); the blocks 36-48, 52-64 and
   100-112 are tested, 20 MHz on 5 GHz receives poorly (download ~22 Mbit/s); hardware encryption is off (`nohwcrypt=1`); five PHY words
   (0x1739, 0x016b, 0x0175, 0x03c4, 0x0197/98 values) are constants of
-  unknown meaning; the test parameters and debugfs have to go before any
-  upstreaming.
+  unknown meaning. The test parameters are gone (notes/158); `ac_replay` and
+  `ac_por` are still accepted and ignored for the boot service; the `b43ac`
+  debugfs exists only in builds with `AC_DEBUG=1 tools/build_b43_for_kernel.sh`.
 - Older bisect/boot history (kernel regression hunt, notes/76-102) is kept
   in the notes.
 

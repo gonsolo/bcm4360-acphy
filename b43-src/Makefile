@@ -8,6 +8,10 @@ KDIR ?= /nix/store/18rsbfk0qpkx88qyn19xj5vcb98qhr6r-linux-6.18.53-dev/lib/module
 PWD := $(shell pwd)
 
 ccflags-y := -DCONFIG_B43_PHY_AC=1
+# Development: live PHY/radio/table access under /sys/kernel/debug/b43ac (make B43_AC_DEBUG=1)
+ifdef B43_AC_DEBUG
+ccflags-y += -DCONFIG_B43_PHY_AC_DEBUG
+endif
 
 obj-m := b43.o
 b43-y := main.o bus.o

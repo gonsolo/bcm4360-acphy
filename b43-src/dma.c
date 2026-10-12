@@ -35,12 +35,8 @@
  */
 #define TX_SLOTS_PER_FRAME	2
 
-static bool b43_ac_dmaburst = true;
-module_param_named(ac_dmaburst, b43_ac_dmaburst, bool, 0444);
-MODULE_PARM_DESC(ac_dmaburst, "AC-PHY: DMA burst length and prefetch as the stock driver sets them");
-static uint b43_ac_ampdu_requeue = 4;
-module_param_named(ac_ampdu_requeue, b43_ac_ampdu_requeue, uint, 0644);
-MODULE_PARM_DESC(ac_ampdu_requeue, "AC-PHY: times an unacknowledged session frame is put back on the ring, 0 = never");
+/* Times an unacknowledged A-MPDU session frame is put back on the ring */
+#define B43_AC_AMPDU_REQUEUE	4
 
 static u32 b43_dma_address(struct b43_dma *dma, dma_addr_t dmaaddr,
 			   enum b43_addrtype addrtype)
@@ -705,8 +701,7 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			 * Without them the engine moves about 6 MB/s and every
 			 * link tops out near 50 Mbit/s (notes/143).
 			 */
-			if (b43_ac_dmaburst &&
-			    ring->dev->phy.type == B43_PHYTYPE_AC)
+			if (ring->dev->phy.type == B43_PHYTYPE_AC)
 				value |= 0x03780040;
 			if (ring->dev->dma.ptr_is_addr) {
 				ring->ptr_base = lower_32_bits(ring->dmabase);
@@ -756,8 +751,7 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			if (!parity)
 				value |= B43_DMA64_RXPARITYDISABLE;
 			/* stock RX control: 0x036c0851 */
-			if (b43_ac_dmaburst &&
-			    ring->dev->phy.type == B43_PHYTYPE_AC)
+			if (ring->dev->phy.type == B43_PHYTYPE_AC)
 				value |= 0x036c0000;
 			if (ring->dev->dma.ptr_is_addr) {
 				ring->ptr_base = lower_32_bits(ring->dmabase);
@@ -1619,13 +1613,13 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 			 * on the ring, as the stock driver requeues it; the
 			 * block ack window lets it follow later frames.
 			 */
-			if (b43_ac_ampdu_requeue && !skip && !txstat->acked &&
+			if (!skip && !txstat->acked &&
 			    (info->flags & IEEE80211_TX_CTL_AMPDU) &&
 			    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 				struct b43_private_tx_info *pi =
 					b43_get_priv_tx_info(info);
 
-				if (pi->requeues < b43_ac_ampdu_requeue) {
+				if (pi->requeues < B43_AC_AMPDU_REQUEUE) {
 					struct ieee80211_hdr *hdr = (void *)meta->skb->data;
 
 					pi->requeues++;

@@ -233,25 +233,8 @@ static u8 b43_calc_fallback_rate(u8 bitrate, int gmode)
 }
 
 /* Generate a TX data header. */
-static uint b43_ac_txcore = 1;
-module_param_named(ac_txcore, b43_ac_txcore, uint, 0644);
-MODULE_PARM_DESC(ac_txcore, "AC-PHY TX core mask for PhyTxControlWord_0");
-
-static bool b43_ac_decerr_pass = true;
-module_param_named(ac_decerr_pass, b43_ac_decerr_pass, bool, 0644);
-MODULE_PARM_DESC(ac_decerr_pass, "AC-PHY: pass frames the ucode flags DECERR up to mac80211 instead of dropping them");
 static unsigned int b43_ac_decerr_logged;
 
-static int b43_ac_httx;
-module_param_named(ac_httx, b43_ac_httx, int, 0644);
-MODULE_PARM_DESC(ac_httx, "AC-PHY experiment (notes/123): send unicast data frames as HT20 at MCS (ac_httx - 1), 0 = off, runtime switchable");
-
-static uint b43_ac_ampdu_mpdus = 4;
-module_param_named(ac_ampdu_mpdus, b43_ac_ampdu_mpdus, uint, 0644);
-MODULE_PARM_DESC(ac_ampdu_mpdus, "AC-PHY: MPDUs per aggregate in the cache info, 0 = stock 32; long aggregates lose their later MPDUs (notes/137)");
-bool b43_ac_ampdu = true;
-module_param_named(ac_ampdu, b43_ac_ampdu, bool, 0444);
-MODULE_PARM_DESC(ac_ampdu, "AC-PHY: block ack sessions, the microcode builds the A-MPDUs (notes/137)");
 
 /*
  * One VHT rate block (frame type 3), as the stock driver lays it out and
@@ -286,7 +269,7 @@ static void b43_txhdr_ac_vht_block(u8 *ri, const struct ieee80211_tx_rate *t,
 	rinfo.bw = rate_bw[bw];
 
 	put_unaligned_le16(3 | 0x0004 |
-			   (((nss > 1 ? 3 : b43_ac_txcore) & 0xf) << 6) |
+			   ((nss > 1 ? 3 : 1) << 6) |
 			   (bw << 14), ri + 0x00);
 	put_unaligned_le16(sb, ri + 0x02);
 	put_unaligned_le16((mcs & 0xf) | ((nss - 1) << 4), ri + 0x04);
@@ -365,12 +348,10 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		 * fallback rate, duration 5414 us, window 63, max length 0x14.
 		 * Without the cache info the AP deauthenticates us.
 		 */
-		static const u8 cache[8] = { 0x00, 0x00, 0x20, 0x20, 0x26, 0x15, 0x3f, 0x14 };
+		static const u8 cache[8] = { 0x00, 0x00, 0x04, 0x04, 0x26, 0x15, 0x3f, 0x14 };
 
 		mac_lo = 0x45c0;
 		memcpy(h + 0x64, cache, sizeof(cache));
-		if (b43_ac_ampdu_mpdus)
-			h[0x66] = h[0x67] = b43_ac_ampdu_mpdus;
 	}
 	put_unaligned_le16(mac_lo, h + 0x02);
 	put_unaligned_le16(agg ? 0 : 0x0002, h + 0x04);	/* fixed rate */
@@ -382,7 +363,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		put_unaligned_le16(le16_to_cpu(wlhdr->seq_ctrl), h + 0x0e);
 
 	/* Rate entry 0: frame type, always-set bit 2, TX core 0 mask. */
-	phy0 = (is_ofdm ? 1 : 0) | 0x0004 | ((b43_ac_txcore & 0xf) << 6);
+	phy0 = (is_ofdm ? 1 : 0) | 0x0004 | (1 << 6);
 	if (!is_ofdm && rate != B43_CCK_RATE_1MB &&
 	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
 		phy0 |= 0x0010;
@@ -394,10 +375,6 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		 */
 		ht_mcs = min_t(int, ieee80211_rate_get_vht_mcs(&info->control.rates[0]), 7) +
 			 8 * (ieee80211_rate_get_vht_nss(&info->control.rates[0]) - 1);
-	else if (b43_ac_httx > 0 && b43_ac_httx <= 16 && ieee80211_is_data(wlhdr->frame_control) &&
-		 !is_multicast_ether_addr(wlhdr->addr1) &&
-		 !(info->flags & IEEE80211_TX_CTL_NO_ACK))
-		ht_mcs = b43_ac_httx - 1;
 
 	if (vht && agg) {
 		b43_txhdr_ac_vht_block(ri, &info->control.rates[0], chanspec);
@@ -407,7 +384,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 		u8 mcs = ht_mcs;
 		u8 *plcp = ri + 0x06;
 
-		phy0 = 2 | 0x0004 | (((mcs > 7 ? 3 : b43_ac_txcore) & 0xf) << 6);
+		phy0 = 2 | 0x0004 | ((mcs > 7 ? 3 : 1) << 6);
 		put_unaligned_le16(phy0, ri + 0x00);
 		put_unaligned_le16(subband, ri + 0x02);
 		put_unaligned_le16(mcs, ri + 0x04);
@@ -439,7 +416,7 @@ static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
 
 		put_unaligned_le16(0, ri + 0x10);
 		ri += 0x14;
-		put_unaligned_le16(2 | 0x0004 | (((mcs > 7 ? 3 : b43_ac_txcore) & 0xf) << 6), ri + 0x00);
+		put_unaligned_le16(2 | 0x0004 | ((mcs > 7 ? 3 : 1) << 6), ri + 0x00);
 		put_unaligned_le16(subband, ri + 0x02);
 		put_unaligned_le16(mcs, ri + 0x04);
 		ri[0x06] = mcs;
@@ -940,7 +917,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		 * 4-way handshake message 3 and DHCP replies; mac80211's own
 		 * software decryption still rejects anything really corrupt.
 		 */
-		if (dev->phy.type == B43_PHYTYPE_AC && b43_ac_decerr_pass) {
+		if (dev->phy.type == B43_PHYTYPE_AC) {
 			if (b43_ac_decerr_logged < 8) {
 				b43_ac_decerr_logged++;
 				b43info(dev->wl, "RX: DECERR passed up (len %u, macstat %04x)\n",

@@ -13,6 +13,7 @@
 #include "dma.h"
 #include "main.h"
 
+#ifdef CONFIG_B43_PHY_AC_DEBUG
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
@@ -417,6 +418,7 @@ static const struct file_operations b43_ac_dbg_fops = {
 	.read	= b43_ac_dbg_read,
 	.write	= b43_ac_dbg_write,
 };
+#endif /* CONFIG_B43_PHY_AC_DEBUG */
 
 /**************************************************
  * Basic PHY ops
@@ -431,6 +433,7 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 		return -ENOMEM;
 	dev->phy.ac = phy_ac;
 
+#ifdef CONFIG_B43_PHY_AC_DEBUG
 	if (!b43_ac_dbg_dir) {
 		b43_ac_dbg_dev = dev;
 		b43_ac_dbg_dir = debugfs_create_dir("b43ac", NULL);
@@ -457,7 +460,7 @@ static int b43_phy_ac_op_allocate(struct b43_wldev *dev)
 		debugfs_create_file("sprom", 0400, b43_ac_dbg_dir, NULL,
 				    &b43_ac_dbg_sprom_fops);
 	}
-
+#endif
 	return 0;
 }
 
@@ -466,11 +469,13 @@ static void b43_phy_ac_op_free(struct b43_wldev *dev)
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_ac *phy_ac = phy->ac;
 
+#ifdef CONFIG_B43_PHY_AC_DEBUG
 	if (b43_ac_dbg_dev == dev) {
 		debugfs_remove_recursive(b43_ac_dbg_dir);
 		b43_ac_dbg_dir = NULL;
 		b43_ac_dbg_dev = NULL;
 	}
+#endif
 	kfree(phy_ac);
 	phy->ac = NULL;
 }
@@ -821,10 +826,6 @@ MODULE_PARM_DESC(ac_replay, "ignored, kept so old command lines still load");
  * default off - a reasoned guess (EDCF|ACIW), not a captured wl value.
  */
 
-bool b43_ac_5ghz = true;
-module_param_named(ac_5ghz, b43_ac_5ghz, bool, 0444);
-MODULE_PARM_DESC(ac_5ghz, "AC-PHY: advertise and tune 5 GHz channels (default on, notes/156)");
-
 /* Accepted and ignored: the boot service still passes them (notes/130-135). */
 static uint b43_ac_por = 7;
 
@@ -870,9 +871,8 @@ u16 b43_phy_ac_chanspec(struct b43_wldev *dev, unsigned int channel)
 static void b43_radio_2069_vcocal(struct b43_wldev *dev);
 
 
-static int b43_ac_txidx = 20;
-module_param_named(ac_txidx, b43_ac_txidx, int, 0644);
-MODULE_PARM_DESC(ac_txidx, "AC-PHY: fixed 2.4 GHz TX gain table index, 0 = highest gain, applied on a channel switch; -1 leaves the reset value, index 64, which is too weak beyond a few metres. The stock power loop ran at 20-38 here (notes/138)");
+/* 2.4 GHz TX gain table index applied on a channel switch; 0 = highest gain, the reset value 64 is too weak beyond a few metres. The stock power loop ran at 20-38 here (notes/138) */
+#define B43_AC_TXIDX_2G	20
 static void b43_phy_ac_txpwr_by_index(struct b43_wldev *dev, unsigned int idx);
 
 module_param_named(ac_por, b43_ac_por, uint, 0444);
@@ -1180,10 +1180,6 @@ static void b43_phy_ac_phyinit(struct b43_wldev *dev)
 	b43_phy_ac_wide_tables_2g(dev);
 }
 
-static bool b43_ac_txpwrctl = true;
-module_param_named(ac_txpwrctl, b43_ac_txpwrctl, bool, 0644);
-MODULE_PARM_DESC(ac_txpwrctl, "AC-PHY: enable the hardware TX power control loop (PHY 0x70 = 0xe500)");
-
 static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 {
 
@@ -1219,11 +1215,11 @@ static void b43_phy_ac_apply_por(struct b43_wldev *dev)
 	 */
 	b43_phy_ac_phyinit(dev);
 	/* Hardware TX power control: 0x70 bits 15:13 enable it, 0x71 holds the
-	 * averaging window, 0x72 the rest of its configuration. Off by
-	 * default: next to the AP the loop's power makes 28 % of the frames
-	 * fail (upload 1-2 Mbit/s against 21 with 0x70 = 0x0100, notes/136).
+	 * averaging window, 0x72 the rest of its configuration. On since
+	 * notes/140 (with the wide tables it no longer fails frames next to the
+	 * AP; 0x0100 would switch it off).
 	 */
-	b43_phy_write(dev, 0x0070, b43_ac_txpwrctl ? 0xe500 : 0x0100);
+	b43_phy_write(dev, 0x0070, 0xe500);
 	b43_phy_write(dev, 0x0071, 0x04c8);
 	b43_phy_write(dev, 0x0072, 0x400d);
 }
@@ -1421,11 +1417,6 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 		       new_channel, dev->phy.radio_ver, dev->phy.radio_rev);
 		return -ESRCH;
 	}
-	if (is_5ghz && !b43_ac_5ghz) {
-		b43dbg(dev->wl, "phy_ac: 5 GHz disabled (channel %u, ac_5ghz=0)\n",
-			new_channel);
-		return -EOPNOTSUPP;
-	}
 	b43dbg(dev->wl, "phy_ac: switch_channel(%u) -> %u MHz\n",
 		new_channel, e->freq);
 
@@ -1515,8 +1506,8 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 
 	b43_phy_ac_resetcca(dev);
 
-	if (!is_5ghz && b43_ac_txidx >= 0)
-		b43_phy_ac_txpwr_by_index(dev, b43_ac_txidx);
+	if (!is_5ghz)
+		b43_phy_ac_txpwr_by_index(dev, B43_AC_TXIDX_2G);
 
 	return 0;
 }
@@ -1747,22 +1738,8 @@ static const struct b43_phy_ac_tbl b43_ac_agc_tbls_2g[] = {
 };
 
 
-/* SHM 0x7C (ucode word 0x3E): TX lifetime in 256us units. While a frame
- * waits in the main loop (deferral/backoff/retry) the ucode arms a deadline
- * of now + this value and completes the frame with supp_reason=5 (LIFE)
- * once it passes; 0 expires it on the arming pass. wl writes 0x0320.
- */
-static int b43_ac_txlifetime = -1;
-module_param_named(ac_txlifetime, b43_ac_txlifetime, int, 0644);
-MODULE_PARM_DESC(ac_txlifetime, "AC-PHY: TX lifetime written to SHM 0x7C in 256us units (-1: leave unset)");
-
 static int b43_phy_ac_op_init(struct b43_wldev *dev)
 {
-	if (b43_ac_txlifetime >= 0 && b43_ac_txlifetime <= 0xffff) {
-		b43_shm_write16(dev, B43_SHM_SHARED, 0x7c, b43_ac_txlifetime);
-		b43info(dev->wl, "phy_ac: TX lifetime (SHM 0x7C) = 0x%04x\n",
-			b43_ac_txlifetime);
-	}
 	if (dev->phy.rev <= 1) {
 		b43_phy_ac_tables_init(dev);
 		b43_phy_ac_first_init(dev);
@@ -1784,16 +1761,13 @@ static int b43_phy_ac_op_init(struct b43_wldev *dev)
 /*
  * Self-healing for the per-init coin flip (notes/105, 119): only ~30 % of
  * fresh inits can transmit; in the others every TX ends in a PHY TX error.
- * With ac_selfheal=N the 15 s work polls the ucode's txphyerr counter (SHM
+ * The 15 s work polls the ucode's txphyerr counter (SHM
  * 0xFE) and restarts the core through mac80211 (fresh init, fresh coin flip)
- * after >= 3 errors in a window, at most N times; the budget refills after
+ * after >= 3 errors in a window, at most 3 times (B43_AC_SELFHEAL_MAX); the budget refills after
  * 10 quiet minutes. Polled, not IRQ-driven: unmasking B43_IRQ_PHY_TXERR hung
  * the machine twice (notes/119).
  */
-static uint b43_ac_selfheal = 3;
-module_param_named(ac_selfheal, b43_ac_selfheal, uint, 0644);
-MODULE_PARM_DESC(ac_selfheal, "AC-PHY: max automatic core restarts when the txphyerr counter shows a bad init, 0 = off, default 3");
-
+#define B43_AC_SELFHEAL_MAX	3
 #define B43_AC_SH_TXPHYERR	0x00FE
 
 static bool b43_phy_ac_check_badinit(struct b43_wldev *dev)
@@ -1803,20 +1777,18 @@ static bool b43_phy_ac_check_badinit(struct b43_wldev *dev)
 	static u16 last;
 	u16 now, d;
 
-	if (!b43_ac_selfheal)
-		return false;
 	if (restarts && time_after(jiffies, last_restart + 600 * HZ))
 		restarts = 0;
 	now = b43_shm_read16(dev, B43_SHM_SHARED, B43_AC_SH_TXPHYERR);
 	d = now - last;
 	last = now;
-	if (d < 3 || restarts >= b43_ac_selfheal)
+	if (d < 3 || restarts >= B43_AC_SELFHEAL_MAX)
 		return false;
 	restarts++;
 	last_restart = jiffies;
 	last = 0;	/* the ucode is reloaded, its counters restart at 0 */
 	pr_emerg("b43 ac_selfheal: bad init (%u PHY TX errors), restart %u/%u\n",
-		 d, restarts, b43_ac_selfheal);
+		 d, restarts, B43_AC_SELFHEAL_MAX);
 	mdelay(30);
 	b43_controller_restart(dev, "AC bad init");
 	return true;

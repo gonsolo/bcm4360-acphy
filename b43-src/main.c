@@ -376,12 +376,7 @@ static struct ieee80211_supported_band b43_band_2GHz = {
 	.n_bitrates	= b43_g_ratetable_size,
 };
 
-static bool b43_ac_ht = true;
-module_param_named(ac_ht, b43_ac_ht, bool, 0444);
-MODULE_PARM_DESC(ac_ht, "AC-PHY: advertise HT20 (2 streams, no short GI) on 2.4 GHz (notes/137, 138)");
 
-static bool b43_ac_vht = true;
-module_param_named(ac_vht, b43_ac_vht, bool, 0444);
 MODULE_PARM_DESC(ac_vht, "AC-PHY: advertise VHT (2 streams, 80 MHz) on 5 GHz. Experimental; needs ac_5ghz=1 ac_5g_80=1 and an AP on channels 100-112 (notes/143)");
 
 static struct ieee80211_supported_band b43_band_2GHz_ac = {
@@ -418,10 +413,6 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *conf,
 				    u64 changed);
-extern bool b43_ac_ampdu;
-static bool b43_ac_ampdu_rx = true;
-module_param_named(ac_ampdu_rx, b43_ac_ampdu_rx, bool, 0644);
-MODULE_PARM_DESC(ac_ampdu_rx, "AC-PHY: accept the peer's block ack sessions (with ac_ampdu=1)");
 
 static int b43_ratelimit(struct b43_wl *wl)
 {
@@ -1328,18 +1319,12 @@ void b43_wireless_core_phy_pll_reset(struct b43_wldev *dev)
 }
 
 #ifdef CONFIG_B43_BCMA
-static bool b43_ac_nopllctl;
-module_param_named(ac_nopllctl, b43_ac_nopllctl, bool, 0444);
-MODULE_PARM_DESC(ac_nopllctl, "AC-PHY test: do not request/wait for the 80211/PHY PLLs (bcma_core_pll_ctl) at core reset");
-static bool b43_ac_phyreset = true;
-module_param_named(ac_phyreset, b43_ac_phyreset, bool, 0444);
-MODULE_PARM_DESC(ac_phyreset, "AC-PHY: reset the PHY the way wl does (IOCTL 0x14f twice, 0x141, 0x145: reset asserted with the clock forced, released with the clock free) instead of the generic b43 order, default on (notes/122)");
 
 static void b43_bcma_phy_reset(struct b43_wldev *dev)
 {
 	u32 flags;
 
-	if (b43_ac_phyreset && (dev->dev->core_rev == 40 || dev->dev->core_rev == 42)) {
+	if ((dev->dev->core_rev == 40 || dev->dev->core_rev == 42)) {
 		flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		flags |= B43_BCMA_IOCTL_PHY_RESET | B43_BCMA_IOCTL_PHY_BW_20MHZ |
 			 BCMA_IOCTL_FGC | B43_BCMA_IOCTL_PHY_CLKEN;
@@ -1398,8 +1383,7 @@ static void b43_bcma_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 
 	bcma_core_set_clockmode(dev->dev->bdev, BCMA_CLKMODE_FAST);
 	b43_bcma_phy_reset(dev);
-	if (!(b43_ac_nopllctl && dev->phy.type == B43_PHYTYPE_AC))
-		bcma_core_pll_ctl(dev->dev->bdev, req, status, true);
+	bcma_core_pll_ctl(dev->dev->bdev, req, status, true);
 }
 #endif
 
@@ -1453,9 +1437,6 @@ void b43_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 }
 
-static bool b43_ac_txs_sum;
-module_param_named(ac_txs_sum, b43_ac_txs_sum, bool, 0644);
-MODULE_PARM_DESC(ac_txs_sum, "AC-PHY: old (wrong) TX attempt count, summing the constant byte in bits 16-23 (notes/110)");
 
 static void handle_irq_transmit_status(struct b43_wldev *dev)
 {
@@ -1495,19 +1476,13 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
 			 * constant 1 on every acknowledged frame (0 on suppressed ones), not a second
 			 * attempt counter: summing it made every frame look like it needed a retry, so
 			 * minstrel saw ~50 % failures at every rate and TX stayed at 1-6 Mbit/s
-			 * (1.2 "retries" per frame regardless of rate or TX power). ac_txs_sum=1 restores
-			 * the old sum for comparison. */
-			if (b43_ac_txs_sum)
-				n = (v2 & 0xff) + ((v2 >> 16) & 0xff) +
-				    (v3 & 0xff) + ((v3 >> 16) & 0xff);
-			else
-				n = v2 & 0xff;
+			 * (1.2 "retries" per frame regardless of rate or TX power).*/
+			n = v2 & 0xff;
 			stat.frame_count = min(n, 15u);
-			if (b43_ac_ampdu)
-				stat.fb_count = min((v2 >> 16) & 0xff, 15u);
+			stat.fb_count = min((v2 >> 16) & 0xff, 15u);
 			b43dbg(dev->wl, "AC txstatus %08x %08x %08x %08x / %08x %08x %08x %08x\n",
 			       v0, v1, v2, v3, w0, w1, w2, w3);
-			if (b43_ac_ampdu && mpdus > 1) {
+			if (mpdus > 1) {
 				/* A-MPDU: one status for @mpdus frames with consecutive cookies */
 				u16 cookie = stat.cookie;
 
@@ -3210,57 +3185,17 @@ void b43_mac_enable(struct b43_wldev *dev)
 	}
 }
 
-/* Stock b43 waits ~40ms; brcmsmac waits 83ms (wlc_bmac_suspend_mac_and_wait). */
-static int b43_suspend_ms = 40;
-module_param_named(suspend_ms, b43_suspend_ms, int, 0644);
-MODULE_PARM_DESC(suspend_ms, "MAC suspend timeout in ms (stock b43: 40)");
-
-/* What brcmsmac dumps when wlc_bmac_suspend_mac_and_wait() times out
- * (psmdebug 0x154, phydebug 0x158, psm_brc 0x490), plus repeated psmdebug
- * samples to tell a spinning PSM from a stopped one, and the caller. */
-static void b43_mac_suspend_diag(struct b43_wldev *dev)
-{
-	static DEFINE_RATELIMIT_STATE(rs, 10 * HZ, 3);
-	u32 pc[8];
-	int i;
-
-	if (!__ratelimit(&rs))
-		return;
-	for (i = 0; i < ARRAY_SIZE(pc); i++) {
-		pc[i] = b43_read32(dev, 0x154);
-		udelay(1);
-	}
-	b43err(dev->wl, "suspend diag: psmdebug %08x %08x %08x %08x %08x %08x %08x %08x\n",
-	       pc[0], pc[1], pc[2], pc[3], pc[4], pc[5], pc[6], pc[7]);
-	b43err(dev->wl, "suspend diag: phydebug %08x psm_brc %04x macctl %08x reason %08x ucodestat %04x\n",
-	       b43_read32(dev, 0x158), b43_read16(dev, 0x490),
-	       b43_read32(dev, B43_MMIO_MACCTL),
-	       b43_read32(dev, B43_MMIO_GEN_IRQ_REASON),
-	       b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_UCODESTAT));
-	dump_stack();
-}
-
-/* notes/83/91: temporary diagnostic timing for b43_op_config's phases
- * and b43_mac_suspend()'s own sub-phases, chasing the 7.2.7-only slow
- * suspend waits. Logs only when the relevant call is slower than
- * b43_optiming_thresh_ms (default off). Remove once localized. */
-static int b43_optiming_thresh_ms = -1;
-module_param_named(optiming_thresh_ms, b43_optiming_thresh_ms, int, 0644);
-MODULE_PARM_DESC(optiming_thresh_ms, "diagnostic: log b43_op_config/b43_mac_suspend phase timing above this many ms (0: log every call, -1: disable)");
-
 /* https://bcm-specs.sipsolutions.net/SuspendMAC */
 void b43_mac_suspend(struct b43_wldev *dev)
 {
 	int i;
 	u32 tmp;
-	ktime_t __t0 = ktime_get(), __t_psctl, __t_end;
 
 	might_sleep();
 	B43_WARN_ON(dev->mac_suspended < 0);
 
 	if (dev->mac_suspended == 0) {
 		b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
-		__t_psctl = ktime_get();
 		b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_ENABLED, 0);
 		/* force pci to flush the write */
 		b43_read32(dev, B43_MMIO_MACCTL);
@@ -3271,33 +3206,16 @@ void b43_mac_suspend(struct b43_wldev *dev)
 			udelay(10);
 		}
 		/* Hm, it seems this will take some time. Use msleep(). */
-		for (i = 0; i < b43_suspend_ms; i++) {
+		for (i = 40; i; i--) {
 			tmp = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
-			if (tmp & B43_IRQ_MAC_SUSPENDED) {
-				/* The old limit was 40ms; log anything past it.
-				 * AC ucode can hold off suspend while a frame
-				 * with a TX lifetime (SHM 0x7C) is in flight. */
-				if (i > 40)
-					b43info(dev->wl, "MAC suspend took ~%dms\n", i);
+			if (tmp & B43_IRQ_MAC_SUSPENDED)
 				goto out;
-			}
 			msleep(1);
 		}
-		b43err(dev->wl, "MAC suspend failed (%dms)\n", b43_suspend_ms);
-		if (dev->phy.type == B43_PHYTYPE_AC)
-			b43_mac_suspend_diag(dev);
+		b43err(dev->wl, "MAC suspend failed\n");
 	}
 out:
 	dev->mac_suspended++;
-	__t_end = ktime_get();
-	if (b43_optiming_thresh_ms >= 0 &&
-	    ktime_ms_delta(__t_end, __t0) >= b43_optiming_thresh_ms) {
-		b43info(dev->wl,
-			"suspendtiming: total=%lldms psctl=%lldms wait=%lldms\n",
-			ktime_ms_delta(__t_end, __t0),
-			ktime_ms_delta(__t_psctl, __t0),
-			ktime_ms_delta(__t_end, __t_psctl));
-	}
 }
 
 /* https://bcm-v4.sipsolutions.net/802.11/PHY/N/MacPhyClkSet */
@@ -3541,17 +3459,11 @@ static void b43_chip_exit(struct b43_wldev *dev)
  */
 /* rev 40+ MAC: carve template/TX FIFOs out of MAC memory and set up the
  * TX queue table (vendor FUN_00168c3d, called from wlc_bmac_init). */
-static bool b43_ac_fifo = true;
-module_param_named(ac_fifo, b43_ac_fifo, bool, 0444);
-MODULE_PARM_DESC(ac_fifo, "AC-PHY: carve MAC FIFOs like wl (rev 40+)");
 
 /* See B43_IRQ_AC_EXTRA_MASK in b43.h and notes/60-61: experimental,
  * unmasks IRQ sources wl's real mask enables that ours never has, to
  * test whether that's why our ucode sleeps for seconds instead of
  * waking promptly on a posted TX frame. Default off - unconfirmed. */
-static bool b43_ac_irq_extra;
-module_param_named(ac_irq_extra, b43_ac_irq_extra, bool, 0644);
-MODULE_PARM_DESC(ac_irq_extra, "AC-PHY test: unmask extra IRQ sources wl enables (notes/60-61)");
 
 static void b43_ac_fifo_init(struct b43_wldev *dev)
 {
@@ -3598,9 +3510,6 @@ static void b43_ac_fifo_init(struct b43_wldev *dev)
  * (b43-ac-wip patch 0007), so the chip keeps whatever the firmware/previous
  * owner left. Read-only dump at every init, to see whether it differs
  * between a good and a bad init (notes/57: each re-init is good or bad). */
-static unsigned int b43_ac_pmu_maxres;
-module_param_named(ac_pmu_maxres, b43_ac_pmu_maxres, uint, 0444);
-MODULE_PARM_DESC(ac_pmu_maxres, "AC-PHY test: write this PMU max resource mask at init (0: leave, stock wl reads 0x7ff)");
 
 static void b43_ac_pmu_dump(struct b43_wldev *dev, const char *when)
 {
@@ -3633,17 +3542,6 @@ static int b43_chip_init(struct b43_wldev *dev)
 
 	if (phy->type == B43_PHYTYPE_AC) {
 		b43_ac_pmu_dump(dev, "at chip_init");
-#ifdef CONFIG_B43_BCMA
-		/* Live PMU of a stock-driver BCM4360 reads max_res_mask 0x7ff
-		 * (b43-ac-wip patch 0007); ours stays at 0x1ff. Test switch. */
-		if (b43_ac_pmu_maxres && dev->dev->bus_type == B43_BUS_BCMA) {
-			struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
-
-			bcma_write32(cc->core, BCMA_CC_PMU_MAXRES_MSK,
-				     b43_ac_pmu_maxres);
-			b43_ac_pmu_dump(dev, "after maxres write");
-		}
-#endif
 	}
 
 	/* Initialize the MAC control */
@@ -3672,7 +3570,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 	if (err)
 		goto err_gpio_clean;
 
-	if (phy->type == B43_PHYTYPE_AC && b43_ac_fifo)
+	if (phy->type == B43_PHYTYPE_AC)
 		b43_ac_fifo_init(dev);
 
 	/* Turn the Analog on and initialize the PHY. */
@@ -4404,13 +4302,9 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	int antenna;
 	int err = 0;
-	ktime_t __t0, __t_lock, __t_suspend, __t_chan, __t_txpwr, __t_antenna, __t_end;
 
-	__t0 = ktime_get();
 	mutex_lock(&wl->mutex);
-	__t_lock = ktime_get();
 	b43_mac_suspend(dev);
-	__t_suspend = __t_chan = __t_txpwr = __t_antenna = ktime_get();
 
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL)
 		b43_set_beacon_listen_interval(dev, conf->listen_interval);
@@ -4428,7 +4322,6 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 		 * The firmware takes care of races with the TX handler.
 		 */
 		b43_switch_channel(dev, phy->channel);
-		__t_chan = __t_txpwr = __t_antenna = ktime_get();
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
@@ -4448,7 +4341,6 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 						   B43_TXPWR_IGNORE_TSSI);
 		}
 	}
-	__t_txpwr = __t_antenna = ktime_get();
 
 	/* Antennas for RX and management frame TX. */
 	antenna = B43_ANTENNA_DEFAULT;
@@ -4473,23 +4365,8 @@ static int b43_op_config(struct ieee80211_hw *hw, int radio_idx, u32 changed)
 	}
 
 out_mac_enable:
-	__t_antenna = ktime_get();
 	b43_mac_enable(dev);
-	__t_end = ktime_get();
 	mutex_unlock(&wl->mutex);
-
-	if (b43_optiming_thresh_ms >= 0 &&
-	    ktime_ms_delta(__t_end, __t0) >= b43_optiming_thresh_ms) {
-		b43info(dev->wl,
-			"optiming: total=%lldms lock=%lldms suspend=%lldms chan=%lldms txpwr=%lldms antenna=%lldms mac_enable=%lldms\n",
-			ktime_ms_delta(__t_end, __t0),
-			ktime_ms_delta(__t_lock, __t0),
-			ktime_ms_delta(__t_suspend, __t_lock),
-			ktime_ms_delta(__t_chan, __t_suspend),
-			ktime_ms_delta(__t_txpwr, __t_chan),
-			ktime_ms_delta(__t_antenna, __t_txpwr),
-			ktime_ms_delta(__t_end, __t_antenna));
-	}
 
 	return err;
 }
@@ -5131,14 +5008,6 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 	dev->irq_mask = B43_IRQ_MASKTEMPLATE;
 	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
 		dev->irq_mask &= ~B43_IRQ_PHY_TXERR;
-	/* See B43_IRQ_AC_EXTRA_MASK / notes/60-61: our AC port's ucode sleeps
-	 * (NAP) for seconds at a time instead of waking promptly to service
-	 * a posted TX frame, unlike wl on the same hardware. wl's real IRQ
-	 * mask enables several sources ours never has (notes/61); test
-	 * whether unmasking them lets the ucode wake on them too. */
-	if (dev->phy.type == B43_PHYTYPE_AC && b43_ac_irq_extra)
-		dev->irq_mask |= B43_IRQ_AC_EXTRA_MASK;
-
 	dev->mac_suspended = 1;
 
 	/* Noise calculation context */
@@ -5640,7 +5509,7 @@ static int b43_op_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (params->action) {
 	case IEEE80211_AMPDU_TX_START:
-		return b43_ac_ampdu ? IEEE80211_AMPDU_TX_START_IMMEDIATE : -EOPNOTSUPP;
+		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
@@ -5652,7 +5521,7 @@ static int b43_op_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_RX_STOP:
 		/* The microcode deaggregates and sends the block acks,
 		 * mac80211 reorders. */
-		return b43_ac_ampdu_rx ? 0 : -EOPNOTSUPP;
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -5812,7 +5681,7 @@ static int b43_setup_bands(struct b43_wldev *dev,
 	if (have_2ghz_phy)
 		hw->wiphy->bands[NL80211_BAND_2GHZ] = limited_2g ?
 			&b43_band_2ghz_limited :
-			(dev->phy.type == B43_PHYTYPE_AC && b43_ac_ht ?
+			(dev->phy.type == B43_PHYTYPE_AC ?
 			 &b43_band_2GHz_ac : &b43_band_2GHz);
 	if (dev->phy.type == B43_PHYTYPE_N) {
 		if (have_5ghz_phy)
@@ -5820,13 +5689,10 @@ static int b43_setup_bands(struct b43_wldev *dev,
 				&b43_band_5GHz_nphy_limited :
 				&b43_band_5GHz_nphy;
 	} else if (dev->phy.type == B43_PHYTYPE_AC) {
-		/* Experimental: without ac_5ghz, a software scan hitting a 5 GHz
-		 * channel gets -EOPNOTSUPP and can abort the whole scan. */
-		if (have_5ghz_phy && b43_ac_5ghz) {
+		if (have_5ghz_phy) {
 			/* The AP refuses a station without HT here (status 18) */
-			if (b43_ac_ht)
-				b43_band_5GHz_acphy.ht_cap = b43_band_2GHz_ac.ht_cap;
-			if (b43_ac_ht && b43_ac_vht) {
+			b43_band_5GHz_acphy.ht_cap = b43_band_2GHz_ac.ht_cap;
+			{
 				struct ieee80211_sta_vht_cap *vht =
 					&b43_band_5GHz_acphy.vht_cap;
 
@@ -6145,8 +6011,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, MFP_CAPABLE);
-	if (b43_ac_ampdu)
-		ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_MESH_POINT) |
