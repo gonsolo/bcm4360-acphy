@@ -1,0 +1,174 @@
+From 7a57b301dc84dbdaf2bce6870e8759c3d73df1eb Mon Sep 17 00:00:00 2001
+Message-ID: <7a57b301dc84dbdaf2bce6870e8759c3d73df1eb.1791840239.git.andreas.wendleder@proton.me>
+In-Reply-To: <cover.1791840239.git.andreas.wendleder@proton.me>
+References: <cover.1791840239.git.andreas.wendleder@proton.me>
+From: Andreas Wendleder <andreas.wendleder@proton.me>
+Date: Mon, 12 Oct 2026 23:14:10 +0200
+Subject: [PATCH RFC 04/13] wifi: b43: retry RX buffer refills that failed
+ under memory pressure
+
+dma_rx() refills a slot with GFP_ATOMIC. When that fails it reposts the
+old buffer, and nothing tries again: an idle slot and a slot stuck after
+a failed refill both hold a poisoned buffer, so they cannot be told apart
+by the poison alone.
+
+Add a flag to the slot meta data that is set when a refill failed, and a
+function that walks the RX ring and retries those slots. It runs from the
+periodic work, under wl->mutex like b43_dma_rx() itself. The caller is
+the AC PHY's 15 second work, added later in this series.
+---
+ drivers/net/wireless/broadcom/b43/dma.c | 99 +++++++++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/dma.h | 11 +++
+ 2 files changed, 110 insertions(+)
+
+diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
+index 9ee15b4..4d847cd 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -1701,8 +1701,16 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
+ 	err = setup_rx_descbuffer(ring, desc, meta, GFP_ATOMIC);
+ 	if (unlikely(err)) {
+ 		b43dbg(ring->dev->wl, "DMA RX: setup_rx_descbuffer() failed\n");
++		/* GFP_ATOMIC can fail under ordinary memory pressure, and
++		 * unlike a real frame arriving, nothing else will ever retry
++		 * this specific slot on its own - flag it so
++		 * b43_dma_rx_retry_poisoned() (pwork_15sec) gives it another
++		 * try later from a context that can use GFP_KERNEL.
++		 */
++		meta->rx_refill_failed = true;
+ 		goto drop_recycle_buffer;
+ 	}
++	meta->rx_refill_failed = false;
+ 
+ 	unmap_descbuffer(ring, dmaaddr, ring->rx_buffersize, 0);
+ 	skb_put(skb, len + ring->frameoffset);
+@@ -1718,6 +1726,97 @@ drop_recycle_buffer:
+ 	sync_descbuffer_for_device(ring, dmaaddr, ring->rx_buffersize);
+ }
+ 
++/* the vendor driver's real driver runs a periodic (~1.024s) dma_rxfill() sweep over the
++ * whole RX ring from its watchdog - a bulk catch-up refill,
++ * separate from and in addition to per-frame reactive refill. This port has
++ * never had an equivalent: dma_rx() below only refills reactively, one
++ * descriptor at a time, via GFP_ATOMIC (interrupt-thread context) - if that
++ * single allocation attempt fails, the descriptor is left holding its
++ * recycled buffer *permanently*: nothing ever retries that specific slot
++ * again unless a frame happens to land there once more. Under ordinary
++ * memory pressure (unrelated to RF conditions) this can silently and
++ * cumulatively shrink the RX ring's usable capacity over time - a concrete,
++ * plausible mechanism for this port's long-standing intermittent
++ * RX-reliability problem.
++ *
++ * This is that catch-up sweep: scan every RX slot for one dma_rx() flagged
++ * as rx_refill_failed (see that field's comment in dma.h - deliberately
++ * NOT the same check as b43_rx_buffer_is_poisoned(): an idle slot that
++ * simply hasn't received its first frame yet is *always* poisoned by
++ * design, so using poison alone as the retry signal was tried first and
++ * found to false-positive on essentially the whole ring on a quiet
++ * connection - only the explicit flag, set at the one specific call site
++ * where a real allocation failure happened, is unambiguous) and retry the
++ * allocation with GFP_KERNEL (this runs from pwork_15sec, a workqueue
++ * context that can sleep, not the interrupt thread's tighter budget).
++ *
++ * Locking/safety: b43_dma_rx() itself only ever runs under wl->mutex (via
++ * the threaded IRQ handler, b43_do_interrupt_thread() -> b43_dma_rx()) and
++ * so does this (via b43_periodic_work_handler()) - the two can never run
++ * concurrently, so there is no *software* race on rx_refill_failed or the
++ * ring's other bookkeeping. There is no way to fully synchronize with the
++ * DMA hardware itself, but a flagged slot's buffer was left exactly as
++ * dma_rx()'s own reactive-refill failure path already leaves it - the same
++ * "hardware won't return to this exact slot until the ring wraps all the
++ * way around" timing margin that already makes that in-place reactive
++ * refill safe applies equally here; this isn't a new risk category, just
++ * the same swap done slightly later, from a context that can retry harder.
++ */
++void b43_dma_rx_retry_poisoned(struct b43_wldev *dev)
++{
++	struct b43_dmaring *ring = dev->dma.rx_ring;
++	struct b43_dmadesc_generic *desc;
++	struct b43_dmadesc_meta *meta;
++	struct sk_buff *old_skb;
++	dma_addr_t old_dmaaddr;
++	int i, fixed = 0;
++
++	if (!ring || dev->__using_pio_transfers)
++		return;
++
++	for (i = 0; i < ring->nr_slots; i++) {
++		desc = ring->ops->idx2desc(ring, i, &meta);
++
++		/* meta->rx_refill_failed is plain host memory (not part of the
++		 * DMA buffer), and only ever changes here or in dma_rx(),
++		 * both of which run under wl->mutex - no sync/recheck needed
++		 * to read it safely, and NOT the same thing as checking
++		 * b43_rx_buffer_is_poisoned() (see the field's comment in
++		 * dma.h): most idle slots are legitimately, harmlessly
++		 * poisoned simply because no frame has landed there yet.
++		 */
++		if (!meta->rx_refill_failed)
++			continue;
++
++		/* This slot's buffer was already left correctly posted/
++		 * device-owned by dma_rx()'s failure path - it hasn't been
++		 * touched since, so the same "hardware won't return to this
++		 * exact slot until the ring wraps all the way around" timing
++		 * margin that already makes dma_rx()'s own in-place reactive
++		 * refill safe applies here too; this isn't a new risk
++		 * category, just the same swap done later.
++		 */
++		old_skb = meta->skb;
++		old_dmaaddr = meta->dmaaddr;
++		if (setup_rx_descbuffer(ring, desc, meta, GFP_KERNEL) == 0) {
++			meta->rx_refill_failed = false;
++			unmap_descbuffer(ring, old_dmaaddr,
++					 ring->rx_buffersize, 0);
++			dev_kfree_skb_any(old_skb);
++			fixed++;
++		} else {
++			/* Allocation failed again; meta is untouched (still
++			 * the old buffer, flag stays set for next time).
++			 */
++			sync_descbuffer_for_device(ring, old_dmaaddr,
++						   ring->rx_buffersize);
++		}
++	}
++	if (fixed)
++		b43info(dev->wl,
++			"phy_ac: recovered %d stuck RX descriptor(s)\n", fixed);
++}
++
+ void b43_dma_handle_rx_overflow(struct b43_dmaring *ring)
+ {
+ 	int current_slot, previous_slot;
+diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
+index b729ce3..3d26076 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.h
++++ b/drivers/net/wireless/broadcom/b43/dma.h
+@@ -194,6 +194,15 @@ struct b43_dmadesc_meta {
+ 	dma_addr_t dmaaddr;
+ 	/* ieee80211 TX status. Only used once per 802.11 frag. */
+ 	bool is_last_fragment;
++	/* RX only: set when a GFP_ATOMIC refill attempt failed in dma_rx()
++	 * and the old (recycled) buffer was reposted instead - see
++	 * b43_dma_rx_retry_poisoned(). NOT the same thing as "this slot's
++	 * buffer is b43_rx_buffer_is_poisoned()": a freshly allocated,
++	 * never-yet-used slot is *always* poisoned by design (that's how a
++	 * real incoming frame gets detected later) - poison alone can't tell
++	 * "idle, working fine" apart from "stuck after a failed refill".
++	 * This flag is the actual, unambiguous signal for the latter. */
++	bool rx_refill_failed;
+ };
+ 
+ struct b43_dmaring;
+@@ -306,6 +315,8 @@ void b43_dma_handle_rx_overflow(struct b43_dmaring *ring);
+ 
+ void b43_dma_rx(struct b43_dmaring *ring);
+ 
++void b43_dma_rx_retry_poisoned(struct b43_wldev *dev);
++
+ void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
+ 			    unsigned int engine_index, bool enable);
+ 
+-- 
+2.54.0
+

@@ -1,0 +1,104 @@
+Comments in the series that say where information came from (added lines only, tree 'final' of ~/b43-upstream).
+Review these before anything is sent: each is a provenance statement.
+
+phy_ac.c:  * and DATA), the vendor driver writes one 32-bit word, (value << 16) | reg,
+phy_ac.c: /* prefregs_2069_rev4 from the vendor driver. */
+phy_ac.c:  * Radio 2069 rev 4 init (as the vendor driver does it). Skipped: a board-flag
+phy_ac.c:  * Resistor calibration: the vendor's default path when SPROM boardflags3
+phy_ac.c: /* RC calibration (as the vendor driver does it), radio type 0 values. */
+phy_ac.c: /* Radio power-up (vendor wlc_phy_switch_radio_acphy, on, radio type 0). */
+phy_ac.c: /* 5 GHz AGC tables as written by the vendor driver on this board:
+phy_ac.c:  * code of Alessio Ferri's b43-ac-wip (mode_init, set_reg_on_reset,
+phy_ac.c:  * set_pdet_on_reset, coeff_bank_init), plus the few registers the vendor
+phy_ac.c:  * on 2.4 GHz; the 40 and 80 MHz ones are from Alessio Ferri's tree (5 GHz).
+phy_ac.c:  * table order. Resolved for acphychipid 0x4360 from the vendor driver's
+phy_ac.c:  * fractional resampler to the baseband rate depends on the channel. The vendor
+phy_ac.c:  * from Alessio Ferri's tree: ratio = round(f * 2^18 / 45), deltaphase =
+phy_ac.c:  * round(0xb40000000 / f); for 5530 MHz it gives the vendor driver's values.
+phy_ac.c:  * Channel switch for radio 2069 rev 4, following the vendor driver's channel-set
+phy_ac.c:  * sequence. Not ported: carrier-search suppression during the switch, the 5 GHz
+phy_ac.c:  * as b43_nphy_tx_power_ctl_setup(); it matches the vendor driver's table entry for
+phy_ac.c: 	for (i = 0; i < b43_phy_ac_vendor_tbls_n; i++)
+phy_ac.c: 		b43_phy_ac_write_table(dev, &b43_phy_ac_vendor_tbls[i]);
+phy_ac.c:  * First-init PHY register setup for PHY rev 0/1. Not ported: the hardware
+main.c: static struct ieee80211_supported_band b43_band_5GHz_acphy = {
+main.c: static struct ieee80211_supported_band b43_band_2GHz_ac = {
+main.c: 		.ht_supported	= true,
+main.c: 		 * the vendor driver uses entry 63 for its own MAC and 62 for the BSSID. */
+main.c: 		 * 0x48 = MAC. Also the vendor driver's default null-frame template at 0x2c and
+main.c: 			/* the vendor driver keeps the pins host-driven with GPIO1+2 high
+main.c: 		 * as the vendor driver sets it. 0x54/0x188 mean something else here. */
+main.c:  * TX queue table (as the vendor driver does it). */
+main.c: 	/* The vendor driver never sets SHM_ENABLED on AC-PHY cores. */
+main.c: 			vht->vht_supported = true;
+dma.c: 	 * index/status registers (same probe as the vendor driver and
+dma.c: 	 * brcmsmac's _dma_descriptor_align()).
+dma.c: /* the vendor driver's real driver runs a periodic (~1.024s) dma_rxfill() sweep over the
+xmit.c:  * Alessio Ferri's driver builds it: the width in word 0 bits 15:14, the
+xmit.c: 	h[0] = 0x02;	/* passthrough prefix, as wl sends it */
+xmit.c: 		/* HT20: frame type 2, PLCP as brcmsmac lays it out, rate index = MCS */
+xmit.c: 		plcp[3] = 0x07;		/* smoothing, not sounding, reserved (brcmsmac) */
+tables_phy_ac.c: /* RF sequencer tables (table id 7), previously replayed from the vendor driver's first-load capture.
+tables_phy_ac.c:  * Opcode names after Alessio Ferri's tree; values are what core revision 42 holds after the vendor driver's init. */
+tables_phy_ac.c: /* FEM control pattern (table 0x0a, three 32-byte blocks: A, B, A) for SROM femctrl == 2, the value the vendor driver holds on this card
+tables_phy_ac.c:  * (Alessio's tree has the femctrl == 6 variant, 0x06/0x02 where this has 0x04/0x00). */
+tables_phy_ac.c: /* Gain limits (table 0x0b) Names after Alessio's tree. */
+tables_phy_ac.c: /* Gain ladder "A" (table 0x0c, 18 index/gain pairs per core; name after Alessio's tree, the variant the vendor driver loads on this card). */
+tables_phy_ac.c:  * the vendor driver programs them on this card.  What is known is structure only, not the
+tables_phy_ac.c:  * Nothing here has been varied independently of the vendor driver, so these stay literal.
+tables_phy_ac.c: static const u16 b43_vendor_7_106[3] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_110[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_249[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_256[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_259[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_262[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_320[11] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_336[11] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_398[1] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_864[11] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_880[11] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_966[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_973[1] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_982[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_989[1] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_998[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_1018[3] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_1022[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_7_1088[4] = {
+tables_phy_ac.c: static const u16 b43_vendor_12_64[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_12_67[3] = {
+tables_phy_ac.c: static const u16 b43_vendor_12_72[2] = {
+tables_phy_ac.c: static const u16 b43_vendor_12_75[3] = {
+tables_phy_ac.c: static const u16 b43_vendor_12_95[9] = {
+tables_phy_ac.c: static const u16 b43_vendor_12_112[8] = {
+tables_phy_ac.c: const struct b43_phy_ac_tbl b43_phy_ac_vendor_tbls[] = {
+tables_phy_ac.c: 	{ b43_vendor_7_106, 3, 0x07, 0x6a, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_110, 2, 0x07, 0x6e, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_249, 2, 0x07, 0xf9, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_256, 2, 0x07, 0x100, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_259, 2, 0x07, 0x103, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_262, 2, 0x07, 0x106, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_320, 11, 0x07, 0x140, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_336, 11, 0x07, 0x150, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_398, 1, 0x07, 0x18e, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_864, 11, 0x07, 0x360, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_880, 11, 0x07, 0x370, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_966, 2, 0x07, 0x3c6, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_973, 1, 0x07, 0x3cd, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_982, 2, 0x07, 0x3d6, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_989, 1, 0x07, 0x3dd, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_998, 2, 0x07, 0x3e6, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_1018, 3, 0x07, 0x3fa, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_1022, 2, 0x07, 0x3fe, 16 },
+tables_phy_ac.c: 	{ b43_vendor_7_1088, 4, 0x07, 0x440, 16 },
+tables_phy_ac.c: 	{ b43_vendor_12_64, 2, 0x0c, 0x40, 16 },
+tables_phy_ac.c: 	{ b43_vendor_12_67, 3, 0x0c, 0x43, 16 },
+tables_phy_ac.c: 	{ b43_vendor_12_72, 2, 0x0c, 0x48, 16 },
+tables_phy_ac.c: 	{ b43_vendor_12_75, 3, 0x0c, 0x4b, 16 },
+tables_phy_ac.c: 	{ b43_vendor_12_95, 9, 0x0c, 0x5f, 16 },
+tables_phy_ac.c: 	{ b43_vendor_12_112, 8, 0x0c, 0x70, 16 },
+tables_phy_ac.c: const unsigned int b43_phy_ac_vendor_tbls_n = ARRAY_SIZE(b43_phy_ac_vendor_tbls);
+tables_phy_ac.c:  * (from Alessio Ferri's b43 AC-PHY driver; the stock driver loads it whole
+tables_phy_ac.c:  * TX gain table for 5 GHz as the vendor driver loads it into table 0x20 on this board
+tables_phy_ac.c:  * captured from the vendor driver, same entry format.
+phy_ac_farrow.h: /* the vendor driver's rx_farrow_tbl / tx_farrow_dac1_tbl, 20 MHz section (dump_farrow.java). */

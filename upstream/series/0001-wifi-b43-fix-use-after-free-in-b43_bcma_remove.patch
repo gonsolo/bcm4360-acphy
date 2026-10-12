@@ -1,7 +1,10 @@
-From f8268e9bf0e57f844745b14208920ec7b9744e88 Mon Sep 17 00:00:00 2001
+From 2bd8d42d654d39a144b7b9add8130ee53f91dcca Mon Sep 17 00:00:00 2001
+Message-ID: <2bd8d42d654d39a144b7b9add8130ee53f91dcca.1791840239.git.andreas.wendleder@proton.me>
+In-Reply-To: <cover.1791840239.git.andreas.wendleder@proton.me>
+References: <cover.1791840239.git.andreas.wendleder@proton.me>
 From: Andreas Wendleder <andreas.wendleder@proton.me>
-Date: Mon, 12 Oct 2026 21:19:30 +0200
-Subject: [PATCH] wifi: b43: fix use-after-free in b43_bcma_remove()
+Date: Mon, 12 Oct 2026 23:11:26 +0200
+Subject: [PATCH RFC 01/13] wifi: b43: fix use-after-free in b43_bcma_remove()
 
 b43_one_core_detach() frees the struct b43_wldev it is given the bus
 device of. b43_bcma_remove() then reads wldev->dev again to free the bus
@@ -13,11 +16,11 @@ at the start. Do the same here.
 Fixes: 96838d61102a ("b43: Fix memory leaks in b43_bus_dev_ssb_init and b43_bus_dev_bcma_init")
 Cc: stable@vger.kernel.org
 ---
- drivers/net/wireless/broadcom/b43/main.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ drivers/net/wireless/broadcom/b43/main.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 817448e..3825b6a 100644
+index 817448e..8f4aff3 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -5677,6 +5677,7 @@ static void b43_bcma_remove(struct bcma_device *core)
@@ -28,11 +31,12 @@ index 817448e..3825b6a 100644
  
  	/* We must cancel any work here before unregistering from ieee80211,
  	 * as the ieee80211 unreg will destroy the workqueue. */
-@@ -5691,14 +5692,14 @@ static void b43_bcma_remove(struct bcma_device *core)
+@@ -5691,14 +5692,15 @@ static void b43_bcma_remove(struct bcma_device *core)
  		ieee80211_unregister_hw(wl->hw);
  	}
  
 -	b43_one_core_detach(wldev->dev);
++	/* b43_one_core_detach() frees wldev, so dev must not be read from it afterwards */
 +	b43_one_core_detach(dev);
  
  	/* Unregister HW RNG driver */

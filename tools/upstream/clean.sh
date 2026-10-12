@@ -30,3 +30,4 @@ perl -0pi -e 's/\tif \(ring->dev->phy.type == B43_PHYTYPE_AC\) \{\n\t\tstatic at
 perl -0pi -e 's/static bool b43_dma32;\nmodule_param_named\(dma32, b43_dma32, bool, 0444\);\nMODULE_PARM_DESC\(dma32, [^\n]*\n\n//; s/DMA_BIT_MASK\(b43_dma32 \? 32 : type\)/DMA_BIT_MASK(type)/' dma.c
 perl -0pi -e 's/static bool b43_ac_replay;\nmodule_param_named\(ac_replay[^\n]*\nMODULE_PARM_DESC\(ac_replay[^\n]*\n//; s/\/\* Accepted and ignored:[^\n]*\*\/\nstatic uint b43_ac_por = 7;\n//; s/module_param_named\(ac_por, b43_ac_por, uint, 0444\);\nMODULE_PARM_DESC\(ac_por[^\n]*\n\n?//' phy_ac.c
 grep -n "dma32\|ac_replay\|ac_por\|atomic_t dumped" dma.c phy_ac.c || true
+nix-shell -p python3 --run "python3 -I $HERE/tools/upstream/polish.py $D"

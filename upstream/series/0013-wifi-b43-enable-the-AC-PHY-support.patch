@@ -1,0 +1,35 @@
+From ab23e34e9752897f64762c358665003feb80eebb Mon Sep 17 00:00:00 2001
+Message-ID: <ab23e34e9752897f64762c358665003feb80eebb.1791840239.git.andreas.wendleder@proton.me>
+In-Reply-To: <cover.1791840239.git.andreas.wendleder@proton.me>
+References: <cover.1791840239.git.andreas.wendleder@proton.me>
+From: Andreas Wendleder <andreas.wendleder@proton.me>
+Date: Mon, 12 Oct 2026 23:22:46 +0200
+Subject: [PATCH RFC 13/13] wifi: b43: enable the AC-PHY support
+
+The AC-PHY now brings up a BCM4352/BCM4360 on 2.4 GHz and 5 GHz and
+transmits and receives with HT and VHT at 20, 40 and 80 MHz. Remove the
+dependency on BROKEN and say what is missing: no TX calibration, no TX
+power control beyond the hardware loop, no hardware crypto and no power
+save.
+---
+ drivers/net/wireless/broadcom/b43/Kconfig | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/net/wireless/broadcom/b43/Kconfig b/drivers/net/wireless/broadcom/b43/Kconfig
+index 4559549..a8321ca 100644
+--- a/drivers/net/wireless/broadcom/b43/Kconfig
++++ b/drivers/net/wireless/broadcom/b43/Kconfig
+@@ -149,8 +149,8 @@ config B43_PHY_LCN
+ 	  Say N, this is BROKEN and crashes driver.
+ 
+ config B43_PHY_AC
+-	bool "Support for AC-PHY (802.11ac) devices (BROKEN)"
+-	depends on B43 && B43_BCMA && BROKEN
++	bool "Support for AC-PHY (802.11ac) devices (EXPERIMENTAL)"
++	depends on B43 && B43_BCMA
+ 	help
+ 	  This PHY type can be found in the following chipsets:
+ 	  PCI: BCM4352, BCM4360
+-- 
+2.54.0
+

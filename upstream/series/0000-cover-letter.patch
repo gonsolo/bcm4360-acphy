@@ -1,0 +1,71 @@
+From ab23e34e9752897f64762c358665003feb80eebb Mon Sep 17 00:00:00 2001
+Message-ID: <cover.1791840239.git.andreas.wendleder@proton.me>
+From: Andreas Wendleder <andreas.wendleder@proton.me>
+Date: Mon, 12 Oct 2026 23:23:59 +0200
+Subject: [PATCH RFC 00/13] wifi: b43: support for the BCM4360 / BCM4352 AC-PHY (RFC)
+
+This series makes b43 work on BCM4360 (PHY AC rev 1, radio 2069 rev 4, core
+revision 42) on 2.4 GHz and 5 GHz, with HT and VHT at 20, 40 and 80 MHz,
+two streams and A-MPDU.
+
+The first two patches are independent fixes and can be taken alone; the
+first one has a Fixes: tag and Cc: stable. Patches 3 and 4 touch the DMA
+code and are not specific to the AC PHY in what they handle.
+
+Tested on a MacBookAir6,1 (14e4:43a0, 2 of 3 chains wired), kernel 7.2.9
+with this series on top of v7.3-rc5's b43: association and traffic on
+2.4 GHz and on 5 GHz channel blocks 36-48, 52-64, 100-112, 116-128 and
+132-144 (80 MHz and, with a 20 or 40 MHz access point, those widths),
+WPA2 with software crypto, roaming between bands, suspend/resume. Throughput
+equals a USB adapter's on the same path (about 40-85 Mbit/s, limited by the
+path). Not done: TX calibration, hardware crypto, power save.
+
+Alessio Ferri has a series for the same hardware; this one was developed
+independently on this board and I would like to coordinate with him.
+
+[Provenance of the register sequences and tables: to be written before this
+is sent.]
+
+Andreas Wendleder (13):
+  wifi: b43: fix use-after-free in b43_bcma_remove()
+  wifi: b43: reprogram the MAC filter after an interface restart
+  wifi: b43: handle 64-bit DMA engines whose index registers hold bus
+    addresses
+  wifi: b43: retry RX buffer refills that failed under memory pressure
+  wifi: b43: MAC core setup for core revisions 40 and 42
+  wifi: b43: address match table, templates and beacons for the AC
+    microcode
+  wifi: b43: radio 2069 and AC-PHY tables
+  wifi: b43: AC-PHY init and 2.4 GHz channel switching
+  wifi: b43: TX descriptor and TX status for the AC microcode
+  wifi: b43: RX header handling for the AC microcode
+  wifi: b43: 5 GHz, 80 MHz and VHT for the AC PHY
+  wifi: b43: A-MPDU for the AC PHY
+  wifi: b43: enable the AC-PHY support
+
+ drivers/net/wireless/broadcom/b43/Kconfig     |    4 +-
+ drivers/net/wireless/broadcom/b43/Makefile    |    2 +-
+ drivers/net/wireless/broadcom/b43/b43.h       |    3 +
+ drivers/net/wireless/broadcom/b43/dma.c       |  233 +++-
+ drivers/net/wireless/broadcom/b43/dma.h       |   18 +
+ drivers/net/wireless/broadcom/b43/main.c      |  374 ++++-
+ drivers/net/wireless/broadcom/b43/phy_ac.c    | 1238 ++++++++++++++++-
+ drivers/net/wireless/broadcom/b43/phy_ac.h    |    7 +
+ .../net/wireless/broadcom/b43/phy_ac_farrow.h |  131 ++
+ .../net/wireless/broadcom/b43/phy_common.c    |    3 +
+ .../net/wireless/broadcom/b43/radio_2069.c    |  241 ++++
+ .../net/wireless/broadcom/b43/radio_2069.h    |   19 +
+ .../net/wireless/broadcom/b43/tables_phy_ac.c |  985 +++++++++++++
+ .../net/wireless/broadcom/b43/tables_phy_ac.h |   31 +
+ drivers/net/wireless/broadcom/b43/xmit.c      |  305 +++-
+ drivers/net/wireless/broadcom/b43/xmit.h      |   11 +
+ 16 files changed, 3561 insertions(+), 44 deletions(-)
+ create mode 100644 drivers/net/wireless/broadcom/b43/phy_ac_farrow.h
+ create mode 100644 drivers/net/wireless/broadcom/b43/radio_2069.c
+ create mode 100644 drivers/net/wireless/broadcom/b43/radio_2069.h
+ create mode 100644 drivers/net/wireless/broadcom/b43/tables_phy_ac.c
+ create mode 100644 drivers/net/wireless/broadcom/b43/tables_phy_ac.h
+
+-- 
+2.54.0
+

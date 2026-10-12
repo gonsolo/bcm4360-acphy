@@ -1,0 +1,181 @@
+From 0c93604b62c7147fc32cc10b05093d7dcd8df961 Mon Sep 17 00:00:00 2001
+Message-ID: <0c93604b62c7147fc32cc10b05093d7dcd8df961.1791840239.git.andreas.wendleder@proton.me>
+In-Reply-To: <cover.1791840239.git.andreas.wendleder@proton.me>
+References: <cover.1791840239.git.andreas.wendleder@proton.me>
+From: Andreas Wendleder <andreas.wendleder@proton.me>
+Date: Mon, 12 Oct 2026 23:21:48 +0200
+Subject: [PATCH RFC 12/13] wifi: b43: A-MPDU for the AC PHY
+
+The microcode builds the aggregates and sends the block acks. Accept block
+ack sessions on both sides (ampdu_action) and set
+IEEE80211_HW_AMPDU_AGGREGATION.
+
+Frames of a session that the microcode gave up on are put back on the
+ring, up to four times, with the retry bit set; the block ack window lets
+them follow later frames. The cache info limits an aggregate to four MPDUs,
+longer ones lose their later MPDUs.
+---
+ drivers/net/wireless/broadcom/b43/dma.c  | 44 ++++++++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/main.c | 32 +++++++++++++++++
+ drivers/net/wireless/broadcom/b43/xmit.h |  2 ++
+ 3 files changed, 78 insertions(+)
+
+diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
+index 165a1fe..779342d 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -34,6 +34,9 @@
+  * into separate slots. */
+ #define TX_SLOTS_PER_FRAME	2
+ 
++/* Times an unacknowledged A-MPDU session frame is put back on the ring */
++#define B43_AC_AMPDU_REQUEUE	4
++
+ static u32 b43_dma_address(struct b43_dma *dma, dma_addr_t dmaaddr,
+ 			   enum b43_addrtype addrtype)
+ {
+@@ -1398,6 +1401,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
+ 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+ 
+ 	hdr = (struct ieee80211_hdr *)skb->data;
++	b43_get_priv_tx_info(info)->requeues = 0;
+ 	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
+ 		/* The multicast ring will be sent after the DTIM */
+ 		ring = dev->dma.tx_ring_mcast;
+@@ -1485,6 +1489,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+ 	static const struct b43_txstatus fake; /* filled with 0 */
+ 	const struct b43_txstatus *txstat;
+ 	int slot, firstused;
++	struct sk_buff *requeue = NULL;
+ 	bool frame_succeed;
+ 	int skip;
+ 	static u8 err_out1;
+@@ -1587,6 +1592,27 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+ 			else
+ 				txstat = status;
+ 
++			/* A session frame the microcode gave up on goes back
++			 * on the ring, as the stock driver requeues it; the
++			 * block ack window lets it follow later frames.
++			 */
++			if (!skip && !txstat->acked &&
++			    (info->flags & IEEE80211_TX_CTL_AMPDU) &&
++			    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
++				struct b43_private_tx_info *pi =
++					b43_get_priv_tx_info(info);
++
++				if (pi->requeues < B43_AC_AMPDU_REQUEUE) {
++					struct ieee80211_hdr *hdr = (void *)meta->skb->data;
++
++					pi->requeues++;
++					hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_RETRY);
++					requeue = meta->skb;
++					meta->skb = B43_DMA_PTR_POISON;
++					ring->used_slots--;
++					break;
++				}
++			}
+ 			frame_succeed = b43_fill_txstatus_report(dev, info,
+ 								 txstat);
+ #ifdef CONFIG_B43_DEBUG
+@@ -1625,6 +1651,24 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+ 		if (skip > 0)
+ 			--skip;
+ 	}
++	if (requeue) {
++		if (dma_tx_fragment(ring, requeue)) {
++			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(requeue);
++
++			b43_fill_txstatus_report(dev, info, status);
++			ieee80211_tx_status_skb(dev->wl->hw, requeue);
++		} else if (free_slots(ring) < TX_SLOTS_PER_FRAME) {
++			/* The requeued frame took the slots this status freed:
++			 * the ring is still full, keep the queue stopped.
++			 */
++			if (!ring->stopped) {
++				b43_stop_queue(dev, ring->queue_prio);
++				dev->wl->tx_queue_stopped[ring->queue_prio] = true;
++				ring->stopped = true;
++			}
++			return;
++		}
++	}
+ 	if (ring->stopped) {
+ 		B43_WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME);
+ 		ring->stopped = false;
+diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
+index 0cf876b..6cfed26 100644
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -5470,6 +5470,36 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
+ 	return 0;
+ }
+ 
++static int b43_op_ampdu_action(struct ieee80211_hw *hw,
++			       struct ieee80211_vif *vif,
++			       struct ieee80211_ampdu_params *params)
++{
++	struct b43_wl *wl = hw_to_b43_wl(hw);
++
++	/* Only the AC-PHY path builds session frames */
++	if (!wl->current_dev || wl->current_dev->phy.type != B43_PHYTYPE_AC)
++		return -EOPNOTSUPP;
++
++	switch (params->action) {
++	case IEEE80211_AMPDU_TX_START:
++		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
++	case IEEE80211_AMPDU_TX_STOP_CONT:
++	case IEEE80211_AMPDU_TX_STOP_FLUSH:
++	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
++		ieee80211_stop_tx_ba_cb_irqsafe(vif, params->sta->addr, params->tid);
++		return 0;
++	case IEEE80211_AMPDU_TX_OPERATIONAL:
++		return 0;
++	case IEEE80211_AMPDU_RX_START:
++	case IEEE80211_AMPDU_RX_STOP:
++		/* The microcode deaggregates and sends the block acks,
++		 * mac80211 reorders. */
++		return 0;
++	default:
++		return -EOPNOTSUPP;
++	}
++}
++
+ static const struct ieee80211_ops b43_hw_ops = {
+ 	.add_chanctx = ieee80211_emulate_add_chanctx,
+ 	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+@@ -5492,6 +5522,7 @@ static const struct ieee80211_ops b43_hw_ops = {
+ 	.stop			= b43_op_stop,
+ 	.set_tim		= b43_op_beacon_set_tim,
+ 	.sta_notify		= b43_op_sta_notify,
++	.ampdu_action		= b43_op_ampdu_action,
+ 	.sw_scan_start		= b43_op_sw_scan_start_notifier,
+ 	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
+ 	.get_survey		= b43_op_get_survey,
+@@ -5895,6 +5926,7 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
+ 	ieee80211_hw_set(hw, RX_INCLUDES_FCS);
+ 	ieee80211_hw_set(hw, SIGNAL_DBM);
+ 	ieee80211_hw_set(hw, MFP_CAPABLE);
++	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+ 	hw->wiphy->interface_modes =
+ 		BIT(NL80211_IFTYPE_AP) |
+ 		BIT(NL80211_IFTYPE_MESH_POINT) |
+diff --git a/drivers/net/wireless/broadcom/b43/xmit.h b/drivers/net/wireless/broadcom/b43/xmit.h
+index a373934..10621fb 100644
+--- a/drivers/net/wireless/broadcom/b43/xmit.h
++++ b/drivers/net/wireless/broadcom/b43/xmit.h
+@@ -410,9 +410,11 @@ static inline u8 b43_kidx_to_raw(struct b43_wldev *dev, u8 firmware_kidx)
+  * The structure is placed in (struct ieee80211_tx_info *)->rate_driver_data
+  *
+  * @bouncebuffer: DMA Bouncebuffer (if used)
++ * @requeues: times the frame was put back on the ring (AC-PHY A-MPDU)
+  */
+ struct b43_private_tx_info {
+ 	void *bouncebuffer;
++	u8 requeues;
+ };
+ 
+ static inline struct b43_private_tx_info *
+-- 
+2.54.0
+

@@ -1,0 +1,203 @@
+From f81873f00204b1e16922ff2879ab3ee72b65d7aa Mon Sep 17 00:00:00 2001
+Message-ID: <f81873f00204b1e16922ff2879ab3ee72b65d7aa.1791840239.git.andreas.wendleder@proton.me>
+In-Reply-To: <cover.1791840239.git.andreas.wendleder@proton.me>
+References: <cover.1791840239.git.andreas.wendleder@proton.me>
+From: Andreas Wendleder <andreas.wendleder@proton.me>
+Date: Mon, 12 Oct 2026 23:13:15 +0200
+Subject: [PATCH RFC 03/13] wifi: b43: handle 64-bit DMA engines whose index
+ registers hold bus addresses
+
+Newer 64-bit DMA engines (found on the core revisions of the BCM4352 and
+BCM4360) accept ring addresses with low bits set and then use bus
+addresses, not offsets into the ring, in the index and status registers.
+They are detected with the probe the vendor driver uses: write 0xff0 to
+TXRINGLO and see whether it sticks.
+
+On such an engine keep the ring address in the new ring->ptr_base, add it
+when writing TXINDEX and RXINDEX and subtract it when reading RXSTATUS.
+The ring address registers have to be written before the control word
+enables the engine, and the hardware defaults of burst length,
+outstanding reads and prefetch control (the *CTL_KEEP masks) have to be
+preserved.
+
+For the AC PHY also set the burst and prefetch bits of the TX and RX
+control words that the vendor driver sets (0x03780040 and 0x036c0000).
+Without them the engine moves about 6 MB/s and every link tops out near
+50 Mbit/s.
+---
+ drivers/net/wireless/broadcom/b43/b43.h |  3 +
+ drivers/net/wireless/broadcom/b43/dma.c | 78 +++++++++++++++++++++----
+ drivers/net/wireless/broadcom/b43/dma.h |  6 ++
+ 3 files changed, 76 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/net/wireless/broadcom/b43/b43.h b/drivers/net/wireless/broadcom/b43/b43.h
+index c0d8fc0..15a184a 100644
+--- a/drivers/net/wireless/broadcom/b43/b43.h
++++ b/drivers/net/wireless/broadcom/b43/b43.h
+@@ -668,6 +668,9 @@ struct b43_dma {
+ 	u32 translation; /* Routing bits */
+ 	bool translation_in_low; /* Should translation bit go into low addr? */
+ 	bool parity; /* Check for parity */
++	/* Newer 64-bit engines: index/status registers hold bus addresses,
++	 * not ring offsets, and the ring must be set up before enabling. */
++	bool ptr_is_addr;
+ };
+ 
+ struct b43_pio_txqueue;
+diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
+index 05da698..9ee15b4 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -212,7 +212,7 @@ static void op64_fill_descriptor(struct b43_dmaring *ring,
+ 
+ static void op64_poke_tx(struct b43_dmaring *ring, int slot)
+ {
+-	b43_dma_write(ring, B43_DMA64_TXINDEX,
++	b43_dma_write(ring, B43_DMA64_TXINDEX, ring->ptr_base +
+ 		      (u32) (slot * sizeof(struct b43_dmadesc64)));
+ }
+ 
+@@ -233,14 +233,15 @@ static int op64_get_current_rxslot(struct b43_dmaring *ring)
+ 	u32 val;
+ 
+ 	val = b43_dma_read(ring, B43_DMA64_RXSTATUS);
+-	val &= B43_DMA64_RXSTATDPTR;
++	val = ((val & B43_DMA64_RXSTATDPTR) - ring->ptr_base) &
++	      B43_DMA64_RXSTATDPTR;
+ 
+ 	return (val / sizeof(struct b43_dmadesc64));
+ }
+ 
+ static void op64_set_current_rxslot(struct b43_dmaring *ring, int slot)
+ {
+-	b43_dma_write(ring, B43_DMA64_RXINDEX,
++	b43_dma_write(ring, B43_DMA64_RXINDEX, ring->ptr_base +
+ 		      (u32) (slot * sizeof(struct b43_dmadesc64)));
+ }
+ 
+@@ -690,9 +691,31 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
+ 			    & B43_DMA64_TXADDREXT_MASK;
+ 			if (!parity)
+ 				value |= B43_DMA64_TXPARITYDISABLE;
+-			b43_dma_write(ring, B43_DMA64_TXCTL, value);
+-			b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
+-			b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
++			/* Burst length, prefetch control and threshold as the
++			 * stock driver sets them (TX control 0x03780841).
++			 * Without them the engine moves about 6 MB/s and every
++			 * link tops out near 50 Mbit/s.
++			 */
++			if (ring->dev->phy.type == B43_PHYTYPE_AC)
++				value |= 0x03780040;
++			if (ring->dev->dma.ptr_is_addr) {
++				ring->ptr_base = lower_32_bits(ring->dmabase);
++				value |= b43_dma_read(ring, B43_DMA64_TXCTL) &
++					 B43_DMA64_TXCTL_KEEP;
++				b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
++				b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
++				b43_dma_write(ring, B43_DMA64_TXCTL, value);
++			} else {
++				ring->ptr_base = 0;
++				b43_dma_write(ring, B43_DMA64_TXCTL, value);
++				b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
++				b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
++			}
++			b43dbg(ring->dev->wl, "DMA tx%d: ctl=%08x ring=%08x:%08x\n",
++				ring->index,
++				b43_dma_read(ring, B43_DMA64_TXCTL),
++				b43_dma_read(ring, B43_DMA64_TXRINGHI),
++				b43_dma_read(ring, B43_DMA64_TXRINGLO));
+ 		} else {
+ 			u32 ringbase = (u32) (ring->dmabase);
+ 			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
+@@ -722,11 +745,29 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
+ 			    & B43_DMA64_RXADDREXT_MASK;
+ 			if (!parity)
+ 				value |= B43_DMA64_RXPARITYDISABLE;
+-			b43_dma_write(ring, B43_DMA64_RXCTL, value);
+-			b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
+-			b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
+-			b43_dma_write(ring, B43_DMA64_RXINDEX, ring->nr_slots *
+-				      sizeof(struct b43_dmadesc64));
++			/* stock RX control: 0x036c0851 */
++			if (ring->dev->phy.type == B43_PHYTYPE_AC)
++				value |= 0x036c0000;
++			if (ring->dev->dma.ptr_is_addr) {
++				ring->ptr_base = lower_32_bits(ring->dmabase);
++				value |= b43_dma_read(ring, B43_DMA64_RXCTL) &
++					 B43_DMA64_RXCTL_KEEP;
++				b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
++				b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
++				b43_dma_write(ring, B43_DMA64_RXCTL, value);
++			} else {
++				ring->ptr_base = 0;
++				b43_dma_write(ring, B43_DMA64_RXCTL, value);
++				b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
++				b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
++			}
++			b43_dma_write(ring, B43_DMA64_RXINDEX, ring->ptr_base +
++				      ring->nr_slots * sizeof(struct b43_dmadesc64));
++			b43dbg(ring->dev->wl, "DMA rx%d: ctl=%08x ring=%08x:%08x\n",
++				ring->index,
++				b43_dma_read(ring, B43_DMA64_RXCTL),
++				b43_dma_read(ring, B43_DMA64_RXRINGHI),
++				b43_dma_read(ring, B43_DMA64_RXRINGLO));
+ 		} else {
+ 			u32 ringbase = (u32) (ring->dmabase);
+ 			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
+@@ -1080,6 +1121,21 @@ int b43_dma_init(struct b43_wldev *dev)
+ 		dma->parity = false;
+ #endif
+ 
++	/* Engines that accept low ring-address bits use bus addresses in the
++	 * index/status registers (same probe as the vendor driver and
++	 * brcmsmac's _dma_descriptor_align()).
++	 */
++	dma->ptr_is_addr = false;
++	if (type == B43_DMA_64BIT) {
++		u16 ringlo = b43_dmacontroller_base(type, 0) + B43_DMA64_TXRINGLO;
++
++		b43_write32(dev, ringlo, 0xff0);
++		dma->ptr_is_addr = b43_read32(dev, ringlo) != 0;
++		b43_write32(dev, ringlo, 0);
++	}
++	b43dbg(dev->wl, "DMA: %u-bit engine, index registers hold %s\n",
++		type, dma->ptr_is_addr ? "bus addresses" : "ring offsets");
++
+ 	err = -ENOMEM;
+ 	/* setup TX DMA channels. */
+ 	dma->tx_ring_AC_BK = b43_setup_dmaring(dev, 0, 1, type);
+diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
+index f9f65bb..b729ce3 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.h
++++ b/drivers/net/wireless/broadcom/b43/dma.h
+@@ -90,6 +90,9 @@ struct b43_dmadesc32 {
+ #define		B43_DMA64_TXPARITYDISABLE		0x00000800
+ #define		B43_DMA64_TXADDREXT_MASK		0x00030000
+ #define		B43_DMA64_TXADDREXT_SHIFT		16
++/* Burst length, outstanding reads, prefetch control/threshold: hardware
++ * defaults that must be preserved on engines with dma.ptr_is_addr. */
++#define B43_DMA64_TXCTL_KEEP				0x03FC00C0
+ #define B43_DMA64_TXINDEX				0x04
+ #define B43_DMA64_TXRINGLO				0x08
+ #define B43_DMA64_TXRINGHI				0x0C
+@@ -118,6 +121,7 @@ struct b43_dmadesc32 {
+ #define		B43_DMA64_RXPARITYDISABLE		0x00000800
+ #define		B43_DMA64_RXADDREXT_MASK		0x00030000
+ #define		B43_DMA64_RXADDREXT_SHIFT		16
++#define B43_DMA64_RXCTL_KEEP				0x03FC0000
+ #define B43_DMA64_RXINDEX				0x24
+ #define B43_DMA64_RXRINGLO				0x28
+ #define B43_DMA64_RXRINGHI				0x2C
+@@ -235,6 +239,8 @@ struct b43_dmaring {
+ 	u8 *txhdr_cache;
+ 	/* (Unadjusted) DMA base bus-address of the ring memory. */
+ 	dma_addr_t dmabase;
++	/* Added to index register writes; 0 unless dma.ptr_is_addr. */
++	u32 ptr_base;
+ 	/* Number of descriptor slots in the ring. */
+ 	int nr_slots;
+ 	/* Number of used descriptor slots. */
+-- 
+2.54.0
+
