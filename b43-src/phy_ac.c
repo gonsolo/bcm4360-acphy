@@ -1121,6 +1121,38 @@ MODULE_PARM_DESC(ac_por5g_nr, "AC-PHY test: apply only the first N radio words o
 MODULE_PARM_DESC(ac_por5g_np, "AC-PHY test: only the first N PHY words of wl's 5 GHz state");
 MODULE_PARM_DESC(ac_por5g_nt, "AC-PHY test: only the first N table entries of wl's 5 GHz state");
 
+static void b43_phy_ac_write_table(struct b43_wldev *dev,
+				   const struct b43_phy_ac_tbl *t);
+
+/* 5 GHz AGC tables as written by the vendor driver on this board (notes/154):
+ * the same four table ids as 2.4 GHz (0x44/0x45 core 0, 0x64/0x65 core 1) but
+ * with the 5 GHz LNA gains. Offset 0: eLNA, 8: LNA1, 16: LNA2, 32: gain limits.
+ */
+static const u8 b43_ac_agc5_elna[] = { 0x0c, 0x0c };
+static const u8 b43_ac_agc5_lna1_gain[] = { 0xfe, 0xfe, 0x04, 0x0a, 0x10, 0x17 };
+static const u8 b43_ac_agc5_lna1_code[] = { 1, 1, 2, 3, 4, 5 };
+static const u8 b43_ac_agc5_lna2_gain[] = { 0xf8, 0xf8, 0xfb, 0xfe, 0x02, 0x05, 0x09 };
+static const u8 b43_ac_agc5_lna2_code[] = { 1, 1, 2, 3, 4, 5, 6 };
+static const u8 b43_ac_agc5_lim7[] = { 7, 7, 7, 7, 7, 7, 7, 7, 7, 7 };
+static const u8 b43_ac_agc5_lim2[] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 };
+
+static const struct b43_phy_ac_tbl b43_ac_agc_tbls_5g[] = {
+	{ b43_ac_agc5_elna, 2, 0x44, 0x00, 8 },
+	{ b43_ac_agc5_lna1_gain, 6, 0x44, 0x08, 8 },
+	{ b43_ac_agc5_lna2_gain, 7, 0x44, 0x10, 8 },
+	{ b43_ac_agc5_lim7, 10, 0x44, 0x20, 8 },
+	{ b43_ac_agc5_lna1_code, 6, 0x45, 0x08, 8 },
+	{ b43_ac_agc5_lna2_code, 7, 0x45, 0x10, 8 },
+	{ b43_ac_agc5_lim2, 10, 0x45, 0x20, 8 },
+	{ b43_ac_agc5_elna, 2, 0x64, 0x00, 8 },
+	{ b43_ac_agc5_lna1_gain, 6, 0x64, 0x08, 8 },
+	{ b43_ac_agc5_lna2_gain, 7, 0x64, 0x10, 8 },
+	{ b43_ac_agc5_lim7, 10, 0x64, 0x20, 8 },
+	{ b43_ac_agc5_lna1_code, 6, 0x65, 0x08, 8 },
+	{ b43_ac_agc5_lna2_code, 7, 0x65, 0x10, 8 },
+	{ b43_ac_agc5_lim2, 10, 0x65, 0x20, 8 },
+};
+
 static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 {
 	unsigned int i;
@@ -1149,6 +1181,8 @@ static void b43_phy_ac_apply_por5g(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_AC_TABLE_DATA1,
 			      tv & 0xffff);
 	}
+	for (i = 0; i < ARRAY_SIZE(b43_ac_agc_tbls_5g); i++)
+		b43_phy_ac_write_table(dev, &b43_ac_agc_tbls_5g[i]);
 	/* wl's SHM (it holds its key and session state: with it the WPA
 	 * handshake fails on 5 GHz) and its chipcommon/PMU words (blink timers
 	 * and other transient values) only on request, ac_por bits 8/16/32
