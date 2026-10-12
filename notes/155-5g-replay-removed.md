@@ -19,3 +19,11 @@ Build without any replay: connects, VHT-MCS 4-7, 62-83 up / 56-66 down.
 Observed: TX retries 8-15% in this build against 1-4% in the chain steps; signal read -69 dBm at the time. To check.
 Still open: 5 GHz is opt-in (`ac_5ghz=1 ac_5g_80=1 ac_vht=1`), other 80 MHz blocks untested, 20/40 MHz on 5 GHz, calibration
 still channel 106's.
+
+## RX level on 5 GHz (open)
+Same router, same moment, scan RSSI: USB stick -47 dBm, b43 -75 dBm (2.4 GHz: stick -35, b43 -35 when connected there).
+Live tests (debugfs, write wl's 5 GHz value, scan 4x, revert): of the 190 PHY words that differ from wl's state only
+0x173b/0x073b/0x093b (0x18 -> 0x2c) moves it, +8 dB (-75 -> -67); the differing radio words (65, in four groups) and wl's table
+ids in six groups change nothing. `b43_phy_ac_setup_5g()` now writes 0x173b = 0x2c (2.4 GHz restore puts 0x18 back).
+About 20 dB against the stick remain unexplained (could be antennas; wl itself read -51 and -77 dBm in two earlier sessions at other places,
+never next to the stick). TX: rate control sits at VHT-MCS 7 NSS 1 with 11% retries; RX reaches MCS 6 NSS 2.

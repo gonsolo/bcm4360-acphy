@@ -1165,6 +1165,10 @@ static void b43_phy_ac_setup_5g(struct b43_wldev *dev)
 
 	b43_phy_ac_rfseq_ext_5g(dev);
 	b43_radio_2069_vcocal(dev);
+	/* RX gain control, all cores: wl and Alessio use 0x2c on 5 GHz, our 2.4 GHz
+	 * init leaves 0x18; about 8 dB more RX level (notes/155).
+	 */
+	b43_phy_write(dev, 0x173b, 0x002c);
 	for (i = 0; i < ARRAY_SIZE(b43_ac_agc_tbls_5g); i++)
 		b43_phy_ac_write_table(dev, &b43_ac_agc_tbls_5g[i]);
 }
@@ -1796,6 +1800,7 @@ static void b43_phy_ac_restore_2g(struct b43_wldev *dev)
 
 	b43_phy_ac_tables_init(dev);
 	b43_phy_ac_wide_tables_2g(dev);
+	b43_phy_write(dev, 0x173b, 0x0018);
 	b43_phy_write(dev, 0x18b, 0);
 	ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 	if ((ioctl & B43_BCMA_IOCTL_PHY_BW) == B43_BCMA_IOCTL_PHY_BW_80MHZ) {
