@@ -21,3 +21,9 @@ b43 in the default mode (block 132-144, PHY 80 MHz mode) associates at VHT 40 MH
 Sequential 6 s runs against pampelmuse: b43 down 39.1, 39.5 / stick down 39.1, 39.3; b43 up 48.7-56.3 (six runs, retries 11-14 %, 0-13 failed per
 ~27k frames) / stick up 51.9, 52.5. Parity again. The test scripts, not the driver, produced some empty or stuck runs: a client run racing a
 server restart and a stick run bound to an address while the b43 host route was installed (use separate sequential runs).
+
+## Block 116-128 (router at 80 MHz, channel 124, centre 5610; primary position 3 of 4, 2026-10-12)
+Connected by NM, signal -50 dBm, rx VHT-MCS 4 x2 (351 Mbit/s), tx MCS 5-7 x2 (468-585). Six uploads 39.8-56.3 Mbit/s (retries 15-17 %, failed
+1-99 per ~25k frames; one run with 99), downloads 36.9 and 39.8 (the stick, on 2.4 GHz at the moment, 33.7 and 37.6; its upload 50.9). No error in
+dmesg. The router only offers channels 36-140, so the block 149-161 cannot be tested with it. Empty client runs in the scripts come from the iperf3
+server still being busy with the previous test: sleep a few seconds between runs.
