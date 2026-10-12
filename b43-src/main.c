@@ -5690,25 +5690,23 @@ static int b43_setup_bands(struct b43_wldev *dev,
 				&b43_band_5GHz_nphy;
 	} else if (dev->phy.type == B43_PHYTYPE_AC) {
 		if (have_5ghz_phy) {
+			struct ieee80211_sta_vht_cap *vht = &b43_band_5GHz_acphy.vht_cap;
+
 			/* The AP refuses a station without HT here (status 18) */
 			b43_band_5GHz_acphy.ht_cap = b43_band_2GHz_ac.ht_cap;
+			/* mac80211 wants 40 MHz capability before it uses 80 MHz */
+			b43_band_5GHz_acphy.ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+			vht->vht_supported = true;
+			vht->cap = IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
+			/* MCS 0-9 on one and two streams */
+			vht->vht_mcs.rx_mcs_map = cpu_to_le16(0xfffa);
+			vht->vht_mcs.tx_mcs_map = cpu_to_le16(0xfffa);
 #ifdef CONFIG_B43_PHY_AC_DEBUG
-			if (!b43_ac_force20)
-#endif
-			{
-				struct ieee80211_sta_vht_cap *vht =
-					&b43_band_5GHz_acphy.vht_cap;
-
-				/* mac80211 wants 40 MHz capability before it
-				 * uses 80 MHz */
-				b43_band_5GHz_acphy.ht_cap.cap |=
-					IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-				vht->vht_supported = true;
-				vht->cap = IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
-				/* MCS 0-9 on one and two streams */
-				vht->vht_mcs.rx_mcs_map = cpu_to_le16(0xfffa);
-				vht->vht_mcs.tx_mcs_map = cpu_to_le16(0xfffa);
+			if (b43_ac_force20) {
+				vht->vht_supported = false;
+				b43_band_5GHz_acphy.ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 			}
+#endif
 			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_acphy;
 		}
 	} else {
