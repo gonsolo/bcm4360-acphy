@@ -1858,6 +1858,10 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
 				   b43_phy_ac_80mhz_centre(new_channel);
 
 		b43_phy_ac_apply_por5g(dev);
+		/* The one PHY word of wl's 5 GHz state that 80 MHz RX/TX needs
+		 * (bisect of 318 words, notes/153); reg 0x18b is 0 after reset.
+		 */
+		b43_phy_write(dev, 0x18b, 0x016c);
 		/* Synthesizer, the per-channel PHY words (wl leaves 0x371 at 0 in
 		 * 80 MHz mode) and the resampler for the block centre; same result
 		 * as wl's own tuning on centre 106 (notes/144). Calibration results
