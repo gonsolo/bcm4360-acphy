@@ -25,3 +25,10 @@ tree (his DMA already has the "index registers hold bus addresses" part); `ALE_V
   1000 packets per second; TCP collapses to 2-3 Mbit/s on top of that. No "underrun" or other RX message in the log (netconsole capture).
 - His tree does not take the "DMA bits" fix, so his slow download is something else; candidates for him: RX interrupt/ring handling under load,
   the AC RX header handling (drops counted in `rx drop misc`), A-MPDU RX reordering (the session is accepted, the ucode deaggregates).
+
+## chipcontrol bit 3 in his tree (checked, 2026-10-12)
+`b43_phy_ac_fem2_sub1_setup()` in his phy_ac.c already does `bcma_cc_set32(..., BCMA_CC_CHIPCTL, 0x00000008)` (from the MacBookAir6,1 capture), and sets
+bit 24 (0x01000000) for boardflags with BFL_BTCOEXIST (that is where our dump's `0x01000008` comes from). Test with chipcontrol cleared to 0 before loading
+his driver: his driver sets what it needs; forced NSS 1 / NSS 2 upload: 1:5 41.8, 2:0 24.8, 2:5 46.5 Mbit/s, 2-3 % retries, 0-2 failed. Facts on this
+bit that his tree may not state: it persists across module reloads (only a cold boot clears it), and without it two-stream frames are never acknowledged
+(one-stream is fine), so a test made after another driver ran in the same boot can hide a missing bit.
