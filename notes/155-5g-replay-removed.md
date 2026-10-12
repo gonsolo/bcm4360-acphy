@@ -27,3 +27,9 @@ Live tests (debugfs, write wl's 5 GHz value, scan 4x, revert): of the 190 PHY wo
 ids in six groups change nothing. `b43_phy_ac_setup_5g()` now writes 0x173b = 0x2c (2.4 GHz restore puts 0x18 back).
 About 20 dB against the stick remain unexplained (could be antennas; wl itself read -51 and -77 dBm in two earlier sessions at other places,
 never next to the stick). TX: rate control sits at VHT-MCS 7 NSS 1 with 11% retries; RX reaches MCS 6 NSS 2.
+
+## RX level: closed as antennas (2026-10-12)
+Not a remaining init problem. Same explanation as notes/129 (stick: two large external antennas; MacBook: small internal ones,
+and b43 shows the raw ucode power byte without SROM RSSI offsets). The 5 GHz gap (20 dB) is larger than 2.4 GHz (13 dB), as
+expected for small antennas at higher frequency. The rate follows the level: next to the router (-50 dBm, notes/143) b43 ran
+tx VHT-MCS 9 NSS 2; at -67 dBm MCS 7 NSS 1 is what minstrel picks. PHY 0x173b stays (+8 dB is real gain).
