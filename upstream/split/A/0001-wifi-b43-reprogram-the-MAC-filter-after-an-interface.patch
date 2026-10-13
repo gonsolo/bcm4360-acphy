@@ -1,0 +1,38 @@
+From 95bd3b1695bfbc7e0eae34b69ee28bdb915b88d9 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Tue, 13 Oct 2026 23:55:11 +0200
+Subject: [PATCH wireless-next 1/3] wifi: b43: reprogram the MAC filter after
+ an interface restart
+
+b43_op_start() clears wl->filter_flags, but mac80211 computes @changed
+for b43_op_configure_filter() against the flags it cached from the
+previous run. After a down/up it can therefore report no change, so
+b43_adjust_opmode() is not called and MACCTL keeps the cleared filter.
+
+Seen on a BCM4360: after an interface restart nothing was received until
+some other change touched the filter. Compare the requested flags with
+what the hardware was actually programmed with and add the difference to
+@changed.
+
+Not checked on other chips.
+---
+ drivers/net/wireless/broadcom/b43/main.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
+index 8f4aff3..57a5935 100644
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -4318,6 +4318,12 @@ static void b43_op_configure_filter(struct ieee80211_hw *hw,
+ 		   FIF_OTHER_BSS |
+ 		   FIF_BCN_PRBRESP_PROMISC;
+ 
++	/* b43_op_start() zeroes wl->filter_flags, but mac80211 computes
++	 * @changed against its own cached flags, so after an interface
++	 * restart it reports no change and MACCTL kept the zeroed filter.
++	 * Compare against what the hardware was actually programmed with. */
++	if (wl->filter_flags != *fflags)
++		changed |= wl->filter_flags ^ *fflags;
+ 	wl->filter_flags = *fflags;
+ 
+ 	if (changed && b43_status(dev) >= B43_STAT_INITIALIZED)

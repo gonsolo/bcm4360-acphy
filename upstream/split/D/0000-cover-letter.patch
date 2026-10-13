@@ -1,0 +1,50 @@
+From 6cee9e30a532a94a5e3908665fba1ffb2bc61b20 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Wed, 14 Oct 2026 00:05:20 +0200
+Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC-PHY support (series 4/4)
+
+Radio 2069 and the AC PHY: tables, 2.4 GHz and 5 GHz channel switching
+(5 GHz in 80 MHz mode), HT and VHT capabilities, and the removal of
+"depends on BROKEN". Based on series 3/4.
+
+With the four series b43 brings up a BCM4360 on 2.4 GHz and 5 GHz, with HT
+and VHT at 20, 40 and 80 MHz, two streams and A-MPDU.
+
+Each patch compiles on its own (kernel 7.2.10 headers). The four series
+together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
+microcode 832.127, 2 of 3 chains wired) on top of v7.3-rc5's b43. The AC PHY
+only comes with series 4, so the earlier series cannot be exercised on this
+hardware alone. Association and traffic with WPA2 (software
+crypto) on 2.4 GHz (HT, about 54-63 Mbit/s) and on 5 GHz (VHT, 80 MHz block,
+two streams, 40-70 Mbit/s at -78 dBm), no errors in the log. Not tested:
+suspend/resume with this exact series, other boards. Not done: TX
+calibration, hardware crypto, power save.
+
+[Provenance of the register sequences and tables: to be written, agreed
+with Alessio Ferri, before this is sent.]
+
+Andreas Wendleder (4):
+  wifi: b43: radio 2069 and AC-PHY tables
+  wifi: b43: AC-PHY init and 2.4 GHz channel switching
+  wifi: b43: 5 GHz, 80 MHz and VHT for the AC PHY
+  wifi: b43: enable the AC-PHY support
+
+ drivers/net/wireless/broadcom/b43/Kconfig     |    4 +-
+ drivers/net/wireless/broadcom/b43/Makefile    |    2 +-
+ drivers/net/wireless/broadcom/b43/main.c      |   61 +-
+ drivers/net/wireless/broadcom/b43/phy_ac.c    | 1203 ++++++++++++++++-
+ drivers/net/wireless/broadcom/b43/phy_ac.h    |    5 +
+ .../net/wireless/broadcom/b43/phy_ac_farrow.h |  131 ++
+ .../net/wireless/broadcom/b43/phy_common.c    |   25 +-
+ .../net/wireless/broadcom/b43/phy_common.h    |    3 +-
+ .../net/wireless/broadcom/b43/radio_2069.c    |  241 ++++
+ .../net/wireless/broadcom/b43/radio_2069.h    |   19 +
+ .../net/wireless/broadcom/b43/tables_phy_ac.c |  985 ++++++++++++++
+ .../net/wireless/broadcom/b43/tables_phy_ac.h |   31 +
+ 12 files changed, 2698 insertions(+), 12 deletions(-)
+ create mode 100644 drivers/net/wireless/broadcom/b43/phy_ac_farrow.h
+ create mode 100644 drivers/net/wireless/broadcom/b43/radio_2069.c
+ create mode 100644 drivers/net/wireless/broadcom/b43/radio_2069.h
+ create mode 100644 drivers/net/wireless/broadcom/b43/tables_phy_ac.c
+ create mode 100644 drivers/net/wireless/broadcom/b43/tables_phy_ac.h
+

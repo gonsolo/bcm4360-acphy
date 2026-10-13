@@ -1,0 +1,36 @@
+From 8ec8bddc7ada201481449a1b1ba8375d405da1d9 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Wed, 14 Oct 2026 00:05:20 +0200
+Subject: [PATCH wireless-next 0/3] wifi: b43: DMA and filter fixes for the BCM4360 (series 1/4)
+
+Three fixes found while bringing up the BCM4360. None depends on the
+AC PHY; they only change behaviour where stated:
+
+ 1. MAC filter after an interface restart,
+ 2. 64-bit DMA engines whose index and status registers hold bus
+    addresses (detected by probe, offset engines are untouched),
+ 3. retry of RX buffer refills that failed under memory pressure.
+
+This is the first of four series; the rest (core revision 40/42 MAC
+setup, AC microcode formats, the AC PHY and removal of BROKEN) follow
+once this is merged, as agreed with Alessio Ferri who has a series for the
+same hardware.
+
+Each patch compiles on its own (kernel 7.2.10 headers). The four series
+together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
+microcode 832.127, 2 of 3 chains wired) on top of v7.3-rc5's b43. The AC PHY
+only comes with series 4, so the earlier series cannot be exercised on this
+hardware alone. Not tested on other chips.
+
+Andreas Wendleder (3):
+  wifi: b43: reprogram the MAC filter after an interface restart
+  wifi: b43: handle 64-bit DMA engines whose index registers hold bus
+    addresses
+  wifi: b43: retry RX buffer refills that failed under memory pressure
+
+ drivers/net/wireless/broadcom/b43/b43.h  |  1 +
+ drivers/net/wireless/broadcom/b43/dma.c  | 88 +++++++++++++++++++++---
+ drivers/net/wireless/broadcom/b43/dma.h  |  6 ++
+ drivers/net/wireless/broadcom/b43/main.c |  8 +++
+ 4 files changed, 92 insertions(+), 11 deletions(-)
+

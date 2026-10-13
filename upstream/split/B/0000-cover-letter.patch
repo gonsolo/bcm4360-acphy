@@ -1,0 +1,31 @@
+From 3bab53abc6be6a15156a78570abff7c0f4329b50 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Wed, 14 Oct 2026 00:05:20 +0200
+Subject: [PATCH RFC wireless-next 0/3] wifi: b43: core revision 40 and 42 MAC setup (series 2/4)
+
+MAC core support for the BCM4352/BCM4360 core revisions 40 and 42. Things
+that depend on the core revision are gated on it (b43_is_ac_core()),
+things that depend on the microcode layout are gated on the microcode
+revision (b43_ucode_is_ac(), revision 784 and above, set once the
+microcode is loaded). The TX and RX formats and the PHY are not in this
+series. Based on series 1/4.
+
+Each patch compiles on its own (kernel 7.2.10 headers). The four series
+together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
+microcode 832.127, 2 of 3 chains wired) on top of v7.3-rc5's b43. The AC PHY
+only comes with series 4, so the earlier series cannot be exercised on this
+hardware alone.
+
+Andreas Wendleder (3):
+  wifi: b43: set the DMA burst and prefetch bits of core revisions 40
+    and 42
+  wifi: b43: MAC core setup for core revisions 40 and 42
+  wifi: b43: address match table, templates and beacons for the AC
+    microcode
+
+ drivers/net/wireless/broadcom/b43/b43.h  |  14 ++
+ drivers/net/wireless/broadcom/b43/dma.c  |   4 +
+ drivers/net/wireless/broadcom/b43/dma.h  |   2 +
+ drivers/net/wireless/broadcom/b43/main.c | 209 +++++++++++++++++++++--
+ 4 files changed, 213 insertions(+), 16 deletions(-)
+

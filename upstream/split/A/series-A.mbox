@@ -1,0 +1,348 @@
+From 8ec8bddc7ada201481449a1b1ba8375d405da1d9 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Wed, 14 Oct 2026 00:05:20 +0200
+Subject: [PATCH wireless-next 0/3] wifi: b43: DMA and filter fixes for the BCM4360 (series 1/4)
+
+Three fixes found while bringing up the BCM4360. None depends on the
+AC PHY; they only change behaviour where stated:
+
+ 1. MAC filter after an interface restart,
+ 2. 64-bit DMA engines whose index and status registers hold bus
+    addresses (detected by probe, offset engines are untouched),
+ 3. retry of RX buffer refills that failed under memory pressure.
+
+This is the first of four series; the rest (core revision 40/42 MAC
+setup, AC microcode formats, the AC PHY and removal of BROKEN) follow
+once this is merged, as agreed with Alessio Ferri who has a series for the
+same hardware.
+
+Each patch compiles on its own (kernel 7.2.10 headers). The four series
+together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
+microcode 832.127, 2 of 3 chains wired) on top of v7.3-rc5's b43. The AC PHY
+only comes with series 4, so the earlier series cannot be exercised on this
+hardware alone. Not tested on other chips.
+
+Andreas Wendleder (3):
+  wifi: b43: reprogram the MAC filter after an interface restart
+  wifi: b43: handle 64-bit DMA engines whose index registers hold bus
+    addresses
+  wifi: b43: retry RX buffer refills that failed under memory pressure
+
+ drivers/net/wireless/broadcom/b43/b43.h  |  1 +
+ drivers/net/wireless/broadcom/b43/dma.c  | 88 +++++++++++++++++++++---
+ drivers/net/wireless/broadcom/b43/dma.h  |  6 ++
+ drivers/net/wireless/broadcom/b43/main.c |  8 +++
+ 4 files changed, 92 insertions(+), 11 deletions(-)
+
+From 95bd3b1695bfbc7e0eae34b69ee28bdb915b88d9 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Tue, 13 Oct 2026 23:55:11 +0200
+Subject: [PATCH wireless-next 1/3] wifi: b43: reprogram the MAC filter after
+ an interface restart
+
+b43_op_start() clears wl->filter_flags, but mac80211 computes @changed
+for b43_op_configure_filter() against the flags it cached from the
+previous run. After a down/up it can therefore report no change, so
+b43_adjust_opmode() is not called and MACCTL keeps the cleared filter.
+
+Seen on a BCM4360: after an interface restart nothing was received until
+some other change touched the filter. Compare the requested flags with
+what the hardware was actually programmed with and add the difference to
+@changed.
+
+Not checked on other chips.
+---
+ drivers/net/wireless/broadcom/b43/main.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
+index 8f4aff3..57a5935 100644
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -4318,6 +4318,12 @@ static void b43_op_configure_filter(struct ieee80211_hw *hw,
+ 		   FIF_OTHER_BSS |
+ 		   FIF_BCN_PRBRESP_PROMISC;
+ 
++	/* b43_op_start() zeroes wl->filter_flags, but mac80211 computes
++	 * @changed against its own cached flags, so after an interface
++	 * restart it reports no change and MACCTL kept the zeroed filter.
++	 * Compare against what the hardware was actually programmed with. */
++	if (wl->filter_flags != *fflags)
++		changed |= wl->filter_flags ^ *fflags;
+ 	wl->filter_flags = *fflags;
+ 
+ 	if (changed && b43_status(dev) >= B43_STAT_INITIALIZED)
+From 15d7e588dd609e55b9717dd64736b879a31aa65b Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Tue, 13 Oct 2026 23:55:21 +0200
+Subject: [PATCH wireless-next 2/3] wifi: b43: handle 64-bit DMA engines whose
+ index registers hold bus addresses
+
+Newer 64-bit DMA engines (found on the core revisions of the BCM4352 and
+BCM4360) accept ring addresses with low bits set and then use bus
+addresses, not offsets into the ring, in the index and status registers.
+They are detected with the probe the vendor driver and brcmsmac use:
+write 0xff0 to TXRINGLO and see whether it sticks.
+
+On such an engine keep the ring address in the new ring->ptr_base, add it
+when writing TXINDEX and RXINDEX and subtract it when reading RXSTATUS.
+The ring address registers have to be written before the control word
+enables the engine, and the hardware defaults of burst length,
+outstanding reads and prefetch control (the *CTL_KEEP masks) have to be
+preserved.
+
+Engines that keep offsets behave as before.
+---
+ drivers/net/wireless/broadcom/b43/b43.h |  1 +
+ drivers/net/wireless/broadcom/b43/dma.c | 52 +++++++++++++++++++------
+ drivers/net/wireless/broadcom/b43/dma.h |  3 ++
+ 3 files changed, 45 insertions(+), 11 deletions(-)
+
+diff --git a/drivers/net/wireless/broadcom/b43/b43.h b/drivers/net/wireless/broadcom/b43/b43.h
+index c0d8fc0..e1e8083 100644
+--- a/drivers/net/wireless/broadcom/b43/b43.h
++++ b/drivers/net/wireless/broadcom/b43/b43.h
+@@ -668,6 +668,7 @@ struct b43_dma {
+ 	u32 translation; /* Routing bits */
+ 	bool translation_in_low; /* Should translation bit go into low addr? */
+ 	bool parity; /* Check for parity */
++	bool ptr_is_addr;
+ };
+ 
+ struct b43_pio_txqueue;
+diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
+index 05da698..20d910a 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -212,7 +212,7 @@ static void op64_fill_descriptor(struct b43_dmaring *ring,
+ 
+ static void op64_poke_tx(struct b43_dmaring *ring, int slot)
+ {
+-	b43_dma_write(ring, B43_DMA64_TXINDEX,
++	b43_dma_write(ring, B43_DMA64_TXINDEX, ring->ptr_base +
+ 		      (u32) (slot * sizeof(struct b43_dmadesc64)));
+ }
+ 
+@@ -233,14 +233,15 @@ static int op64_get_current_rxslot(struct b43_dmaring *ring)
+ 	u32 val;
+ 
+ 	val = b43_dma_read(ring, B43_DMA64_RXSTATUS);
+-	val &= B43_DMA64_RXSTATDPTR;
++	val = ((val & B43_DMA64_RXSTATDPTR) - ring->ptr_base) &
++	      B43_DMA64_RXSTATDPTR;
+ 
+ 	return (val / sizeof(struct b43_dmadesc64));
+ }
+ 
+ static void op64_set_current_rxslot(struct b43_dmaring *ring, int slot)
+ {
+-	b43_dma_write(ring, B43_DMA64_RXINDEX,
++	b43_dma_write(ring, B43_DMA64_RXINDEX, ring->ptr_base +
+ 		      (u32) (slot * sizeof(struct b43_dmadesc64)));
+ }
+ 
+@@ -690,9 +691,19 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
+ 			    & B43_DMA64_TXADDREXT_MASK;
+ 			if (!parity)
+ 				value |= B43_DMA64_TXPARITYDISABLE;
+-			b43_dma_write(ring, B43_DMA64_TXCTL, value);
+-			b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
+-			b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
++			if (ring->dev->dma.ptr_is_addr) {
++				ring->ptr_base = lower_32_bits(ring->dmabase);
++				value |= b43_dma_read(ring, B43_DMA64_TXCTL) &
++					 B43_DMA64_TXCTL_KEEP;
++				b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
++				b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
++				b43_dma_write(ring, B43_DMA64_TXCTL, value);
++			} else {
++				ring->ptr_base = 0;
++				b43_dma_write(ring, B43_DMA64_TXCTL, value);
++				b43_dma_write(ring, B43_DMA64_TXRINGLO, addrlo);
++				b43_dma_write(ring, B43_DMA64_TXRINGHI, addrhi);
++			}
+ 		} else {
+ 			u32 ringbase = (u32) (ring->dmabase);
+ 			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
+@@ -722,11 +733,21 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
+ 			    & B43_DMA64_RXADDREXT_MASK;
+ 			if (!parity)
+ 				value |= B43_DMA64_RXPARITYDISABLE;
+-			b43_dma_write(ring, B43_DMA64_RXCTL, value);
+-			b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
+-			b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
+-			b43_dma_write(ring, B43_DMA64_RXINDEX, ring->nr_slots *
+-				      sizeof(struct b43_dmadesc64));
++			if (ring->dev->dma.ptr_is_addr) {
++				ring->ptr_base = lower_32_bits(ring->dmabase);
++				value |= b43_dma_read(ring, B43_DMA64_RXCTL) &
++					 B43_DMA64_RXCTL_KEEP;
++				b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
++				b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
++				b43_dma_write(ring, B43_DMA64_RXCTL, value);
++			} else {
++				ring->ptr_base = 0;
++				b43_dma_write(ring, B43_DMA64_RXCTL, value);
++				b43_dma_write(ring, B43_DMA64_RXRINGLO, addrlo);
++				b43_dma_write(ring, B43_DMA64_RXRINGHI, addrhi);
++			}
++			b43_dma_write(ring, B43_DMA64_RXINDEX, ring->ptr_base +
++				      ring->nr_slots * sizeof(struct b43_dmadesc64));
+ 		} else {
+ 			u32 ringbase = (u32) (ring->dmabase);
+ 			addrext = b43_dma_address(&ring->dev->dma, ringbase, B43_DMA_ADDR_EXT);
+@@ -1080,6 +1101,15 @@ int b43_dma_init(struct b43_wldev *dev)
+ 		dma->parity = false;
+ #endif
+ 
++	dma->ptr_is_addr = false;
++	if (type == B43_DMA_64BIT) {
++		u16 ringlo = b43_dmacontroller_base(type, 0) + B43_DMA64_TXRINGLO;
++
++		b43_write32(dev, ringlo, 0xff0);
++		dma->ptr_is_addr = b43_read32(dev, ringlo) != 0;
++		b43_write32(dev, ringlo, 0);
++	}
++
+ 	err = -ENOMEM;
+ 	/* setup TX DMA channels. */
+ 	dma->tx_ring_AC_BK = b43_setup_dmaring(dev, 0, 1, type);
+diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
+index f9f65bb..eddc882 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.h
++++ b/drivers/net/wireless/broadcom/b43/dma.h
+@@ -90,6 +90,7 @@ struct b43_dmadesc32 {
+ #define		B43_DMA64_TXPARITYDISABLE		0x00000800
+ #define		B43_DMA64_TXADDREXT_MASK		0x00030000
+ #define		B43_DMA64_TXADDREXT_SHIFT		16
++#define B43_DMA64_TXCTL_KEEP				0x03FC00C0
+ #define B43_DMA64_TXINDEX				0x04
+ #define B43_DMA64_TXRINGLO				0x08
+ #define B43_DMA64_TXRINGHI				0x0C
+@@ -118,6 +119,7 @@ struct b43_dmadesc32 {
+ #define		B43_DMA64_RXPARITYDISABLE		0x00000800
+ #define		B43_DMA64_RXADDREXT_MASK		0x00030000
+ #define		B43_DMA64_RXADDREXT_SHIFT		16
++#define B43_DMA64_RXCTL_KEEP				0x03FC0000
+ #define B43_DMA64_RXINDEX				0x24
+ #define B43_DMA64_RXRINGLO				0x28
+ #define B43_DMA64_RXRINGHI				0x2C
+@@ -235,6 +237,7 @@ struct b43_dmaring {
+ 	u8 *txhdr_cache;
+ 	/* (Unadjusted) DMA base bus-address of the ring memory. */
+ 	dma_addr_t dmabase;
++	u32 ptr_base;
+ 	/* Number of descriptor slots in the ring. */
+ 	int nr_slots;
+ 	/* Number of used descriptor slots. */
+From 8ec8bddc7ada201481449a1b1ba8375d405da1d9 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Tue, 13 Oct 2026 23:55:31 +0200
+Subject: [PATCH wireless-next 3/3] wifi: b43: retry RX buffer refills that
+ failed under memory pressure
+
+dma_rx() refills a slot with GFP_ATOMIC. When that fails it reposts the
+old buffer, and nothing tries again: an idle slot and a slot stuck after
+a failed refill both hold a poisoned buffer, so they cannot be told apart
+by the poison alone.
+
+Add a flag to the slot meta data that is set when a refill failed, and a
+function that walks the RX ring and retries those slots. It runs from the
+15 second periodic work, under wl->mutex like b43_dma_rx() itself, and
+does nothing unless a refill has failed.
+---
+ drivers/net/wireless/broadcom/b43/dma.c  | 36 ++++++++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/dma.h  |  3 ++
+ drivers/net/wireless/broadcom/b43/main.c |  2 ++
+ 3 files changed, 41 insertions(+)
+
+diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
+index 20d910a..10d5a4c 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -1675,8 +1675,10 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
+ 	err = setup_rx_descbuffer(ring, desc, meta, GFP_ATOMIC);
+ 	if (unlikely(err)) {
+ 		b43dbg(ring->dev->wl, "DMA RX: setup_rx_descbuffer() failed\n");
++		meta->rx_refill_failed = true;
+ 		goto drop_recycle_buffer;
+ 	}
++	meta->rx_refill_failed = false;
+ 
+ 	unmap_descbuffer(ring, dmaaddr, ring->rx_buffersize, 0);
+ 	skb_put(skb, len + ring->frameoffset);
+@@ -1692,6 +1694,40 @@ drop_recycle_buffer:
+ 	sync_descbuffer_for_device(ring, dmaaddr, ring->rx_buffersize);
+ }
+ 
++void b43_dma_rx_retry_poisoned(struct b43_wldev *dev)
++{
++	struct b43_dmaring *ring = dev->dma.rx_ring;
++	struct b43_dmadesc_generic *desc;
++	struct b43_dmadesc_meta *meta;
++	struct sk_buff *old_skb;
++	dma_addr_t old_dmaaddr;
++	int i, fixed = 0;
++
++	if (!ring || dev->__using_pio_transfers)
++		return;
++
++	for (i = 0; i < ring->nr_slots; i++) {
++		desc = ring->ops->idx2desc(ring, i, &meta);
++		if (!meta->rx_refill_failed)
++			continue;
++
++		old_skb = meta->skb;
++		old_dmaaddr = meta->dmaaddr;
++		if (setup_rx_descbuffer(ring, desc, meta, GFP_KERNEL) == 0) {
++			meta->rx_refill_failed = false;
++			unmap_descbuffer(ring, old_dmaaddr,
++					 ring->rx_buffersize, 0);
++			dev_kfree_skb_any(old_skb);
++			fixed++;
++		} else {
++			sync_descbuffer_for_device(ring, old_dmaaddr,
++						   ring->rx_buffersize);
++		}
++	}
++	if (fixed)
++		b43dbg(dev->wl, "DMA RX: refilled %d slots\n", fixed);
++}
++
+ void b43_dma_handle_rx_overflow(struct b43_dmaring *ring)
+ {
+ 	int current_slot, previous_slot;
+diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
+index eddc882..b2fa678 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.h
++++ b/drivers/net/wireless/broadcom/b43/dma.h
+@@ -192,6 +192,7 @@ struct b43_dmadesc_meta {
+ 	dma_addr_t dmaaddr;
+ 	/* ieee80211 TX status. Only used once per 802.11 frag. */
+ 	bool is_last_fragment;
++	bool rx_refill_failed;
+ };
+ 
+ struct b43_dmaring;
+@@ -303,6 +304,8 @@ void b43_dma_handle_rx_overflow(struct b43_dmaring *ring);
+ 
+ void b43_dma_rx(struct b43_dmaring *ring);
+ 
++void b43_dma_rx_retry_poisoned(struct b43_wldev *dev);
++
+ void b43_dma_direct_fifo_rx(struct b43_wldev *dev,
+ 			    unsigned int engine_index, bool enable);
+ 
+diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
+index 57a5935..001e272 100644
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -3389,6 +3389,8 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
+ 		}
+ 	}
+ 
++	b43_dma_rx_retry_poisoned(dev);
++
+ 	if (phy->ops->pwork_15sec)
+ 		phy->ops->pwork_15sec(dev);
+ 

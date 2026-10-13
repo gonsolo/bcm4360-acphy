@@ -1,0 +1,31 @@
+From 866790435fbf1fb63ee6b566d22c2d0835833643 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Wed, 14 Oct 2026 00:05:20 +0200
+Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC microcode TX and RX formats (series 3/4)
+
+The TX descriptor, TX status, RX header and A-MPDU handling of the AC
+microcode, gated on the microcode revision. Only revision 832 has been
+tested; the layouts of 784 and 928 are expected to match but are not
+verified. Based on series 2/4.
+
+Each patch compiles on its own (kernel 7.2.10 headers). The four series
+together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
+microcode 832.127, 2 of 3 chains wired) on top of v7.3-rc5's b43. The AC PHY
+only comes with series 4, so the earlier series cannot be exercised on this
+hardware alone.
+
+Andreas Wendleder (4):
+  wifi: b43: 11ac chanspec for the AC microcode
+  wifi: b43: TX descriptor and TX status for the AC microcode
+  wifi: b43: RX header handling for the AC microcode
+  wifi: b43: A-MPDU for the AC microcode
+
+ drivers/net/wireless/broadcom/b43/dma.c       |  56 ++++
+ drivers/net/wireless/broadcom/b43/dma.h       |   1 +
+ drivers/net/wireless/broadcom/b43/main.c      |  93 ++++++
+ .../net/wireless/broadcom/b43/phy_common.c    |  13 +
+ .../net/wireless/broadcom/b43/phy_common.h    |   3 +
+ drivers/net/wireless/broadcom/b43/xmit.c      | 304 +++++++++++++++++-
+ drivers/net/wireless/broadcom/b43/xmit.h      |  11 +
+ 7 files changed, 474 insertions(+), 7 deletions(-)
+

@@ -1,0 +1,838 @@
+From 866790435fbf1fb63ee6b566d22c2d0835833643 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Wed, 14 Oct 2026 00:05:20 +0200
+Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC microcode TX and RX formats (series 3/4)
+
+The TX descriptor, TX status, RX header and A-MPDU handling of the AC
+microcode, gated on the microcode revision. Only revision 832 has been
+tested; the layouts of 784 and 928 are expected to match but are not
+verified. Based on series 2/4.
+
+Each patch compiles on its own (kernel 7.2.10 headers). The four series
+together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
+microcode 832.127, 2 of 3 chains wired) on top of v7.3-rc5's b43. The AC PHY
+only comes with series 4, so the earlier series cannot be exercised on this
+hardware alone.
+
+Andreas Wendleder (4):
+  wifi: b43: 11ac chanspec for the AC microcode
+  wifi: b43: TX descriptor and TX status for the AC microcode
+  wifi: b43: RX header handling for the AC microcode
+  wifi: b43: A-MPDU for the AC microcode
+
+ drivers/net/wireless/broadcom/b43/dma.c       |  56 ++++
+ drivers/net/wireless/broadcom/b43/dma.h       |   1 +
+ drivers/net/wireless/broadcom/b43/main.c      |  93 ++++++
+ .../net/wireless/broadcom/b43/phy_common.c    |  13 +
+ .../net/wireless/broadcom/b43/phy_common.h    |   3 +
+ drivers/net/wireless/broadcom/b43/xmit.c      | 304 +++++++++++++++++-
+ drivers/net/wireless/broadcom/b43/xmit.h      |  11 +
+ 7 files changed, 474 insertions(+), 7 deletions(-)
+
+From eec6bf738a67ab8cc882819dc2a3302d3be67040 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Tue, 13 Oct 2026 23:56:12 +0200
+Subject: [PATCH RFC wireless-next 1/4] wifi: b43: 11ac chanspec for the AC
+ microcode
+
+The AC microcode keeps an 11ac chanspec of the current channel in SHM
+(where older microcode keeps the channel cookie) and takes one in every
+TX descriptor and puts one in every RX header: the channel, 0x1000 for
+20 MHz and 0xc000 on 5 GHz.
+
+Add b43_ac_chanspec() and use it for the channel cookie in
+b43_switch_channel(). The TX and RX header patches that follow use it too.
+---
+ drivers/net/wireless/broadcom/b43/phy_common.c | 13 +++++++++++++
+ drivers/net/wireless/broadcom/b43/phy_common.h |  3 +++
+ 2 files changed, 16 insertions(+)
+
+diff --git a/drivers/net/wireless/broadcom/b43/phy_common.c b/drivers/net/wireless/broadcom/b43/phy_common.c
+index 285490f..cfc14c1 100644
+--- a/drivers/net/wireless/broadcom/b43/phy_common.c
++++ b/drivers/net/wireless/broadcom/b43/phy_common.c
+@@ -413,6 +413,17 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev)
+ 	}
+ }
+ 
++/*
++ * The 11ac chanspec of a primary channel as the AC microcode takes it in
++ * SHM and in the TX and RX headers: channel, 0x1000 for 20 MHz, 0xc000 on
++ * 5 GHz.
++ */
++u16 b43_ac_chanspec(struct b43_wldev *dev, unsigned int channel)
++{
++	return channel | 0x1000 |
++	       (b43_current_band(dev->wl) == NL80211_BAND_5GHZ ? 0xc000 : 0);
++}
++
+ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
+ {
+ 	struct b43_phy *phy = &(dev->phy);
+@@ -428,6 +439,8 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
+ 	/* FIXME: set 40Mhz flag if required */
+ 	if (0)
+ 		channelcookie |= B43_SHM_SH_CHAN_40MHZ;
++	if (b43_ucode_is_ac(dev))
++		channelcookie = b43_ac_chanspec(dev, new_channel);
+ 	savedcookie = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN);
+ 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN, channelcookie);
+ 
+diff --git a/drivers/net/wireless/broadcom/b43/phy_common.h b/drivers/net/wireless/broadcom/b43/phy_common.h
+index 5ec5233..db9c628 100644
+--- a/drivers/net/wireless/broadcom/b43/phy_common.h
++++ b/drivers/net/wireless/broadcom/b43/phy_common.h
+@@ -390,6 +390,9 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev);
+  */
+ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel);
+ 
++/* 11ac chanspec of the AC microcode */
++u16 b43_ac_chanspec(struct b43_wldev *dev, unsigned int channel);
++
+ /**
+  * b43_software_rfkill - Turn the radio ON or OFF in software.
+  */
+From 6e427361b0ad210ae8b19087127c3747bbf24427 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Tue, 13 Oct 2026 23:56:23 +0200
+Subject: [PATCH RFC wireless-next 2/4] wifi: b43: TX descriptor and TX status
+ for the AC microcode
+
+The AC microcode takes a 4 byte passthrough prefix and a 124 byte
+descriptor with four 20 byte rate entries. Add the descriptor builder:
+legacy CCK and OFDM rates, HT rates with the PLCP laid out as brcmsmac
+does, VHT rate blocks (frame type 3, with the width and the subband of the
+primary channel in the first two words and the VHT-SIG-A fields), and the
+cache info that session frames carry (the microcode builds the A-MPDU
+from them). The cache info must not carry a cipher: mac80211 has encrypted
+the frame already.
+
+The TX status comes as two 4 word records. The attempt count is the low
+byte of word 2, not the sum of its bytes, and a record with more than one
+MPDU carries a block ack bitmap for the consecutive cookies; the cookies
+are advanced with the new b43_dma_cookie_advance().
+
+Only microcode revision 832 has been tested.
+---
+ drivers/net/wireless/broadcom/b43/dma.c  |  12 ++
+ drivers/net/wireless/broadcom/b43/dma.h  |   1 +
+ drivers/net/wireless/broadcom/b43/main.c |  59 +++++++
+ drivers/net/wireless/broadcom/b43/xmit.c | 198 +++++++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/xmit.h |   9 ++
+ 5 files changed, 279 insertions(+)
+
+diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
+index e3b7479..6158b07 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -1442,6 +1442,18 @@ out:
+ 	return err;
+ }
+ 
++/* The cookie of the frame @n frames after @cookie on the same ring. */
++u16 b43_dma_cookie_advance(struct b43_wldev *dev, u16 cookie, unsigned int n)
++{
++	struct b43_dmaring *ring;
++	int slot;
++
++	ring = parse_cookie(dev, cookie, &slot);
++	if (!ring)
++		return cookie;
++	return generate_cookie(ring, (slot + n * TX_SLOTS_PER_FRAME) % ring->nr_slots);
++}
++
+ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+ 			     const struct b43_txstatus *status)
+ {
+diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
+index 1400942..46dbbae 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.h
++++ b/drivers/net/wireless/broadcom/b43/dma.h
+@@ -299,6 +299,7 @@ void b43_dma_tx_resume(struct b43_wldev *dev);
+ 
+ int b43_dma_tx(struct b43_wldev *dev,
+ 	       struct sk_buff *skb);
++u16 b43_dma_cookie_advance(struct b43_wldev *dev, u16 cookie, unsigned int n);
+ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+ 			     const struct b43_txstatus *status);
+ 
+diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
+index d2731d8..2b12cef 100644
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -1403,6 +1403,57 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
+ 			break;
+ 		v1 = b43_read32(dev, B43_MMIO_XMITSTAT_1);
+ 
++		if (b43_ucode_is_ac(dev)) {
++			/* rev 40+ ucode: two 4-word records per frame */
++			u32 v2 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
++			u32 v3 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
++			unsigned int n;
++
++			/* second package: words 1 and 2 are the block ack bitmap */
++			u32 w0 = b43_read32(dev, B43_MMIO_XMITSTAT_0);
++			u32 w1 = b43_read32(dev, B43_MMIO_XMITSTAT_1);
++			u32 w2 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
++			u32 w3 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
++			unsigned int mpdus = (v0 >> 8) & 0x7f, i;
++			u64 bitmap = ((u64)w2 << 32) | w1;
++
++			memset(&stat, 0, sizeof(stat));
++			stat.cookie = v0 >> 16;
++			stat.seq = v1 & 0xffff;
++			stat.phy_stat = (v1 >> 16) & 0xff;
++			stat.intermediate = !!(v0 & 0x0004);
++			stat.pm_indicated = !!(v0 & 0x0008);
++			stat.supp_reason = (v0 & 0x00f0) >> 4;
++			stat.acked = !!(v0 & 0x8000);
++			/*: the attempt count is the LOW BYTE of word 2 only. Bits 16-23 hold a
++			 * constant 1 on every acknowledged frame (0 on suppressed ones), not a second
++			 * attempt counter: summing it made every frame look like it needed a retry, so
++			 * minstrel saw ~50 % failures at every rate and TX stayed at 1-6 Mbit/s
++			 * (1.2 "retries" per frame regardless of rate or TX power).*/
++			n = v2 & 0xff;
++			stat.frame_count = min(n, 15u);
++			stat.fb_count = min((v2 >> 16) & 0xff, 15u);
++			b43dbg(dev->wl, "AC txstatus %08x %08x %08x %08x / %08x %08x %08x %08x\n",
++			       v0, v1, v2, v3, w0, w1, w2, w3);
++			if (mpdus > 1) {
++				/* A-MPDU: one status for @mpdus frames with consecutive cookies */
++				u16 cookie = stat.cookie;
++
++				/* the attempt count covers the whole aggregate */
++				stat.frame_count = min(DIV_ROUND_UP(n, mpdus), 15u);
++				stat.fb_count = min(DIV_ROUND_UP((v2 >> 16) & 0xff, mpdus), 15u);
++				for (i = 0; i < mpdus; i++) {
++					stat.cookie = cookie;
++					stat.acked = !!(bitmap & (1ULL << i));
++					b43_handle_txstatus(dev, &stat);
++					cookie = b43_dma_cookie_advance(dev, cookie, 1);
++				}
++				continue;
++			}
++			b43_handle_txstatus(dev, &stat);
++			continue;
++		}
++
+ 		stat.cookie = (v0 >> 16);
+ 		stat.seq = (v1 & 0x0000FFFF);
+ 		stat.phy_stat = ((v1 & 0x00FF0000) >> 16);
+@@ -1433,6 +1484,14 @@ static void drain_txstatus_queue(struct b43_wldev *dev)
+ 		if (!(dummy & 0x00000001))
+ 			break;
+ 		dummy = b43_read32(dev, B43_MMIO_XMITSTAT_1);
++		if (b43_ucode_is_ac(dev)) {
++			int i;
++
++			b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
++			b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
++			for (i = 0; i < 4; i++)
++				b43_read32(dev, B43_MMIO_XMITSTAT_0 + 4 * i);
++		}
+ 	}
+ }
+ 
+diff --git a/drivers/net/wireless/broadcom/b43/xmit.c b/drivers/net/wireless/broadcom/b43/xmit.c
+index f0b0825..4ff3033 100644
+--- a/drivers/net/wireless/broadcom/b43/xmit.c
++++ b/drivers/net/wireless/broadcom/b43/xmit.c
+@@ -231,6 +231,201 @@ static u8 b43_calc_fallback_rate(u8 bitrate, int gmode)
+ 	return 0;
+ }
+ 
++
++/*
++ * One VHT rate block (frame type 3), as the stock driver lays it out and
++ * Alessio Ferri's driver builds it: the width in word 0 bits 15:14, the
++ * subband of the primary within that width in word 1, MCS and NSS - 1 in
++ * word 2, VHT-SIG-A1/A2 in the PLCP bytes (group ID 63, both reserved bits
++ * set), FBW 0x0300 and the rate in 500 kbit/s.
++ */
++static void b43_txhdr_ac_vht_block(u8 *ri, const struct ieee80211_tx_rate *t,
++				   u16 chanspec)
++{
++	static const u8 rate_bw[] = {
++		RATE_INFO_BW_20, RATE_INFO_BW_40, RATE_INFO_BW_80,
++	};
++	u8 mcs = ieee80211_rate_get_vht_mcs(t);
++	u8 nss = ieee80211_rate_get_vht_nss(t);
++	unsigned int bw = 0;
++	struct rate_info rinfo = { .flags = RATE_INFO_FLAGS_VHT_MCS };
++	u16 sb = 0;
++	u32 a1, a2;
++
++	/* wider than 20 MHz only inside the 80 MHz channel */
++	if ((chanspec & 0x3800) == 0x2000) {
++		if (t->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
++			bw = 2;
++		else if (t->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
++			bw = 1;
++		sb = ((chanspec >> 8) & 0x7) >> bw;
++	}
++	rinfo.mcs = mcs;
++	rinfo.nss = nss;
++	rinfo.bw = rate_bw[bw];
++
++	put_unaligned_le16(3 | 0x0004 |
++			   ((nss > 1 ? 3 : 1) << 6) |
++			   (bw << 14), ri + 0x00);
++	put_unaligned_le16(sb, ri + 0x02);
++	put_unaligned_le16((mcs & 0xf) | ((nss - 1) << 4), ri + 0x04);
++	a1 = bw | BIT(2) | (63 << 4) | ((nss - 1) << 10) | BIT(23);
++	a2 = (mcs << 4) | BIT(9);
++	ri[0x06] = a1;
++	ri[0x07] = a1 >> 8;
++	ri[0x08] = a1 >> 16;
++	ri[0x09] = a2;
++	ri[0x0a] = a2 >> 8;
++	ri[0x0b] = a2 >> 16;
++	put_unaligned_le16(0x0300, ri + 0x0c);
++	put_unaligned_le16(cfg80211_calculate_bitrate(&rinfo) / 5, ri + 0x0e);
++}
++
++static int b43_generate_txhdr_ac(struct b43_wldev *dev, u8 *h,
++				 struct sk_buff *skb,
++				 struct ieee80211_tx_info *info, u16 cookie)
++{
++	static const u8 cck[] = { B43_CCK_RATE_1MB, B43_CCK_RATE_2MB,
++				  B43_CCK_RATE_5MB, B43_CCK_RATE_11MB };
++	static const u8 ofdm[] = { B43_OFDM_RATE_6MB, B43_OFDM_RATE_9MB,
++				   B43_OFDM_RATE_12MB, B43_OFDM_RATE_18MB,
++				   B43_OFDM_RATE_24MB, B43_OFDM_RATE_36MB,
++				   B43_OFDM_RATE_48MB, B43_OFDM_RATE_54MB };
++	const struct ieee80211_hdr *wlhdr = (const void *)skb->data;
++	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(dev->wl->hw, info);
++	u8 rate = txrate ? txrate->hw_value : B43_CCK_RATE_1MB;
++	bool is_ofdm = b43_is_ofdm_rate(rate);
++	unsigned int len = skb->len + FCS_LEN;
++	u8 *ri = h + B43_TXH_AC_RATE(0);
++	u16 mac_lo = 0, phy0, idx = 0, chanspec, subband;
++	int ht_mcs = -1;
++	/* Only HT rates go out as session frames: a legacy probe frame with the
++	 * aggregate header fails at every attempt.
++	 */
++	bool vht = info->control.rates[0].flags & IEEE80211_TX_RC_VHT_MCS;
++	bool agg = (info->flags & IEEE80211_TX_CTL_AMPDU) &&
++		   (info->control.rates[0].flags &
++		    (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS));
++	const u8 *tbl = is_ofdm ? ofdm : cck;
++	unsigned int n = is_ofdm ? ARRAY_SIZE(ofdm) : ARRAY_SIZE(cck);
++
++	/* Hardware crypto needs the AC key fields; load with nohwcrypt=1. */
++	if (info->control.hw_key)
++		return -EOPNOTSUPP;
++
++	memset(h, 0, B43_TXH_AC_LEN);
++	h[0] = 0x02;	/* passthrough prefix, as wl sends it */
++	h[2] = 0x02;
++	h += B43_TXH_AC_PREFIX;
++	ri = h + B43_TXH_AC_RATE(0);
++	while (idx < n && tbl[idx] != rate)
++		idx++;
++	if (idx == n)
++		idx = 0;
++
++	if (!is_multicast_ether_addr(wlhdr->addr1) &&
++	    !(info->flags & IEEE80211_TX_CTL_NO_ACK))
++		mac_lo |= 0x0080;	/* expect immediate ACK */
++	if (!(le16_to_cpu(wlhdr->seq_ctrl) & IEEE80211_SCTL_FRAG))
++		mac_lo |= 0x4000;	/* start of MSDU */
++	if (ieee80211_is_beacon(wlhdr->frame_control))
++		mac_lo |= 0x0200;	/* ignore PMQ */
++
++	chanspec = b43_ac_chanspec(dev, dev->phy.channel);
++	/* A 20 MHz frame inside an 80 MHz channel names its subband (word 1) */
++	subband = (chanspec & 0x3800) == 0x2000 ? (chanspec >> 8) & 0x7 : 0;
++
++	if (agg) {
++		/* MPDU of a block ack session, as the stock driver posts it
++		 * (rxtx-1s-ht20-40-80.zip): MAC control 0x45c0, no fixed rate,
++		 * the sequence number, and the cache info at +0x64: no cipher
++		 * (we encrypt in software; the stock 50 04 makes the microcode
++		 * encrypt again), MPDUs per aggregate at the primary and the
++		 * fallback rate, duration 5414 us, window 63, max length 0x14.
++		 * Without the cache info the AP deauthenticates us.
++		 */
++		static const u8 cache[8] = { 0x00, 0x00, 0x04, 0x04, 0x26, 0x15, 0x3f, 0x14 };
++
++		mac_lo = 0x45c0;
++		memcpy(h + 0x64, cache, sizeof(cache));
++	}
++	put_unaligned_le16(mac_lo, h + 0x02);
++	put_unaligned_le16(agg ? 0 : 0x0002, h + 0x04);	/* fixed rate */
++	put_unaligned_le16(chanspec, h + 0x06);
++	h[0x08] = ieee80211_hdrlen(wlhdr->frame_control);
++	put_unaligned_le16(len, h + 0x0a);
++	put_unaligned_le16(cookie, h + 0x0c);
++	if (agg)
++		put_unaligned_le16(le16_to_cpu(wlhdr->seq_ctrl), h + 0x0e);
++
++	/* Rate entry 0: frame type, always-set bit 2, TX core 0 mask. */
++	phy0 = (is_ofdm ? 1 : 0) | 0x0004 | (1 << 6);
++	if (!is_ofdm && rate != B43_CCK_RATE_1MB &&
++	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
++		phy0 |= 0x0010;
++	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
++		ht_mcs = info->control.rates[0].idx;
++	else if (vht && !agg)
++		/* A VHT frame always goes out as an A-MPDU; outside a session
++		 * send the HT20 rate of the same stream count instead
++		 */
++		ht_mcs = min_t(int, ieee80211_rate_get_vht_mcs(&info->control.rates[0]), 7) +
++			 8 * (ieee80211_rate_get_vht_nss(&info->control.rates[0]) - 1);
++
++	if (vht && agg) {
++		b43_txhdr_ac_vht_block(ri, &info->control.rates[0], chanspec);
++	} else if (ht_mcs >= 0 && ht_mcs <= 15) {
++		/* HT20: frame type 2, PLCP as brcmsmac lays it out, rate index = MCS */
++		static const u8 ht20_500k[8] = { 13, 26, 39, 52, 78, 104, 117, 130 };
++		u8 mcs = ht_mcs;
++		u8 *plcp = ri + 0x06;
++
++		phy0 = 2 | 0x0004 | ((mcs > 7 ? 3 : 1) << 6);
++		put_unaligned_le16(phy0, ri + 0x00);
++		put_unaligned_le16(subband, ri + 0x02);
++		put_unaligned_le16(mcs, ri + 0x04);
++		plcp[0] = mcs;
++		plcp[1] = len & 0xff;
++		plcp[2] = len >> 8;
++		plcp[3] = 0x07;		/* smoothing, not sounding, reserved (brcmsmac) */
++		plcp[4] = 0;
++		plcp[5] = 0;
++		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
++	} else {
++	put_unaligned_le16(phy0, ri + 0x00);
++	put_unaligned_le16(subband, ri + 0x02);
++	put_unaligned_le16(idx, ri + 0x04);
++	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06), len, rate);
++	put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
++	}
++	if (vht && agg && info->control.rates[1].idx >= 0 &&
++	    (info->control.rates[1].flags & IEEE80211_TX_RC_VHT_MCS)) {
++		put_unaligned_le16(0, ri + 0x10);
++		ri += 0x14;
++		b43_txhdr_ac_vht_block(ri, &info->control.rates[1], chanspec);
++	} else if (agg && !vht && info->control.rates[1].idx >= 0 &&
++	    info->control.rates[1].idx <= 15 &&
++	    (info->control.rates[1].flags & IEEE80211_TX_RC_MCS)) {
++		/* Second rate block: the fallback rate of the session frame */
++		static const u8 ht20_500k[8] = { 13, 26, 39, 52, 78, 104, 117, 130 };
++		u8 mcs = info->control.rates[1].idx;
++
++		put_unaligned_le16(0, ri + 0x10);
++		ri += 0x14;
++		put_unaligned_le16(2 | 0x0004 | ((mcs > 7 ? 3 : 1) << 6), ri + 0x00);
++		put_unaligned_le16(subband, ri + 0x02);
++		put_unaligned_le16(mcs, ri + 0x04);
++		ri[0x06] = mcs;
++		ri[0x07] = len & 0xff;
++		ri[0x08] = len >> 8;
++		ri[0x09] = 0x07;
++		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
++	}
++	put_unaligned_le16(0x0020, ri + 0x10);	/* last rate entry */
++
++	return 0;
++}
++
+ /* Generate a TX data header. */
+ int b43_generate_txhdr(struct b43_wldev *dev,
+ 		       u8 *_txhdr,
+@@ -259,6 +454,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
+ 	struct ieee80211_rate *txrate;
+ 	struct ieee80211_tx_rate *rates;
+ 
++	if (b43_ucode_is_ac(dev))
++		return b43_generate_txhdr_ac(dev, _txhdr, skb_frag, info, cookie);
++
+ 	memset(txhdr, 0, sizeof(*txhdr));
+ 
+ 	txrate = ieee80211_get_tx_rate(dev->wl->hw, info);
+diff --git a/drivers/net/wireless/broadcom/b43/xmit.h b/drivers/net/wireless/broadcom/b43/xmit.h
+index 6524a75..aa7a1ab 100644
+--- a/drivers/net/wireless/broadcom/b43/xmit.h
++++ b/drivers/net/wireless/broadcom/b43/xmit.h
+@@ -188,9 +188,17 @@ struct b43_tx_legacy_rate_phy_ctl_entry {
+ #define  B43_TXH_PHY1_MODUL_QAM256	0x2000 /* QAM256 */
+ 
+ 
++/* rev 40+ (AC) TX buffer: 4-byte TX offload passthrough prefix, then the
++ * 124-byte descriptor (packet info + 4 rate entries + cache). */
++#define B43_TXH_AC_PREFIX		4
++#define B43_TXH_AC_LEN			(B43_TXH_AC_PREFIX + 124)
++#define B43_TXH_AC_RATE(i)		(0x14 + (i) * 0x14)
++
+ static inline
+ size_t b43_txhdr_size(struct b43_wldev *dev)
+ {
++	if (b43_ucode_is_ac(dev))
++		return B43_TXH_AC_LEN;
+ 	switch (dev->fw.hdr_format) {
+ 	case B43_FW_HDR_598:
+ 		return 112 + sizeof(struct b43_plcp_hdr6);
+@@ -214,6 +222,7 @@ struct b43_txstatus {
+ 	u16 seq;		/* Sequence number */
+ 	u8 phy_stat;		/* PHY TX status */
+ 	u8 frame_count;		/* Frame transmit count */
++	u8 fb_count;		/* AC: attempts at the fallback rate */
+ 	u8 rts_count;		/* RTS transmit count */
+ 	u8 supp_reason;		/* Suppression reason */
+ 	/* flags */
+From 8ea1befdd6dcc78c5fd0f646d3ae5e9fae33f226 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Tue, 13 Oct 2026 23:56:33 +0200
+Subject: [PATCH RFC wireless-next 3/4] wifi: b43: RX header handling for the
+ AC microcode
+
+The RX header of the AC microcode keeps the MAC status at 0x10, the TSF at
+0x14, an 11ac chanspec at 0x16 and the power of the two antennas at 0x09
+and 0x0a. Decode the channel (including the 80 MHz block with the position
+of the primary channel), the signal, and the HT-SIG and VHT-SIG-A bytes
+that precede the frame for the rate, bandwidth, guard interval, coding
+and stream count.
+
+The microcode sets the decryption error bit on frames it never decrypted,
+because no hardware key is programmed (the 4-way handshake message 3 and
+DHCP replies carry it). Pass such frames up; mac80211's own decryption
+still rejects anything corrupt.
+
+Only microcode revision 832 has been tested.
+---
+ drivers/net/wireless/broadcom/b43/xmit.c | 87 ++++++++++++++++++++++--
+ 1 file changed, 81 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/wireless/broadcom/b43/xmit.c b/drivers/net/wireless/broadcom/b43/xmit.c
+index 4ff3033..b6f8abb 100644
+--- a/drivers/net/wireless/broadcom/b43/xmit.c
++++ b/drivers/net/wireless/broadcom/b43/xmit.c
+@@ -839,6 +839,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+ 	u32 macstat;
+ 	u16 chanid;
+ 	int padding, rate_idx;
++	s8 ac_signal = 0;
+ 
+ 	memset(&status, 0, sizeof(status));
+ 
+@@ -858,6 +859,29 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+ 		chanstat = le16_to_cpu(rxhdr->format_351.channel);
+ 		break;
+ 	}
++	if (b43_ucode_is_ac(dev)) {
++		/* AC ucode (rev 40+) header: RxStatus1 @0x10, TSF @0x14,
++		 * 11ac-style chanspec @0x16, per-antenna power @0x09/0x0a.
++		 */
++		const u8 *h = _rxhdr;
++		u16 cs = get_unaligned_le16(h + 0x16);
++		s8 p0 = h[0x09], p1 = h[0x0a];
++
++		macstat = get_unaligned_le16(h + 0x10);
++		mactime = get_unaligned_le16(h + 0x14);
++		/* 80 MHz chanspec: centre channel and the primary's position */
++		if ((cs & 0x3800) == 0x2000)
++			cs = (cs & 0xff00) | ((cs & 0xff) - 6 + 4 * ((cs >> 8) & 0x7));
++		chanstat = ((cs & 0xff) << B43_RX_CHAN_ID_SHIFT) | B43_PHYTYPE_N;
++		if ((cs & 0xc000) == 0xc000)
++			chanstat |= B43_RX_CHAN_5GHZ;
++		if (p0 == -128)
++			ac_signal = p1;
++		else if (p1 == -128)
++			ac_signal = p0;
++		else
++			ac_signal = max(p0, p1);
++	}
+ 
+ 	if (unlikely(macstat & B43_RX_MAC_FCSERR)) {
+ 		dev->wl->ieee_stats.dot11FCSErrorCount++;
+@@ -868,10 +892,18 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+ 	if (phystat0 & B43_RX_PHYST0_SHORTPRMBL)
+ 		status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
+ 	if (macstat & B43_RX_MAC_DECERR) {
+-		/* Decryption with the given key failed.
+-		 * Drop the packet. We also won't be able to decrypt it with
+-		 * the key in software. */
+-		goto drop;
++		/* The AC ucode sets this bit on frames it never decrypted: this
++		 * port programs no hardware keys on AC, and it shows up even on
++		 * unprotected EAPOL frames. Dropping here killed
++		 * 4-way handshake message 3 and DHCP replies; mac80211's own
++		 * software decryption still rejects anything really corrupt.
++		 */
++		if (b43_ucode_is_ac(dev)) {
++			b43dbg(dev->wl, "RX: DECERR passed up (len %u, macstat %04x)\n",
++				skb->len, macstat);
++		} else {
++			goto drop;
++		}
+ 	}
+ 
+ 	/* Skip PLCP and padding */
+@@ -915,7 +947,11 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+ 	}
+ 
+ 	/* Link quality statistics */
+-	switch (chanstat & B43_RX_CHAN_PHYTYPE) {
++	switch (b43_ucode_is_ac(dev) ? B43_PHYTYPE_AC :
++		(chanstat & B43_RX_CHAN_PHYTYPE)) {
++	case B43_PHYTYPE_AC:
++		status.signal = ac_signal;
++		break;
+ 	case B43_PHYTYPE_HT:
+ 		/* TODO: is max the right choice? */
+ 		status.signal = max_t(__s8,
+@@ -939,7 +975,46 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+ 		break;
+ 	}
+ 
+-	if (phystat0 & B43_RX_PHYST0_OFDM)
++	if (b43_ucode_is_ac(dev) &&
++	    (phystat0 & B43_RX_PHYST0_FTYPE) == B43_RX_PHYST0_PRE_N) {
++		/* HT frame: the six bytes before the frame are HT-SIG: MCS and
++		 * 40 MHz bit in byte 0, coding/STBC/short GI in byte 3.
++		 */
++		const u8 *sig = plcp->raw;
++
++		status.encoding = RX_ENC_HT;
++		if (sig[0] & 0x80)
++			status.bw = RATE_INFO_BW_40;
++		if (sig[3] & 0x80)
++			status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
++		if (sig[3] & 0x40)
++			status.enc_flags |= RX_ENC_FLAG_LDPC;
++		status.enc_flags |= ((sig[3] >> 4) & 0x3) << RX_ENC_FLAG_STBC_SHIFT;
++		rate_idx = (sig[0] & 0x7f) <= 15 ? sig[0] & 0x7f : -1;
++	} else if (b43_ucode_is_ac(dev) &&
++		   (phystat0 & B43_RX_PHYST0_FTYPE) == B43_RX_PHYST0_STD_N) {
++		/* VHT: the six bytes are VHT-SIG-A1/A2 */
++		const u8 *p = plcp->raw;
++		u32 a1 = p[0] | (p[1] << 8) | (p[2] << 16);
++		u32 a2 = p[3] | (p[4] << 8) | (p[5] << 16);
++		u8 nsts = ((a1 >> 10) & 0x7) + 1;
++
++		status.encoding = RX_ENC_VHT;
++		if ((a1 & 0x3) == 1)
++			status.bw = RATE_INFO_BW_40;
++		else if ((a1 & 0x3) == 2)
++			status.bw = RATE_INFO_BW_80;
++		if (a1 & 0x8) {
++			status.enc_flags |= 1 << RX_ENC_FLAG_STBC_SHIFT;
++			nsts /= 2;
++		}
++		status.nss = max_t(u8, nsts, 1);
++		if (a2 & 0x1)
++			status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
++		if (a2 & 0x4)
++			status.enc_flags |= RX_ENC_FLAG_LDPC;
++		rate_idx = ((a2 >> 4) & 0xf) <= 9 ? (a2 >> 4) & 0xf : -1;
++	} else if (phystat0 & B43_RX_PHYST0_OFDM)
+ 		rate_idx = b43_plcp_get_bitrate_idx_ofdm(plcp,
+ 					!!(chanstat & B43_RX_CHAN_5GHZ));
+ 	else
+From 866790435fbf1fb63ee6b566d22c2d0835833643 Mon Sep 17 00:00:00 2001
+From: Andreas Wendleder <gonsolo@gmail.com>
+Date: Tue, 13 Oct 2026 23:56:44 +0200
+Subject: [PATCH RFC wireless-next 4/4] wifi: b43: A-MPDU for the AC microcode
+
+The microcode builds the aggregates and sends the block acks. Accept block
+ack sessions on both sides (ampdu_action) and set
+IEEE80211_HW_AMPDU_AGGREGATION on the AC cores.
+
+Frames of a session that the microcode gave up on are put back on the
+ring, up to four times, with the retry bit set; the block ack window lets
+them follow later frames. The cache info limits an aggregate to four MPDUs,
+longer ones lose their later MPDUs.
+---
+ drivers/net/wireless/broadcom/b43/dma.c  | 44 ++++++++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/main.c | 34 ++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/xmit.c | 19 +++++++++-
+ drivers/net/wireless/broadcom/b43/xmit.h |  2 ++
+ 4 files changed, 98 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
+index 6158b07..268a812 100644
+--- a/drivers/net/wireless/broadcom/b43/dma.c
++++ b/drivers/net/wireless/broadcom/b43/dma.c
+@@ -34,6 +34,9 @@
+  * into separate slots. */
+ #define TX_SLOTS_PER_FRAME	2
+ 
++/* Times an unacknowledged A-MPDU session frame is put back on the ring */
++#define B43_AC_AMPDU_REQUEUE	4
++
+ static u32 b43_dma_address(struct b43_dma *dma, dma_addr_t dmaaddr,
+ 			   enum b43_addrtype addrtype)
+ {
+@@ -1376,6 +1379,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
+ 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+ 
+ 	hdr = (struct ieee80211_hdr *)skb->data;
++	b43_get_priv_tx_info(info)->requeues = 0;
+ 	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
+ 		/* The multicast ring will be sent after the DTIM */
+ 		ring = dev->dma.tx_ring_mcast;
+@@ -1463,6 +1467,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+ 	static const struct b43_txstatus fake; /* filled with 0 */
+ 	const struct b43_txstatus *txstat;
+ 	int slot, firstused;
++	struct sk_buff *requeue = NULL;
+ 	bool frame_succeed;
+ 	int skip;
+ 	static u8 err_out1;
+@@ -1565,6 +1570,27 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+ 			else
+ 				txstat = status;
+ 
++			/* A session frame the microcode gave up on goes back
++			 * on the ring, as the stock driver requeues it; the
++			 * block ack window lets it follow later frames.
++			 */
++			if (!skip && !txstat->acked &&
++			    (info->flags & IEEE80211_TX_CTL_AMPDU) &&
++			    !(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
++				struct b43_private_tx_info *pi =
++					b43_get_priv_tx_info(info);
++
++				if (pi->requeues < B43_AC_AMPDU_REQUEUE) {
++					struct ieee80211_hdr *hdr = (void *)meta->skb->data;
++
++					pi->requeues++;
++					hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_RETRY);
++					requeue = meta->skb;
++					meta->skb = B43_DMA_PTR_POISON;
++					ring->used_slots--;
++					break;
++				}
++			}
+ 			frame_succeed = b43_fill_txstatus_report(dev, info,
+ 								 txstat);
+ #ifdef CONFIG_B43_DEBUG
+@@ -1603,6 +1629,24 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+ 		if (skip > 0)
+ 			--skip;
+ 	}
++	if (requeue) {
++		if (dma_tx_fragment(ring, requeue)) {
++			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(requeue);
++
++			b43_fill_txstatus_report(dev, info, status);
++			ieee80211_tx_status_skb(dev->wl->hw, requeue);
++		} else if (free_slots(ring) < TX_SLOTS_PER_FRAME) {
++			/* The requeued frame took the slots this status freed:
++			 * the ring is still full, keep the queue stopped.
++			 */
++			if (!ring->stopped) {
++				b43_stop_queue(dev, ring->queue_prio);
++				dev->wl->tx_queue_stopped[ring->queue_prio] = true;
++				ring->stopped = true;
++			}
++			return;
++		}
++	}
+ 	if (ring->stopped) {
+ 		B43_WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME);
+ 		ring->stopped = false;
+diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
+index 2b12cef..5cbf8fd 100644
+--- a/drivers/net/wireless/broadcom/b43/main.c
++++ b/drivers/net/wireless/broadcom/b43/main.c
+@@ -5429,6 +5429,36 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
+ 	return 0;
+ }
+ 
++static int b43_op_ampdu_action(struct ieee80211_hw *hw,
++			       struct ieee80211_vif *vif,
++			       struct ieee80211_ampdu_params *params)
++{
++	struct b43_wl *wl = hw_to_b43_wl(hw);
++
++	/* Only the AC-PHY path builds session frames */
++	if (!wl->current_dev || !b43_ucode_is_ac(wl->current_dev))
++		return -EOPNOTSUPP;
++
++	switch (params->action) {
++	case IEEE80211_AMPDU_TX_START:
++		return IEEE80211_AMPDU_TX_START_IMMEDIATE;
++	case IEEE80211_AMPDU_TX_STOP_CONT:
++	case IEEE80211_AMPDU_TX_STOP_FLUSH:
++	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
++		ieee80211_stop_tx_ba_cb_irqsafe(vif, params->sta->addr, params->tid);
++		return 0;
++	case IEEE80211_AMPDU_TX_OPERATIONAL:
++		return 0;
++	case IEEE80211_AMPDU_RX_START:
++	case IEEE80211_AMPDU_RX_STOP:
++		/* The microcode deaggregates and sends the block acks,
++		 * mac80211 reorders. */
++		return 0;
++	default:
++		return -EOPNOTSUPP;
++	}
++}
++
+ static const struct ieee80211_ops b43_hw_ops = {
+ 	.add_chanctx = ieee80211_emulate_add_chanctx,
+ 	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+@@ -5451,6 +5481,7 @@ static const struct ieee80211_ops b43_hw_ops = {
+ 	.stop			= b43_op_stop,
+ 	.set_tim		= b43_op_beacon_set_tim,
+ 	.sta_notify		= b43_op_sta_notify,
++	.ampdu_action		= b43_op_ampdu_action,
+ 	.sw_scan_start		= b43_op_sw_scan_start_notifier,
+ 	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
+ 	.get_survey		= b43_op_get_survey,
+@@ -5540,6 +5571,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
+ 			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
+ 	}
+ 
++	if (b43_is_ac_core(dev))
++		ieee80211_hw_set(hw, AMPDU_AGGREGATION);
++
+ 	dev->phy.supports_2ghz = have_2ghz_phy;
+ 	dev->phy.supports_5ghz = have_5ghz_phy;
+ 
+diff --git a/drivers/net/wireless/broadcom/b43/xmit.c b/drivers/net/wireless/broadcom/b43/xmit.c
+index b6f8abb..75562f6 100644
+--- a/drivers/net/wireless/broadcom/b43/xmit.c
++++ b/drivers/net/wireless/broadcom/b43/xmit.c
+@@ -1140,7 +1140,24 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
+ 			frame_success = false;
+ 		}
+ 	}
+-	if (status->frame_count == 0) {
++	if (report->flags & IEEE80211_TX_CTL_AMPDU) {
++		/* minstrel_ht ignores session frames without this; one report per MPDU */
++		report->flags |= IEEE80211_TX_STAT_AMPDU;
++		report->status.ampdu_len = 1;
++		report->status.ampdu_ack_len = status->acked ? 1 : 0;
++	}
++	if ((report->flags & IEEE80211_TX_CTL_AMPDU) &&
++	    (report->status.rates[0].flags &
++	     (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))) {
++		/* Sent with two rate blocks: attempts at each */
++		report->status.rates[0].count = status->frame_count;
++		if (status->fb_count && report->status.rates[1].idx >= 0 &&
++		    (report->status.rates[1].flags &
++		     (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS)))
++			report->status.rates[1].count = status->fb_count;
++		else
++			report->status.rates[1].idx = -1;
++	} else if (status->frame_count == 0) {
+ 		/* The frame was not transmitted at all. */
+ 		report->status.rates[0].count = 0;
+ 	} else if (status->rts_count > dev->wl->hw->conf.short_frame_max_tx_count) {
+diff --git a/drivers/net/wireless/broadcom/b43/xmit.h b/drivers/net/wireless/broadcom/b43/xmit.h
+index aa7a1ab..04a19a9 100644
+--- a/drivers/net/wireless/broadcom/b43/xmit.h
++++ b/drivers/net/wireless/broadcom/b43/xmit.h
+@@ -410,9 +410,11 @@ static inline u8 b43_kidx_to_raw(struct b43_wldev *dev, u8 firmware_kidx)
+  * The structure is placed in (struct ieee80211_tx_info *)->rate_driver_data
+  *
+  * @bouncebuffer: DMA Bouncebuffer (if used)
++ * @requeues: times the frame was put back on the ring (AC-PHY A-MPDU)
+  */
+ struct b43_private_tx_info {
+ 	void *bouncebuffer;
++	u8 requeues;
+ };
+ 
+ static inline struct b43_private_tx_info *
