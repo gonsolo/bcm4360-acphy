@@ -18,6 +18,7 @@ P=${B43_PROJ:-/home/gonsolo/bcm4360-acphy}
 IF=${B43_IF:-wlp3s0b1}
 LOAD=${B43_LOAD:-$P/tools/b43_boot.sh}
 RMMOD=${B43_RMMOD:-rmmod}
+PCIRESET=${B43_PCIRESET:-$P/tools/b43_pci_reset.sh}
 NMCLI=${B43_NMCLI:-nmcli}
 DMESG=${B43_DMESG:-dmesg}
 KMSG=${B43_KMSG:-/dev/kmsg}
@@ -37,14 +38,17 @@ MAX_SUSP=${B43_MAX_SUSP:-8}
 # failed (any evidence) but did not connect is bad too; one with no evidence at all is kept.
 # Count only lines after this try's start marker: the kernel ring buffer rotates, so totals taken before the
 # load are unreliable (negative deltas seen live).
+# Dead chip: the clocks never start (after a long suspend, notes/164); only a PCI reset helps.
+DEADRE="Microcode not responding|HT force timeout|PLL enable timeout"
 cnt() { $DMESG 2>/dev/null | awk -v m="b43_load_until_connected: try $try start" 'index($0,m){n=0;next} {l[n++]=$0} END{for(i=0;i<n;i++)print l[i]}' | grep -cE "$1"; }
 log() { echo "b43_load_until_connected: $*"; }
 
 for try in $(seq 1 "$TRIES"); do
 	echo "b43_load_until_connected: try $try start" > "$KMSG" 2>/dev/null
-	phy=0; susp=0; auth=0
+	phy=0; susp=0; auth=0; dead=0
 	if ! $LOAD "$@"; then
 		log "try $try/$TRIES: load failed"
+		dead=$(cnt "$DEADRE")
 		verdict=bad
 	else
 		verdict=quiet
@@ -76,22 +80,27 @@ for try in $(seq 1 "$TRIES"); do
 			fi
 			phy=$(cnt "PHY transmission error"); susp=$(cnt "MAC suspend failed")
 			auth=$(cnt "authentication with .* timed out")
-			if [ "$phy" -ge "$MAX_ERRS" ] || [ "$auth" -ge "$MAX_AUTH" ] || [ "$susp" -ge "$MAX_SUSP" ]; then
+			dead=$(cnt "$DEADRE")
+			if [ "$phy" -ge "$MAX_ERRS" ] || [ "$auth" -ge "$MAX_AUTH" ] || [ "$susp" -ge "$MAX_SUSP" ] || [ "$dead" -ge 1 ]; then
 				verdict=bad
 				break
 			fi
 			$SLEEP "$POLL"
 			waited=$(( waited + POLL ))
 		done
-		[ "$verdict" = quiet ] && [ $(( phy + susp + auth )) -ge 1 ] && verdict=bad
+		[ "$verdict" = quiet ] && [ $(( phy + susp + auth + dead )) -ge 1 ] && verdict=bad
 	fi
 	if [ "$verdict" = quiet ]; then
 		log "try $try/$TRIES: no connect attempt and no TX errors; keeping this init"
 		exit 0
 	fi
 	if [ "$try" -lt "$TRIES" ]; then
-		log "try $try/$TRIES: bad init, reloading (evidence since load: phy=$phy susp=$susp auth=$auth)"
+		log "try $try/$TRIES: bad init, reloading (evidence since load: phy=$phy susp=$susp auth=$auth dead=$dead)"
 		$RMMOD b43
+		if [ "$dead" -ge 1 ]; then
+			log "try $try/$TRIES: chip not responding, resetting it over PCI"
+			$PCIRESET
+		fi
 		$SLEEP 2
 	fi
 done

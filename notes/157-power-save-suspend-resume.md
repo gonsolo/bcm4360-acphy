@@ -14,3 +14,5 @@ Pings during the three runs lost 11 % and 46 % in two windows; both coincide wit
   seconds in all three cycles (2.4 GHz BSS in two of them, 5 GHz VHT80 in the others, as NM chose), the stick too (some seconds later).
 - After cycle 1: up 76, down 55-64 Mbit/s on 5 GHz VHT80 (MCS 5, 2 streams), no MAC suspend failures, no errors.
 No systemd-sleep hook needed.
+
+Caveat (notes/164): only short sleeps were tested; after a 2 h 39 min suspend the chip came back dead (HT force timeout, Microcode not responding).

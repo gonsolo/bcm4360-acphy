@@ -43,12 +43,16 @@ badmild=\$(sed -n \$(cat $T/try)p $T/outcomes | grep -c "^badmild\$")
 for i in \$(seq 1 \$(( midok * 4 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
 for i in \$(seq 1 \$(( badmild * 1 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
 for i in \$(seq 1 \$badmild); do echo "wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out"; done
+dead=\$(sed -n \$(cat $T/try)p $T/outcomes | grep -c "^dead\$")
+for i in \$(seq 1 \$(( dead * 1 ))); do echo "bcma-pci-bridge 0000:03:00.0: bus0: HT force timeout"; echo "b43-phy0 ERROR: Microcode not responding"; done
 badsusp=\$(sed -n \$(cat $T/try)p $T/outcomes | grep -c "^badsusp\$")
 for i in \$(seq 1 \$(( badauth * 3 ))); do echo "wlp3s0b1: authentication with 8c:6a:8d:9e:2a:88 timed out"; done
 for i in \$(seq 1 \$(( badsusp * 3 ))); do echo "b43-phy0 ERROR: MAC suspend failed (40ms)"; done
 EOS
-	chmod +x "$T"/load "$T"/rmmod "$T"/nmcli "$T"/dmesg
-	B43_LOAD="$T/load" B43_RMMOD="$T/rmmod" B43_NMCLI="$T/nmcli" B43_DMESG="$T/dmesg" \
+	printf "#!/usr/bin/env bash\necho reset >> $T/resets\n" > "$T/pcireset"
+	: > "$T/resets"
+	chmod +x "$T"/load "$T"/pcireset "$T"/rmmod "$T"/nmcli "$T"/dmesg
+	B43_LOAD="$T/load" B43_PCIRESET="$T/pcireset" B43_RMMOD="$T/rmmod" B43_NMCLI="$T/nmcli" B43_DMESG="$T/dmesg" \
 		B43_KMSG=/dev/null B43_SLEEP=true B43_TRIES=6 B43_WAIT=30 B43_SETTLE=1 B43_POLL=2 B43_MAX_ERRS=3 bash "$SUT" > "$T/out" 2>&1
 	local ex=$?
 	local gl gr; gl=$(wc -l < "$T/loads"); gr=$(wc -l < "$T/rmmods")
@@ -71,6 +75,10 @@ run suspend_failures_count  2 1 0 badsusp ok
 run mild_failure_not_connected 2 1 0 badmild ok
 run few_suspend_failures_then_connects 1 0 0 midok
 : > "$T/stq"
+run dead_chip_resets_pci   3 2 0 dead dead ok
+gr=$(wc -l < "$T/resets"); [ "$gr" = 2 ] || { echo "FAIL dead_chip_resets_pci: $gr PCI resets (want 2)"; fail=1; }
+run bad_init_no_pci_reset  3 2 0 bad bad ok
+[ "$(wc -l < "$T/resets")" = 0 ] || { echo "FAIL bad_init_no_pci_reset: PCI reset called"; fail=1; }
 run link_drops_then_holds    1 0 0 blip
 grep -q "dropped" "$T/out" || { echo "FAIL link_drop_logged: no dropped in output"; fail=1; }
 exit $fail
