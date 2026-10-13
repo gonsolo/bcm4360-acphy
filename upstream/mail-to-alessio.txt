@@ -1,0 +1,48 @@
+From: Andreas Wendleder <gonsolo@gmail.com>
+To: Alessio Ferri <alessio.ferri@mythread.it>
+Subject: Re: b43-ac-wip c452fdd tested, and my series re-cut after your plan
+
+Hi Alessio,
+
+results of your latest main on my MacBookAir6,1 (BCM4360, core 42, radio
+2069 rev 4, kernel 7.2.10), and my re-cut.
+
+c452fdd
+- 5 GHz (ch64, VHT 80 MHz, 2 streams, -78 dBm): download 70 Mbit/s
+  (63b6e32: 2.45), upload 58. So A-MPDU RX fixed the download.
+- 2.4 GHz (ch11, -50 dBm): the PHY TX fault is gone, no errors, RX works
+  (10.4k frames; before: none). DHCP and ping are clean. Throughput is
+  poor: upload 3.0-3.4, download 5.1 Mbit/s, rates stay legacy (tx 54,
+  rx 24), no HT on 2.4 GHz. My tree has HT capabilities on that band and
+  runs HT MCS 14/15 at 54-63 Mbit/s.
+- One thing I did not isolate: "band change is a full init" restarted the
+  core 15 times during the first scan. Afterwards the station stayed
+  associated, but ARP to the router went unanswered for minutes on
+  2.4 GHz. A fresh load worked at once.
+- Not tested: hardware CCMP, A-MPDU TX, thermal and radar.
+
+Re-cut
+I cut my series as you proposed: 14 patches in four series on v7.3-rc5
+plus the use-after-free fix, which I sent to linux-wireless yesterday.
+ A generic: MAC filter after restart, DMA64 bus-address engines (no
+   comments), RX refill retry.
+ B core 40/42: DMA burst bits, MAC core setup, address match
+   table/templates/beacons.
+ C formats: chanspec, TX descriptor/status, RX header, A-MPDU.
+ D PHY: radio 2069 and tables, init and 2.4 GHz, 5 GHz/80 MHz/VHT, drop
+   BROKEN.
+MAC code is gated on core revision 40/42 or ucode >= 784 (only 832
+tested), the PHY type only for the PHY. Each patch compiles alone, and the
+whole set runs on my board without module parameters: 2.4 GHz HT 63 up /
+54 down, 5 GHz VHT-80 40-53 up / 58-70 down, no errors in the log.
+Series A follows in a separate mail thread; B to D after we agreed on A.
+
+Questions:
+- Series A overlaps with your DMA64 changes. Who sends it? Mine could be
+  only the MAC filter and the refill retry, or the other way round. Your
+  BCMA patch goes first anyway.
+- What provenance statement do you want? Comments crediting your tree are
+  still in the code.
+- Do the gates match what you meant?
+
+Andreas
