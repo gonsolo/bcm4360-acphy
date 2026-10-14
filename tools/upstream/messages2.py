@@ -221,8 +221,7 @@ depends on the AC PHY.
 The rest of the BCM4360 support will follow once these land.
 
 Tested on a MacBookAir6,1 (BCM4360, core revision 42) with the whole
-BCM4360 support applied. Alessio Ferri ran patch 2 on a Wi-Fi N core with a
-64-bit DMA engine in his router, which still works.
+BCM4360 support applied.
 """),
 "B": ("wifi: b43: core revision 40 and 42 MAC setup (series 2/4)",
 """MAC core support for the BCM4352/BCM4360 core revisions 40 and 42. Things

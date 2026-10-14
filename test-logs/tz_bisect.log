@@ -1,0 +1,7 @@
+test [0,0): step 163,0,3142,0,0,0: Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0b1)  rx bitrate: 526.6 MBit/s VHT-MCS 6 80MHz VHT-NSS 2  | : up 74.3 Mbit/s, pkts 49830 retries 628 | : up 84.3 down 66.8
+control ok
+test [0,3142): step 163,0,3142,0,0,3142: Not connected.  |  | 
+test [0,1571): step 163,0,3142,0,0,1571: Not connected.  |  | 
+test [1571,3142): step 163,0,3142,0,1571,3142: Not connected.  |  | 
+test [0,785): step 163,0,3142,0,0,785: Not connected.  |  | 
+test [785,1571): step 163,0,3142,0,785,1571: Not connected.  |  | 

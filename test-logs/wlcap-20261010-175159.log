@@ -1,0 +1,83 @@
++ date -u
+Sat Oct 10 03:51:59 PM UTC 2026
++ lsmod
++ grep -q '^wl '
++ systemctl stop b43-autorecover
++ sync
++ rmmod b43
++ echo
++ '[' -e /sys/bus/pci/devices/0000:03:00.0/driver ']'
++ echo 0000:03:00.0
++ modprobe -r bcma
++ lsmod
++ grep -E '^(bcma|b43|ssb) '
+ssb                    98304  0
++ T=/sys/kernel/tracing
++ echo 0
++ echo nop
++ echo
++ echo 131072
++ cat
++ echo 1
++ echo 1
++ echo 'wlcap: === INSMOD wl ==='
++ sync
++ modprobe cfg80211
++ insmod /nix/store/mjfzgpskpxa08b3q55rmk4ibfzc1kybp-broadcom-sta-6.30.223.271-63-7.2.9/lib/modules/7.2.9/kernel/net/wireless/wl.ko
++ sleep 6
+++ for i in /sys/class/net/*
+++ head -1
+++ readlink /sys/class/net/lo/device/driver
+++ grep -q '/wl$'
+++ for i in /sys/class/net/*
+++ readlink /sys/class/net/wlp0s20u1/device/driver
+++ grep -q '/wl$'
+++ for i in /sys/class/net/*
+++ readlink /sys/class/net/wlp3s0/device/driver
+++ grep -q '/wl$'
+++ basename /sys/class/net/wlp3s0
++ WLIF=wlp3s0
++ echo 'wl interface: wlp3s0'
+wl interface: wlp3s0
++ '[' -n wlp3s0 ']'
++ nmcli connection delete wl-trace
+Connection 'wl-trace' (348d9d2f-00e6-4b54-8756-2ecf598f0793) successfully deleted.
++ nmcli connection clone Vodafone-2A84 wl-trace
+Vodafone-2A84 (4341e1fe-9f6c-3bcb-ac80-63544085e02e) cloned as wl-trace (081df129-64a2-4387-af62-feea39bc31e2).
++ nmcli connection modify wl-trace connection.interface-name wlp3s0 connection.autoconnect no 802-11-wireless.band a ipv4.route-metric 900 ipv6.route-metric 900
++ nmcli -w 40 connection up wl-trace ifname wlp3s0
+Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/14)
++ sleep 25
++ /home/gonsolo/bcm4360-acphy/tools/iw/bin/iw dev wlp3s0 link
+Connected to 8c:6a:8d:9e:2a:90 (on wlp3s0)
+	SSID: Vodafone-2A84
+	freq: 5560.0
+	signal: -45 dBm
+	tx bitrate: 780.0 MBit/s
++ echo 0
++ echo 'wlcap: === TRACE STOP ==='
++ cat /sys/kernel/tracing/per_cpu/cpu0/stats /sys/kernel/tracing/per_cpu/cpu1/stats /sys/kernel/tracing/per_cpu/cpu2/stats /sys/kernel/tracing/per_cpu/cpu3/stats
++ grep -E 'entries|overrun'
++ paste - -
++ head
+entries: 148332	overrun: 0
+commit overrun: 0	entries: 51415
+overrun: 0	commit overrun: 0
+entries: 70585	overrun: 0
+commit overrun: 0	entries: 65537
+overrun: 0	commit overrun: 0
++ cat /sys/kernel/tracing/trace
++ echo 0
++ echo
++ echo 1408
++ wc -l /home/gonsolo/bcm4360-acphy/traces/wl-firstload-5g-20261010-175159.trace
+335881 /home/gonsolo/bcm4360-acphy/traces/wl-firstload-5g-20261010-175159.trace
++ chown gonsolo:users /home/gonsolo/bcm4360-acphy/traces/wl-firstload-5g-20261010-175159.trace /home/gonsolo/bcm4360-acphy/test-logs/wlcap-20261010-175159.log
++ sync
++ nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device
+wlp0s20u1:wifi:connected:stick-backup
+wlp3s0:wifi:connected:wl-trace
+lo:loopback:connected (externally):lo
+p2p-dev-wlp0s20u1:wifi-p2p:disconnected:
++ echo '===== DONE (wl stays loaded) ====='
+===== DONE (wl stays loaded) =====

@@ -376,8 +376,6 @@ static struct ieee80211_supported_band b43_band_2GHz = {
 };
 
 
-MODULE_PARM_DESC(ac_vht, "AC-PHY: advertise VHT (2 streams, 80 MHz) on 5 GHz. Experimental; needs ac_5ghz=1 ac_5g_80=1 and an AP on channels 100-112 (notes/143)");
-
 static struct ieee80211_supported_band b43_band_2GHz_ac = {
 	.band		= NL80211_BAND_2GHZ,
 	.channels	= b43_2ghz_chantable,
@@ -1318,7 +1316,6 @@ void b43_wireless_core_phy_pll_reset(struct b43_wldev *dev)
 }
 
 #ifdef CONFIG_B43_BCMA
-
 static void b43_bcma_phy_reset(struct b43_wldev *dev)
 {
 	u32 flags;
@@ -1435,7 +1432,6 @@ void b43_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 	macctl |= B43_MACCTL_IHR_ENABLED;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 }
-
 
 static void handle_irq_transmit_status(struct b43_wldev *dev)
 {
@@ -4971,6 +4967,7 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 	dev->irq_mask = B43_IRQ_MASKTEMPLATE;
 	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
 		dev->irq_mask &= ~B43_IRQ_PHY_TXERR;
+
 	dev->mac_suspended = 1;
 
 	/* Noise calculation context */
