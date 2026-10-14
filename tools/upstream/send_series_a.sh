@@ -2,7 +2,7 @@
 # Send series A (cover letter + 2 signed patches, upstream/split/A-list) to linux-wireless with git send-email.
 #   tools/upstream/send_series_a.sh --dry-run     show what would be sent (needs no password)
 #   tools/upstream/send_series_a.sh               send for real (asks to confirm)
-# Recipients as for the use-after-free patch (notes/163). Nothing else is added: --suppress-cc=all.
+# Recipients: list, wireless maintainers and the blamed/maintainer addresses the netdev CI bot checks (cc_maintainers failed on the first patch without them).
 set -eu
 P=$(cd "$(dirname "$0")/../.." && pwd); cd "$P"
 DRY=; [ "${1:-}" = --dry-run ] && DRY=--dry-run
@@ -16,5 +16,8 @@ git send-email --confirm=always --suppress-cc=all --to-cmd=true --cc-cmd=true $D
 	--cc 'b43-dev@lists.infradead.org' \
 	--cc 'Michael Buesch <m@bues.ch>' \
 	--cc 'Alessio Ferri <alessio.ferri@mythread.it>' \
+	--cc 'kvalo@kernel.org' \
+	--cc 'julian.calaby@gmail.com' \
+	--cc 'jpeisach@ubuntu.com' \
 	--cc 'linux-kernel@vger.kernel.org' \
 	upstream/split/A-list/0*.patch
