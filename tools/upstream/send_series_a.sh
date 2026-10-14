@@ -19,5 +19,6 @@ git send-email --confirm=always --suppress-cc=all --to-cmd=true --cc-cmd=true $D
 	--cc 'kvalo@kernel.org' \
 	--cc 'julian.calaby@gmail.com' \
 	--cc 'jpeisach@ubuntu.com' \
+	--cc 'rosenp@gmail.com' \
 	--cc 'linux-kernel@vger.kernel.org' \
 	upstream/split/A-list/0*.patch
