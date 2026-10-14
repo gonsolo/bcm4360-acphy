@@ -1,0 +1,27 @@
+From: Andreas Wendleder <gonsolo@gmail.com>
+To: Alessio Ferri <alessio.ferri@mythread.it>
+Subject: Re: bcma patches
+
+Hi Alessio,
+
+I tested the 8 bcma patches on a MacBookAir6,1 (BCM4360 rev 3, 7.2.10),
+with the b43 from our series. The tree is v7.3-rc5 bcma plus your
+patches, built as an out-of-tree bcma.ko.
+
+- Builds, loads and connects. Cores, PHY and firmware come up cleanly.
+  There are no HT or PLL timeouts and no "Microcode not responding".
+  Result: 65 Mbit/s MCS 7 on 2.4 GHz, and a 30 MB download at about
+  32 Mbit/s.
+- Resume: a 3 h 42 min suspend with the lid closed, and the chip came
+  back alive after resume. Stock bcma left it dead after a longer
+  (11 h) sleep. This is one run, so I'll repeat it overnight.
+- Untested: patches 5-7 (our b43 doesn't use the new SPROM fields) and
+  patch 8 (my chip is a 4360).
+
+Series A (MAC filter, DMA64) is on the list:
+https://lore.kernel.org/linux-wireless/20261014143225.82149-1-gonsolo@gmail.com/T/#t
+
+I dropped the RX refill retry from it, as you doubted it.
+
+Thanks,
+Andreas
