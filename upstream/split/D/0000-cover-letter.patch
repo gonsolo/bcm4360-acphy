@@ -1,6 +1,6 @@
-From 6cee9e30a532a94a5e3908665fba1ffb2bc61b20 Mon Sep 17 00:00:00 2001
+From 0d7bb82f2b52b2bb62d5f1b72d3aa2ad240f7c9c Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 00:05:20 +0200
+Date: Wed, 14 Oct 2026 12:20:51 +0200
 Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC-PHY support (series 4/4)
 
 Radio 2069 and the AC PHY: tables, 2.4 GHz and 5 GHz channel switching

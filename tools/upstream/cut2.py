@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """cut2.py REPO KDEV: cut the target tree (branch 'final2' of the series repo) into 14 commits on branch 'series2' (notes/166), in four series:
-A 1-3 generic, B 4-6 core revisions 40/42, C 7-10 microcode formats, D 11-14 PHY. Every commit is compile-tested with
+A 1-2 generic, B 3-5 core revisions 40/42, C 6-9 microcode formats, D 10-13 PHY, 14 RX refill retry (held back). Every commit is compile-tested with
 tools/build_upstream_tree.sh. The base is the commit '2bd8d42' (stock b43 of v7.3-rc5 plus the use-after-free fix, sent separately).
 Regions of a file (difflib opcodes between base and final2) are assigned to patches by number (tools/upstream/regions.py lists them)."""
 import difflib, os, re, subprocess, sys
@@ -9,7 +9,9 @@ P = "drivers/net/wireless/broadcom/b43"; D = f"{repo}/{P}"
 BASE = "2bd8d42"; FINAL = "final2"
 here = os.path.dirname(os.path.abspath(__file__)); proj = os.path.abspath(f"{here}/../..")
 sys.path.insert(0, here)
-from messages2 import M
+from messages2 import M as M_OLD
+R = {1:1, 2:2, 4:3, 5:4, 6:5, 7:6, 8:7, 9:8, 10:9, 11:10, 12:11, 13:12, 14:13, 3:14}   # old number -> new number
+M = [M_OLD[o - 1] for o in sorted(R, key=lambda o: R[o])]
 
 def git(*a, **kw):
     return subprocess.check_output(["git", "-C", repo, *a], text=True, **kw)
@@ -93,6 +95,10 @@ OVERRIDES = [
 "u16 b43_ac_chanspec(struct b43_wldev *dev, unsigned int channel);")),
 ]
 
+ASSIGN = {f: {n: R[v] for n, v in d.items()} for f, d in ASSIGN.items()}
+NEWFILES = {R[k]: v for k, v in NEWFILES.items()}
+OVERRIDES = [(f, R[first], a, b) for f, first, a, b in OVERRIDES]
+
 def staged(f, k):
     a = stock(f).splitlines(keepends=True); b = final(f).splitlines(keepends=True)
     out = []; n = 0
@@ -121,7 +127,7 @@ stageA = {"phy_ac.c": open(f"{tmp}/phy_ac.c").read(), "phy_ac.h": open(f"{tmp}/p
 
 def kconfig(k):
     s = stock("Kconfig")
-    if k < 14: return s
+    if k < R[14]: return s
     s = s.replace('bool "Support for AC-PHY (802.11ac) devices (BROKEN)"\n\tdepends on B43 && B43_BCMA && BROKEN',
                   'bool "Support for AC-PHY (802.11ac) devices (EXPERIMENTAL)"\n\tdepends on B43 && B43_BCMA')
     s = s.replace("\tSay N, this is BROKEN and crashes driver.\n",
@@ -140,9 +146,9 @@ for k, (subject, body) in enumerate(M, 1):
     for kk, files in NEWFILES.items():
         if kk <= k:
             for f in files: write(f, final(f))
-    write("phy_ac.c", final("phy_ac.c") if k >= 13 else (stageA["phy_ac.c"] if k >= 12 else stock("phy_ac.c")))
-    write("phy_ac.h", final("phy_ac.h") if k >= 13 else (stageA["phy_ac.h"] if k >= 12 else stock("phy_ac.h")))
-    if k < 11:
+    write("phy_ac.c", final("phy_ac.c") if k >= R[13] else (stageA["phy_ac.c"] if k >= R[12] else stock("phy_ac.c")))
+    write("phy_ac.h", final("phy_ac.h") if k >= R[13] else (stageA["phy_ac.h"] if k >= R[12] else stock("phy_ac.h")))
+    if k < R[11]:
         write("Makefile", stock("Makefile"))
     write("Kconfig", kconfig(k))
     git("add", "-A")

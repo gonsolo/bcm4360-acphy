@@ -1,6 +1,6 @@
-From 6cee9e30a532a94a5e3908665fba1ffb2bc61b20 Mon Sep 17 00:00:00 2001
+From 0d7bb82f2b52b2bb62d5f1b72d3aa2ad240f7c9c Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 00:05:20 +0200
+Date: Wed, 14 Oct 2026 12:20:51 +0200
 Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC-PHY support (series 4/4)
 
 Radio 2069 and the AC PHY: tables, 2.4 GHz and 5 GHz channel switching
@@ -48,9 +48,9 @@ Andreas Wendleder (4):
  create mode 100644 drivers/net/wireless/broadcom/b43/tables_phy_ac.c
  create mode 100644 drivers/net/wireless/broadcom/b43/tables_phy_ac.h
 
-From 515ce123b9c21e9e5a8c0b1190031ae1f6583ca3 Mon Sep 17 00:00:00 2001
+From ac1bfea65399fa25f30cd61ff0429510e7920f8d Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:54 +0200
+Date: Wed, 14 Oct 2026 12:17:38 +0200
 Subject: [PATCH RFC wireless-next 1/4] wifi: b43: radio 2069 and AC-PHY tables
 
 Add the data the AC PHY needs:
@@ -1392,9 +1392,9 @@ index 0000000..64a5969
 +extern const u16 b43_phy_ac_txgain_5g[128][3];
 +
 +#endif /* B43_TABLES_PHY_AC_H_ */
-From 6a8c385bd688b1984e98f8470ab7993b4dedc3c8 Mon Sep 17 00:00:00 2001
+From c5a06c206c3ce5c8cdc46e050a47a37414277799 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:57:05 +0200
+Date: Wed, 14 Oct 2026 12:17:49 +0200
 Subject: [PATCH RFC wireless-next 2/4] wifi: b43: AC-PHY init and 2.4 GHz
  channel switching
 
@@ -1426,7 +1426,7 @@ the BCM4360 (PHY AC rev 1, radio 2069 rev 4) up on 2.4 GHz at 20 MHz:
  create mode 100644 drivers/net/wireless/broadcom/b43/phy_ac_farrow.h
 
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 5cbf8fd..9c43792 100644
+index f7335ef..919cb4f 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -352,6 +352,25 @@ static struct ieee80211_supported_band b43_band_2GHz = {
@@ -1455,7 +1455,7 @@ index 5cbf8fd..9c43792 100644
  static struct ieee80211_supported_band b43_band_2ghz_limited = {
  	.band		= NL80211_BAND_2GHZ,
  	.channels	= b43_2ghz_chantable,
-@@ -5560,7 +5579,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
+@@ -5558,7 +5577,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
  
  	if (have_2ghz_phy)
  		hw->wiphy->bands[NL80211_BAND_2GHZ] = limited_2g ?
@@ -2633,9 +2633,9 @@ index 0000000..b1d4e36
 +	{  13, { 0xcccd, 0x0072, 0x1400, 0x00a7 }, { 0x5f00, 0x0058, 0x5f00, 0x0058 } },
 +	{  14, { 0x999a, 0x0074, 0x1400, 0x00a7 }, { 0xf1b6, 0x0057, 0xf1b6, 0x0057 } },
 +};
-From 96d19ac0c6962c399f1ab1c3114c319a1e1eb970 Mon Sep 17 00:00:00 2001
+From 39f5da0f3aaa80cba9c1b7a34f30564fb0af2f40 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:57:16 +0200
+Date: Wed, 14 Oct 2026 12:17:59 +0200
 Subject: [PATCH RFC wireless-next 3/4] wifi: b43: 5 GHz, 80 MHz and VHT for
  the AC PHY
 
@@ -2663,7 +2663,7 @@ Register the 5 GHz band with HT and VHT capabilities (two streams, MCS 0-9,
  5 files changed, 298 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 9c43792..db91412 100644
+index 919cb4f..bff90de 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -317,6 +317,21 @@ static struct ieee80211_channel b43_5ghz_aphy_chantable[] = {
@@ -2703,7 +2703,7 @@ index 9c43792..db91412 100644
  static struct ieee80211_supported_band b43_band_5GHz_aphy = {
  	.band		= NL80211_BAND_5GHZ,
  	.channels	= b43_5ghz_aphy_chantable,
-@@ -5587,6 +5610,21 @@ static int b43_setup_bands(struct b43_wldev *dev,
+@@ -5585,6 +5608,21 @@ static int b43_setup_bands(struct b43_wldev *dev,
  			hw->wiphy->bands[NL80211_BAND_5GHZ] = limited_5g ?
  				&b43_band_5GHz_nphy_limited :
  				&b43_band_5GHz_nphy;
@@ -3100,9 +3100,9 @@ index db9c628..ec133ed 100644
  
  /**
   * b43_software_rfkill - Turn the radio ON or OFF in software.
-From 6cee9e30a532a94a5e3908665fba1ffb2bc61b20 Mon Sep 17 00:00:00 2001
+From 0d7bb82f2b52b2bb62d5f1b72d3aa2ad240f7c9c Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:57:27 +0200
+Date: Wed, 14 Oct 2026 12:20:15 +0200
 Subject: [PATCH RFC wireless-next 4/4] wifi: b43: enable the AC-PHY support
 
 The AC-PHY now brings up a BCM4352/BCM4360 on 2.4 GHz and 5 GHz and

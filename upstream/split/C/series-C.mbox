@@ -1,6 +1,6 @@
-From 866790435fbf1fb63ee6b566d22c2d0835833643 Mon Sep 17 00:00:00 2001
+From 7612802a7a2a7e3c619008aee306f2a82134fc15 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 00:05:20 +0200
+Date: Wed, 14 Oct 2026 12:20:51 +0200
 Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC microcode TX and RX formats (series 3/4)
 
 The TX descriptor, TX status, RX header and A-MPDU handling of the AC
@@ -29,9 +29,9 @@ Andreas Wendleder (4):
  drivers/net/wireless/broadcom/b43/xmit.h      |  11 +
  7 files changed, 474 insertions(+), 7 deletions(-)
 
-From eec6bf738a67ab8cc882819dc2a3302d3be67040 Mon Sep 17 00:00:00 2001
+From 62d74a06626b204838903182b022a8a9a1b48a02 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:12 +0200
+Date: Wed, 14 Oct 2026 12:16:47 +0200
 Subject: [PATCH RFC wireless-next 1/4] wifi: b43: 11ac chanspec for the AC
  microcode
 
@@ -92,9 +92,9 @@ index 5ec5233..db9c628 100644
  /**
   * b43_software_rfkill - Turn the radio ON or OFF in software.
   */
-From 6e427361b0ad210ae8b19087127c3747bbf24427 Mon Sep 17 00:00:00 2001
+From 25b6e219eb2fd7b7de1c8c33ba69eb88dcd4fd21 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:23 +0200
+Date: Wed, 14 Oct 2026 12:16:57 +0200
 Subject: [PATCH RFC wireless-next 2/4] wifi: b43: TX descriptor and TX status
  for the AC microcode
 
@@ -122,7 +122,7 @@ Only microcode revision 832 has been tested.
  5 files changed, 279 insertions(+)
 
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index e3b7479..6158b07 100644
+index 64db6de..0102df6 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
 @@ -1442,6 +1442,18 @@ out:
@@ -145,10 +145,10 @@ index e3b7479..6158b07 100644
  			     const struct b43_txstatus *status)
  {
 diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
-index 1400942..46dbbae 100644
+index 14de4cb..5c84b1f 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.h
 +++ b/drivers/net/wireless/broadcom/b43/dma.h
-@@ -299,6 +299,7 @@ void b43_dma_tx_resume(struct b43_wldev *dev);
+@@ -298,6 +298,7 @@ void b43_dma_tx_resume(struct b43_wldev *dev);
  
  int b43_dma_tx(struct b43_wldev *dev,
  	       struct sk_buff *skb);
@@ -157,7 +157,7 @@ index 1400942..46dbbae 100644
  			     const struct b43_txstatus *status);
  
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index d2731d8..2b12cef 100644
+index 3b233a3..5f76c3a 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -1403,6 +1403,57 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
@@ -479,9 +479,9 @@ index 6524a75..aa7a1ab 100644
  	u8 rts_count;		/* RTS transmit count */
  	u8 supp_reason;		/* Suppression reason */
  	/* flags */
-From 8ea1befdd6dcc78c5fd0f646d3ae5e9fae33f226 Mon Sep 17 00:00:00 2001
+From 7bd44ea6a73ce4a8c0313d895da4cf749518456d Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:33 +0200
+Date: Wed, 14 Oct 2026 12:17:08 +0200
 Subject: [PATCH RFC wireless-next 3/4] wifi: b43: RX header handling for the
  AC microcode
 
@@ -628,9 +628,9 @@ index 4ff3033..b6f8abb 100644
  		rate_idx = b43_plcp_get_bitrate_idx_ofdm(plcp,
  					!!(chanstat & B43_RX_CHAN_5GHZ));
  	else
-From 866790435fbf1fb63ee6b566d22c2d0835833643 Mon Sep 17 00:00:00 2001
+From 7612802a7a2a7e3c619008aee306f2a82134fc15 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:44 +0200
+Date: Wed, 14 Oct 2026 12:17:21 +0200
 Subject: [PATCH RFC wireless-next 4/4] wifi: b43: A-MPDU for the AC microcode
 
 The microcode builds the aggregates and sends the block acks. Accept block
@@ -649,7 +649,7 @@ longer ones lose their later MPDUs.
  4 files changed, 98 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index 6158b07..268a812 100644
+index 0102df6..3d989cb 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
 @@ -34,6 +34,9 @@
@@ -732,10 +732,10 @@ index 6158b07..268a812 100644
  		B43_WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME);
  		ring->stopped = false;
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 2b12cef..5cbf8fd 100644
+index 5f76c3a..f7335ef 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -5429,6 +5429,36 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
+@@ -5427,6 +5427,36 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
  	return 0;
  }
  
@@ -772,7 +772,7 @@ index 2b12cef..5cbf8fd 100644
  static const struct ieee80211_ops b43_hw_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -5451,6 +5481,7 @@ static const struct ieee80211_ops b43_hw_ops = {
+@@ -5449,6 +5479,7 @@ static const struct ieee80211_ops b43_hw_ops = {
  	.stop			= b43_op_stop,
  	.set_tim		= b43_op_beacon_set_tim,
  	.sta_notify		= b43_op_sta_notify,
@@ -780,7 +780,7 @@ index 2b12cef..5cbf8fd 100644
  	.sw_scan_start		= b43_op_sw_scan_start_notifier,
  	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
  	.get_survey		= b43_op_get_survey,
-@@ -5540,6 +5571,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
+@@ -5538,6 +5569,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
  			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
  	}
  

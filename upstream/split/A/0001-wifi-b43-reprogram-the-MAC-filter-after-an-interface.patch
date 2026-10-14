@@ -1,20 +1,16 @@
-From 95bd3b1695bfbc7e0eae34b69ee28bdb915b88d9 Mon Sep 17 00:00:00 2001
+From ddcbf2887636f15de21d2b15f63762db76052f45 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:55:11 +0200
-Subject: [PATCH wireless-next 1/3] wifi: b43: reprogram the MAC filter after
+Date: Wed, 14 Oct 2026 12:15:42 +0200
+Subject: [PATCH wireless-next 1/2] wifi: b43: reprogram the MAC filter after
  an interface restart
 
 b43_op_start() clears wl->filter_flags, but mac80211 computes @changed
 for b43_op_configure_filter() against the flags it cached from the
-previous run. After a down/up it can therefore report no change, so
+previous run. After a down/up it can report no change, so
 b43_adjust_opmode() is not called and MACCTL keeps the cleared filter.
 
-Seen on a BCM4360: after an interface restart nothing was received until
-some other change touched the filter. Compare the requested flags with
-what the hardware was actually programmed with and add the difference to
-@changed.
-
-Not checked on other chips.
+Compare the requested flags with what the hardware was programmed with
+and add the difference to @changed.
 ---
  drivers/net/wireless/broadcom/b43/main.c | 6 ++++++
  1 file changed, 6 insertions(+)

@@ -1,6 +1,6 @@
-From 54a558775b05bb5e04268dcd8c03a210665ef5d0 Mon Sep 17 00:00:00 2001
+From c8504f91d68ac9f8689ef90e4a3e0326a21b54f9 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:55:41 +0200
+Date: Wed, 14 Oct 2026 12:16:07 +0200
 Subject: [PATCH RFC wireless-next 1/3] wifi: b43: set the DMA burst and
  prefetch bits of core revisions 40 and 42
 
@@ -34,7 +34,7 @@ index e1e8083..80b299b 100644
  {
  	return wldev->dev->bus_may_powerdown(wldev->dev);
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index 10d5a4c..e3b7479 100644
+index 20d910a..64db6de 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
 @@ -691,6 +691,8 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
@@ -56,7 +56,7 @@ index 10d5a4c..e3b7479 100644
  				ring->ptr_base = lower_32_bits(ring->dmabase);
  				value |= b43_dma_read(ring, B43_DMA64_RXCTL) &
 diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
-index b2fa678..1400942 100644
+index eddc882..14de4cb 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.h
 +++ b/drivers/net/wireless/broadcom/b43/dma.h
 @@ -91,6 +91,7 @@ struct b43_dmadesc32 {

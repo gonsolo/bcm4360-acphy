@@ -5,22 +5,18 @@ M = [
 ("wifi: b43: reprogram the MAC filter after an interface restart",
 """b43_op_start() clears wl->filter_flags, but mac80211 computes @changed
 for b43_op_configure_filter() against the flags it cached from the
-previous run. After a down/up it can therefore report no change, so
+previous run. After a down/up it can report no change, so
 b43_adjust_opmode() is not called and MACCTL keeps the cleared filter.
 
-Seen on a BCM4360: after an interface restart nothing was received until
-some other change touched the filter. Compare the requested flags with
-what the hardware was actually programmed with and add the difference to
-@changed.
-
-Not checked on other chips."""),
+Compare the requested flags with what the hardware was programmed with
+and add the difference to @changed."""),
 
 ("wifi: b43: handle 64-bit DMA engines whose index registers hold bus addresses",
 """Newer 64-bit DMA engines (found on the core revisions of the BCM4352 and
 BCM4360) accept ring addresses with low bits set and then use bus
 addresses, not offsets into the ring, in the index and status registers.
-They are detected with the probe the vendor driver and brcmsmac use:
-write 0xff0 to TXRINGLO and see whether it sticks.
+They are detected as brcmsmac does it in _dma_descriptor_align(): write
+0xff0 to TXRINGLO and see whether it sticks.
 
 On such an engine keep the ring address in the new ring->ptr_base, add it
 when writing TXINDEX and RXINDEX and subtract it when reading RXSTATUS.
@@ -211,21 +207,22 @@ only comes with series 4, so the earlier series cannot be exercised on this
 hardware alone."""
 
 COVERS = {
-"A": ("wifi: b43: DMA and filter fixes for the BCM4360 (series 1/4)",
-"""Three fixes found while bringing up the BCM4360. None depends on the
-AC PHY; they only change behaviour where stated:
+"A": ("wifi: b43: MAC filter and 64-bit DMA fixes for the BCM4360",
+"""Two fixes found while bringing up a BCM4360 (MacBookAir6,1). Neither
+depends on the AC PHY.
 
- 1. MAC filter after an interface restart,
- 2. 64-bit DMA engines whose index and status registers hold bus
-    addresses (detected by probe, offset engines are untouched),
- 3. retry of RX buffer refills that failed under memory pressure.
+ 1. After an interface restart nothing was received until some other
+    change touched the filter: b43_op_start() zeroes wl->filter_flags,
+    but mac80211 computes the change against its own cached flags.
+ 2. The 64-bit DMA engines of the BCM4352/BCM4360 cores use bus addresses
+    in the index and status registers. They are detected by probe, as
+    brcmsmac does; engines that keep offsets are untouched.
 
-This is the first of four series; the rest (core revision 40/42 MAC
-setup, AC microcode formats, the AC PHY and removal of BROKEN) follow
-once this is merged, as agreed with Alessio Ferri who has a series for the
-same hardware.
+The rest of the BCM4360 support will follow once these land.
 
-""" + NOTE_TESTED + """ Not tested on other chips.
+Tested on a MacBookAir6,1 (BCM4360, core revision 42) with the whole
+BCM4360 support applied. Alessio Ferri ran patch 2 on a Wi-Fi N core with a
+64-bit DMA engine in his router, which still works.
 """),
 "B": ("wifi: b43: core revision 40 and 42 MAC setup (series 2/4)",
 """MAC core support for the BCM4352/BCM4360 core revisions 40 and 42. Things

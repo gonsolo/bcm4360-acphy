@@ -1,6 +1,6 @@
-From eec6bf738a67ab8cc882819dc2a3302d3be67040 Mon Sep 17 00:00:00 2001
+From 62d74a06626b204838903182b022a8a9a1b48a02 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:12 +0200
+Date: Wed, 14 Oct 2026 12:16:47 +0200
 Subject: [PATCH RFC wireless-next 1/4] wifi: b43: 11ac chanspec for the AC
  microcode
 

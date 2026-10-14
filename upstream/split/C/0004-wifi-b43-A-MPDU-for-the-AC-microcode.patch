@@ -1,6 +1,6 @@
-From 866790435fbf1fb63ee6b566d22c2d0835833643 Mon Sep 17 00:00:00 2001
+From 7612802a7a2a7e3c619008aee306f2a82134fc15 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:44 +0200
+Date: Wed, 14 Oct 2026 12:17:21 +0200
 Subject: [PATCH RFC wireless-next 4/4] wifi: b43: A-MPDU for the AC microcode
 
 The microcode builds the aggregates and sends the block acks. Accept block
@@ -19,7 +19,7 @@ longer ones lose their later MPDUs.
  4 files changed, 98 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index 6158b07..268a812 100644
+index 0102df6..3d989cb 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
 @@ -34,6 +34,9 @@
@@ -102,10 +102,10 @@ index 6158b07..268a812 100644
  		B43_WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME);
  		ring->stopped = false;
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 2b12cef..5cbf8fd 100644
+index 5f76c3a..f7335ef 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -5429,6 +5429,36 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
+@@ -5427,6 +5427,36 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
  	return 0;
  }
  
@@ -142,7 +142,7 @@ index 2b12cef..5cbf8fd 100644
  static const struct ieee80211_ops b43_hw_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -5451,6 +5481,7 @@ static const struct ieee80211_ops b43_hw_ops = {
+@@ -5449,6 +5479,7 @@ static const struct ieee80211_ops b43_hw_ops = {
  	.stop			= b43_op_stop,
  	.set_tim		= b43_op_beacon_set_tim,
  	.sta_notify		= b43_op_sta_notify,
@@ -150,7 +150,7 @@ index 2b12cef..5cbf8fd 100644
  	.sw_scan_start		= b43_op_sw_scan_start_notifier,
  	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
  	.get_survey		= b43_op_get_survey,
-@@ -5540,6 +5571,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
+@@ -5538,6 +5569,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
  			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
  	}
  

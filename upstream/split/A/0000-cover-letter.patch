@@ -1,36 +1,32 @@
-From 8ec8bddc7ada201481449a1b1ba8375d405da1d9 Mon Sep 17 00:00:00 2001
+From 390fe27e072d06f6df29eaae2ee3b08ff1bfb8aa Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 00:05:20 +0200
-Subject: [PATCH wireless-next 0/3] wifi: b43: DMA and filter fixes for the BCM4360 (series 1/4)
+Date: Wed, 14 Oct 2026 12:20:51 +0200
+Subject: [PATCH wireless-next 0/2] wifi: b43: MAC filter and 64-bit DMA fixes for the BCM4360
 
-Three fixes found while bringing up the BCM4360. None depends on the
-AC PHY; they only change behaviour where stated:
+Two fixes found while bringing up a BCM4360 (MacBookAir6,1). Neither
+depends on the AC PHY.
 
- 1. MAC filter after an interface restart,
- 2. 64-bit DMA engines whose index and status registers hold bus
-    addresses (detected by probe, offset engines are untouched),
- 3. retry of RX buffer refills that failed under memory pressure.
+ 1. After an interface restart nothing was received until some other
+    change touched the filter: b43_op_start() zeroes wl->filter_flags,
+    but mac80211 computes the change against its own cached flags.
+ 2. The 64-bit DMA engines of the BCM4352/BCM4360 cores use bus addresses
+    in the index and status registers. They are detected by probe, as
+    brcmsmac does; engines that keep offsets are untouched.
 
-This is the first of four series; the rest (core revision 40/42 MAC
-setup, AC microcode formats, the AC PHY and removal of BROKEN) follow
-once this is merged, as agreed with Alessio Ferri who has a series for the
-same hardware.
+The rest of the BCM4360 support will follow once these land.
 
-Each patch compiles on its own (kernel 7.2.10 headers). The four series
-together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
-microcode 832.127, 2 of 3 chains wired) on top of v7.3-rc5's b43. The AC PHY
-only comes with series 4, so the earlier series cannot be exercised on this
-hardware alone. Not tested on other chips.
+Tested on a MacBookAir6,1 (BCM4360, core revision 42) with the whole
+BCM4360 support applied. Alessio Ferri ran patch 2 on a Wi-Fi N core with a
+64-bit DMA engine in his router, which still works.
 
-Andreas Wendleder (3):
+Andreas Wendleder (2):
   wifi: b43: reprogram the MAC filter after an interface restart
   wifi: b43: handle 64-bit DMA engines whose index registers hold bus
     addresses
-  wifi: b43: retry RX buffer refills that failed under memory pressure
 
  drivers/net/wireless/broadcom/b43/b43.h  |  1 +
- drivers/net/wireless/broadcom/b43/dma.c  | 88 +++++++++++++++++++++---
- drivers/net/wireless/broadcom/b43/dma.h  |  6 ++
- drivers/net/wireless/broadcom/b43/main.c |  8 +++
- 4 files changed, 92 insertions(+), 11 deletions(-)
+ drivers/net/wireless/broadcom/b43/dma.c  | 52 +++++++++++++++++++-----
+ drivers/net/wireless/broadcom/b43/dma.h  |  3 ++
+ drivers/net/wireless/broadcom/b43/main.c |  6 +++
+ 4 files changed, 51 insertions(+), 11 deletions(-)
 

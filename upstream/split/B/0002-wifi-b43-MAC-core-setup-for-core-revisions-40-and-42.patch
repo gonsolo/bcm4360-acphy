@@ -1,6 +1,6 @@
-From a17ab22bc3ae48159aeb19c827e925bb22607ebf Mon Sep 17 00:00:00 2001
+From 6b4447d447ba6ed6e84ad790a2198bc64de94ee9 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:55:52 +0200
+Date: Wed, 14 Oct 2026 12:16:18 +0200
 Subject: [PATCH RFC wireless-next 2/3] wifi: b43: MAC core setup for core
  revisions 40 and 42
 
@@ -50,7 +50,7 @@ index 80b299b..92227ff 100644
  {
  	return dev->dev->read16(dev->dev, offset);
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 001e272..7c19444 100644
+index 57a5935..bed5bdd 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -1235,6 +1235,23 @@ static void b43_bcma_phy_reset(struct b43_wldev *dev)
@@ -178,7 +178,7 @@ index 001e272..7c19444 100644
  
  	b43_mac_phy_clock_set(dev, true);
  
-@@ -3531,6 +3612,13 @@ error:
+@@ -3529,6 +3610,13 @@ error:
  
  static void b43_security_init(struct b43_wldev *dev)
  {
@@ -192,7 +192,7 @@ index 001e272..7c19444 100644
  	dev->ktp = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_KTP);
  	/* KTP is a word address, but we address SHM bytewise.
  	 * So multiply by two.
-@@ -4180,6 +4268,8 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -4178,6 +4266,8 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  
  	if (modparam_nohwcrypt)
  		return -ENOSPC; /* User disabled HW-crypto */

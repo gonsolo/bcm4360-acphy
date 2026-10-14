@@ -1,6 +1,6 @@
-From 96d19ac0c6962c399f1ab1c3114c319a1e1eb970 Mon Sep 17 00:00:00 2001
+From 39f5da0f3aaa80cba9c1b7a34f30564fb0af2f40 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:57:16 +0200
+Date: Wed, 14 Oct 2026 12:17:59 +0200
 Subject: [PATCH RFC wireless-next 3/4] wifi: b43: 5 GHz, 80 MHz and VHT for
  the AC PHY
 
@@ -28,7 +28,7 @@ Register the 5 GHz band with HT and VHT capabilities (two streams, MCS 0-9,
  5 files changed, 298 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 9c43792..db91412 100644
+index 919cb4f..bff90de 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -317,6 +317,21 @@ static struct ieee80211_channel b43_5ghz_aphy_chantable[] = {
@@ -68,7 +68,7 @@ index 9c43792..db91412 100644
  static struct ieee80211_supported_band b43_band_5GHz_aphy = {
  	.band		= NL80211_BAND_5GHZ,
  	.channels	= b43_5ghz_aphy_chantable,
-@@ -5587,6 +5610,21 @@ static int b43_setup_bands(struct b43_wldev *dev,
+@@ -5585,6 +5608,21 @@ static int b43_setup_bands(struct b43_wldev *dev,
  			hw->wiphy->bands[NL80211_BAND_5GHZ] = limited_5g ?
  				&b43_band_5GHz_nphy_limited :
  				&b43_band_5GHz_nphy;

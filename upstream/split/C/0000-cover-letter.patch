@@ -1,6 +1,6 @@
-From 866790435fbf1fb63ee6b566d22c2d0835833643 Mon Sep 17 00:00:00 2001
+From 7612802a7a2a7e3c619008aee306f2a82134fc15 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 00:05:20 +0200
+Date: Wed, 14 Oct 2026 12:20:51 +0200
 Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC microcode TX and RX formats (series 3/4)
 
 The TX descriptor, TX status, RX header and A-MPDU handling of the AC

@@ -1,7 +1,7 @@
-From 8ec8bddc7ada201481449a1b1ba8375d405da1d9 Mon Sep 17 00:00:00 2001
+From d2efc72f8a037194b12129c099fb19cbd014c9e5 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:55:31 +0200
-Subject: [PATCH wireless-next 3/3] wifi: b43: retry RX buffer refills that
+Date: Wed, 14 Oct 2026 12:20:27 +0200
+Subject: [PATCH RFC wireless-next] wifi: b43: retry RX buffer refills that
  failed under memory pressure
 
 dma_rx() refills a slot with GFP_ATOMIC. When that fails it reposts the
@@ -20,10 +20,10 @@ does nothing unless a refill has failed.
  3 files changed, 41 insertions(+)
 
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index 20d910a..10d5a4c 100644
+index 3d989cb..268a812 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
-@@ -1675,8 +1675,10 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
+@@ -1735,8 +1735,10 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
  	err = setup_rx_descbuffer(ring, desc, meta, GFP_ATOMIC);
  	if (unlikely(err)) {
  		b43dbg(ring->dev->wl, "DMA RX: setup_rx_descbuffer() failed\n");
@@ -34,7 +34,7 @@ index 20d910a..10d5a4c 100644
  
  	unmap_descbuffer(ring, dmaaddr, ring->rx_buffersize, 0);
  	skb_put(skb, len + ring->frameoffset);
-@@ -1692,6 +1694,40 @@ drop_recycle_buffer:
+@@ -1752,6 +1754,40 @@ drop_recycle_buffer:
  	sync_descbuffer_for_device(ring, dmaaddr, ring->rx_buffersize);
  }
  
@@ -76,10 +76,10 @@ index 20d910a..10d5a4c 100644
  {
  	int current_slot, previous_slot;
 diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
-index eddc882..b2fa678 100644
+index 5c84b1f..46dbbae 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.h
 +++ b/drivers/net/wireless/broadcom/b43/dma.h
-@@ -192,6 +192,7 @@ struct b43_dmadesc_meta {
+@@ -194,6 +194,7 @@ struct b43_dmadesc_meta {
  	dma_addr_t dmaaddr;
  	/* ieee80211 TX status. Only used once per 802.11 frag. */
  	bool is_last_fragment;
@@ -87,7 +87,7 @@ index eddc882..b2fa678 100644
  };
  
  struct b43_dmaring;
-@@ -303,6 +304,8 @@ void b43_dma_handle_rx_overflow(struct b43_dmaring *ring);
+@@ -306,6 +307,8 @@ void b43_dma_handle_rx_overflow(struct b43_dmaring *ring);
  
  void b43_dma_rx(struct b43_dmaring *ring);
  
@@ -97,10 +97,10 @@ index eddc882..b2fa678 100644
  			    unsigned int engine_index, bool enable);
  
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 57a5935..001e272 100644
+index bff90de..db91412 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -3389,6 +3389,8 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
+@@ -3658,6 +3658,8 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
  		}
  	}
  

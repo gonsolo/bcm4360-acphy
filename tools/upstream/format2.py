@@ -7,7 +7,7 @@ repo = os.path.abspath(sys.argv[1]); out = os.path.abspath(sys.argv[2])
 here = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, here)
 from messages2 import COVERS
 BASE = "2bd8d42"
-SERIES = {"A": (0, 3), "B": (3, 6), "C": (6, 10), "D": (10, 14)}
+SERIES = {"A": (0, 2), "B": (2, 5), "C": (5, 9), "D": (9, 13), "X": (13, 14)}   # X: held back, not proven
 def git(*a): return subprocess.check_output(["git", "-C", repo, "-c", "user.name=Andreas Wendleder", "-c", "user.email=gonsolo@gmail.com", *a], text=True)
 commits = git("rev-list", "--reverse", f"{BASE}..series2").split()
 assert len(commits) == 14, len(commits)
@@ -16,6 +16,9 @@ for name, (a, b) in SERIES.items():
     for f in os.listdir(d): os.remove(f"{d}/{f}")
     first = commits[a] + "^"; last = commits[b - 1]
     prefix = "PATCH wireless-next" if name == "A" else "PATCH RFC wireless-next"
+    if name == "X":
+        git("format-patch", "-q", "--no-signature", f"--subject-prefix={prefix}", "-o", d, f"{first}..{last}")
+        print(name, "held back:", os.listdir(d)); continue
     git("format-patch", "-q", "--cover-letter", "--no-signature", f"--subject-prefix={prefix}", "-o", d, f"{first}..{last}")
     cover = [f for f in os.listdir(d) if f.startswith("0000")][0]
     subj, body = COVERS[name]

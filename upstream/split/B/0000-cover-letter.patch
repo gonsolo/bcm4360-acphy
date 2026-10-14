@@ -1,6 +1,6 @@
-From 3bab53abc6be6a15156a78570abff7c0f4329b50 Mon Sep 17 00:00:00 2001
+From 4adf44b7e4dc17b0c09aeebf19106dc2dd97cef0 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 00:05:20 +0200
+Date: Wed, 14 Oct 2026 12:20:51 +0200
 Subject: [PATCH RFC wireless-next 0/3] wifi: b43: core revision 40 and 42 MAC setup (series 2/4)
 
 MAC core support for the BCM4352/BCM4360 core revisions 40 and 42. Things

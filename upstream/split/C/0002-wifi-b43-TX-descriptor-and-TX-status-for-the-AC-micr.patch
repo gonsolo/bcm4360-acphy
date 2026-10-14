@@ -1,6 +1,6 @@
-From 6e427361b0ad210ae8b19087127c3747bbf24427 Mon Sep 17 00:00:00 2001
+From 25b6e219eb2fd7b7de1c8c33ba69eb88dcd4fd21 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:23 +0200
+Date: Wed, 14 Oct 2026 12:16:57 +0200
 Subject: [PATCH RFC wireless-next 2/4] wifi: b43: TX descriptor and TX status
  for the AC microcode
 
@@ -28,7 +28,7 @@ Only microcode revision 832 has been tested.
  5 files changed, 279 insertions(+)
 
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index e3b7479..6158b07 100644
+index 64db6de..0102df6 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
 @@ -1442,6 +1442,18 @@ out:
@@ -51,10 +51,10 @@ index e3b7479..6158b07 100644
  			     const struct b43_txstatus *status)
  {
 diff --git a/drivers/net/wireless/broadcom/b43/dma.h b/drivers/net/wireless/broadcom/b43/dma.h
-index 1400942..46dbbae 100644
+index 14de4cb..5c84b1f 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.h
 +++ b/drivers/net/wireless/broadcom/b43/dma.h
-@@ -299,6 +299,7 @@ void b43_dma_tx_resume(struct b43_wldev *dev);
+@@ -298,6 +298,7 @@ void b43_dma_tx_resume(struct b43_wldev *dev);
  
  int b43_dma_tx(struct b43_wldev *dev,
  	       struct sk_buff *skb);
@@ -63,7 +63,7 @@ index 1400942..46dbbae 100644
  			     const struct b43_txstatus *status);
  
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index d2731d8..2b12cef 100644
+index 3b233a3..5f76c3a 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -1403,6 +1403,57 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)

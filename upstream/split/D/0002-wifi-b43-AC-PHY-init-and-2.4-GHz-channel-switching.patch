@@ -1,6 +1,6 @@
-From 6a8c385bd688b1984e98f8470ab7993b4dedc3c8 Mon Sep 17 00:00:00 2001
+From c5a06c206c3ce5c8cdc46e050a47a37414277799 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:57:05 +0200
+Date: Wed, 14 Oct 2026 12:17:49 +0200
 Subject: [PATCH RFC wireless-next 2/4] wifi: b43: AC-PHY init and 2.4 GHz
  channel switching
 
@@ -32,7 +32,7 @@ the BCM4360 (PHY AC rev 1, radio 2069 rev 4) up on 2.4 GHz at 20 MHz:
  create mode 100644 drivers/net/wireless/broadcom/b43/phy_ac_farrow.h
 
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 5cbf8fd..9c43792 100644
+index f7335ef..919cb4f 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -352,6 +352,25 @@ static struct ieee80211_supported_band b43_band_2GHz = {
@@ -61,7 +61,7 @@ index 5cbf8fd..9c43792 100644
  static struct ieee80211_supported_band b43_band_2ghz_limited = {
  	.band		= NL80211_BAND_2GHZ,
  	.channels	= b43_2ghz_chantable,
-@@ -5560,7 +5579,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
+@@ -5558,7 +5577,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
  
  	if (have_2ghz_phy)
  		hw->wiphy->bands[NL80211_BAND_2GHZ] = limited_2g ?

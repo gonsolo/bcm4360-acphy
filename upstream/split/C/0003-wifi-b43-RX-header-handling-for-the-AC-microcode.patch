@@ -1,6 +1,6 @@
-From 8ea1befdd6dcc78c5fd0f646d3ae5e9fae33f226 Mon Sep 17 00:00:00 2001
+From 7bd44ea6a73ce4a8c0313d895da4cf749518456d Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Tue, 13 Oct 2026 23:56:33 +0200
+Date: Wed, 14 Oct 2026 12:17:08 +0200
 Subject: [PATCH RFC wireless-next 3/4] wifi: b43: RX header handling for the
  AC microcode
 
