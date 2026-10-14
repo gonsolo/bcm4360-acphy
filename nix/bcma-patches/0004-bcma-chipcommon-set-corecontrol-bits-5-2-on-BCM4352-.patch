@@ -1,0 +1,27 @@
+From 9c07ca30b99881a14e664f295fd35bd57d278bbb Mon Sep 17 00:00:00 2001
+From: Alessio Ferri <alessio.ferri.3012@gmail.com>
+Date: Wed, 17 Jun 2026 20:55:58 +0000
+Subject: [PATCH 4/8] bcma: chipcommon: set corecontrol bits 5:2 on
+ BCM4352/BCM4360
+
+Set them in chipcommon init, as Broadcom's driver does.
+---
+ drivers/bcma/driver_chipcommon.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/drivers/bcma/driver_chipcommon.c b/drivers/bcma/driver_chipcommon.c
+index fd91a39f0..889f8cc1c 100644
+--- a/drivers/bcma/driver_chipcommon.c
++++ b/drivers/bcma/driver_chipcommon.c
+@@ -227,6 +227,11 @@ void bcma_core_chipcommon_init(struct bcma_drv_cc *cc)
+ 			((leddc_on << BCMA_CC_GPIOTIMER_ONTIME_SHIFT) |
+ 			 (leddc_off << BCMA_CC_GPIOTIMER_OFFTIME_SHIFT)));
+ 	}
++
++	/* Corecontrol bits 5:2: bit 3 is UARTCLKEN, the rest undocumented. */
++	if (cc->core->bus->chipinfo.id == BCMA_CHIP_ID_BCM4352 ||
++	    cc->core->bus->chipinfo.id == BCMA_CHIP_ID_BCM4360)
++		bcma_cc_set32(cc, BCMA_CC_CORECTL, 0x3c);
+ 	cc->ticks_per_ms = bcma_chipco_watchdog_ticks_per_ms(cc);
+ 
+ 	cc->setup_done = true;

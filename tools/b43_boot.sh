@@ -10,7 +10,20 @@ set -u
 PROJ=/home/gonsolo/bcm4360-acphy
 DEV=0000:03:00.0
 
-modprobe -a mac80211 ssb cordic bcma || exit 1
+modprobe -a mac80211 ssb cordic || exit 1
+
+# bcma with the BCM4360 PMU PLL patches (nix/bcma-ac.nix, notes/168). depmod does not index extra/, so insmod it by
+# path like b43 below. Without the patches the chip stays dead after a long suspend. Falls back to the stock bcma.
+if ! grep -q '^bcma ' /proc/modules; then
+	BCMA=/run/current-system/kernel-modules/lib/modules/$(uname -r)/extra/bcma.ko
+	[ -e "$BCMA" ] || BCMA=/run/booted-system/kernel-modules/lib/modules/$(uname -r)/extra/bcma.ko
+	if [ -e "$BCMA" ]; then
+		echo "b43_boot: loading $BCMA"
+		insmod "$BCMA" || exit 1
+	else
+		modprobe bcma || exit 1
+	fi
+fi
 
 if [ "$(basename "$(readlink -f /sys/bus/pci/devices/$DEV/driver)")" != bcma-pci-bridge ]; then
 	echo bcma-pci-bridge > /sys/bus/pci/devices/$DEV/driver_override

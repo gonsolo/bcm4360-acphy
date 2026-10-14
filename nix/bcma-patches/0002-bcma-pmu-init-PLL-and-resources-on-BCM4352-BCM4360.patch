@@ -1,0 +1,108 @@
+From 4121a9b9fc032deea6a9229a53c968cfb283a9d7 Mon Sep 17 00:00:00 2001
+From: Alessio Ferri <alessio.ferri.3012@gmail.com>
+Date: Wed, 17 Jun 2026 20:55:58 +0000
+Subject: [PATCH 2/8] bcma: pmu: init PLL and resources on BCM4352/BCM4360
+
+On chip rev 3:
+
+- program PLLCTL2/3 for a 960.0098 MHz fractional VCO from the 40 MHz
+  crystal, except on a BCM4360 strapped for USB;
+- set the up/down time of resource 6;
+- with chipstatus RSRC_INIT_MODE0 clear, program PLLCTL6/14 and set
+  max_res_mask to 0x1ff.
+
+The values are those of Broadcom's driver on rev 3; other revisions are
+left as they are.
+---
+ drivers/bcma/driver_chipcommon_pmu.c        | 41 +++++++++++++++++++++
+ include/linux/bcma/bcma_driver_chipcommon.h |  4 ++
+ 2 files changed, 45 insertions(+)
+
+diff --git a/drivers/bcma/driver_chipcommon_pmu.c b/drivers/bcma/driver_chipcommon_pmu.c
+index 263ef6fa1..ab2b2701d 100644
+--- a/drivers/bcma/driver_chipcommon_pmu.c
++++ b/drivers/bcma/driver_chipcommon_pmu.c
+@@ -145,6 +145,39 @@ static void bcma_pmu2_pll_init0(struct bcma_drv_cc *cc, u32 xtalfreq)
+ 	/* TODO: Do we need to update OTP? */
+ }
+ 
++static void bcma_pmu_4360_pll_init(struct bcma_drv_cc *cc)
++{
++	struct bcma_bus *bus = cc->core->bus;
++
++	if (bus->chipinfo.rev != 3)
++		return;
++	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4360 &&
++	    cc->status & BCMA_CC_CHIPST_4360_MODE_USB)
++		return;
++
++	/* Fractional VCO, 960.0098 MHz from a 40 MHz crystal. */
++	bcma_chipco_pll_write(cc, BCMA_CC_PMU_PLL_CTL2, 0x0c31);
++	bcma_chipco_pll_write(cc, BCMA_CC_PMU_PLL_CTL3, 0x100e);
++	bcma_pmu_set32(cc, BCMA_CC_PMU_CTL, BCMA_CC_PMU_CTL_PLL_UPD);
++}
++
++/* Returns the max resource mask to program, 0 to leave it alone. */
++static u32 bcma_pmu_4360_resources_init(struct bcma_drv_cc *cc)
++{
++	if (cc->core->bus->chipinfo.rev != 3)
++		return 0;
++
++	bcma_pmu_write32(cc, BCMA_CC_PMU_RES_TABSEL, 6);
++	bcma_pmu_write32(cc, BCMA_CC_PMU_RES_UPDNTM, 0x00200001);
++
++	if (cc->status & BCMA_CC_CHIPST_4360_RSRC_INIT_MODE0)
++		return 0;
++	bcma_chipco_pll_write(cc, BCMA_CC_PMU_PLL_CTL6, 0x09048562);
++	bcma_chipco_pll_write(cc, BCMA_CC_PMU_PLL_CTL14, 0x09048562);
++	bcma_pmu_set32(cc, BCMA_CC_PMU_CTL, BCMA_CC_PMU_CTL_PLL_UPD);
++	return 0x1ff;
++}
++
+ static void bcma_pmu_pll_init(struct bcma_drv_cc *cc)
+ {
+ 	struct bcma_bus *bus = cc->core->bus;
+@@ -156,6 +189,10 @@ static void bcma_pmu_pll_init(struct bcma_drv_cc *cc)
+ 			xtalfreq = 20000;
+ 		bcma_pmu2_pll_init0(cc, xtalfreq);
+ 		break;
++	case BCMA_CHIP_ID_BCM4352:
++	case BCMA_CHIP_ID_BCM4360:
++		bcma_pmu_4360_pll_init(cc);
++		break;
+ 	}
+ }
+ 
+@@ -188,6 +225,10 @@ static void bcma_pmu_resources_init(struct bcma_drv_cc *cc)
+ 			  BCMA_RES_4314_WL_CORE_READY;
+ 		max_msk = 0x3FFFFFFF;
+ 		break;
++	case BCMA_CHIP_ID_BCM4352:
++	case BCMA_CHIP_ID_BCM4360:
++		max_msk = bcma_pmu_4360_resources_init(cc);
++		break;
+ 	default:
+ 		bcma_debug(bus, "PMU resource config unknown or not needed for device 0x%04X\n",
+ 			   bus->chipinfo.id);
+diff --git a/include/linux/bcma/bcma_driver_chipcommon.h b/include/linux/bcma/bcma_driver_chipcommon.h
+index 0cb6638b5..45c37b6bd 100644
+--- a/include/linux/bcma/bcma_driver_chipcommon.h
++++ b/include/linux/bcma/bcma_driver_chipcommon.h
+@@ -107,6 +107,8 @@
+ #define  BCMA_CC_CHIPST_4706_PCIE1_DISABLE	BIT(5) /* PCIE1 enable strap pin */
+ #define  BCMA_CC_CHIPST_5357_NAND_BOOT		BIT(4) /* NAND boot, valid for CC rev 38 and/or BCM5357 */
+ #define  BCMA_CC_CHIPST_4360_XTAL_40MZ		0x00000001
++#define  BCMA_CC_CHIPST_4360_RSRC_INIT_MODE0	0x00000020
++#define  BCMA_CC_CHIPST_4360_MODE_USB		0x00000100
+ #define BCMA_CC_JCMD			0x0030		/* Rev >= 10 only */
+ #define  BCMA_CC_JCMD_START		0x80000000
+ #define  BCMA_CC_JCMD_BUSY		0x80000000
+@@ -500,6 +502,8 @@
+ #define BCMA_CC_PMU_PLL_CTL3		3
+ #define BCMA_CC_PMU_PLL_CTL4		4
+ #define BCMA_CC_PMU_PLL_CTL5		5
++#define BCMA_CC_PMU_PLL_CTL6		6
++#define BCMA_CC_PMU_PLL_CTL14		14
+ 
+ #define BCMA_CC_PMU1_PLL0_PC0_P1DIV_MASK	0x00f00000
+ #define BCMA_CC_PMU1_PLL0_PC0_P1DIV_SHIFT	20

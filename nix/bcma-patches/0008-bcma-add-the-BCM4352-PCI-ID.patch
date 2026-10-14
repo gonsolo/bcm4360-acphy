@@ -1,0 +1,22 @@
+From 8c83d89a8c34cf3689d4b8fbc3ffe96202d64287 Mon Sep 17 00:00:00 2001
+From: Alessio Ferri <alessio.ferri.3012@gmail.com>
+Date: Wed, 17 Jun 2026 20:55:58 +0000
+Subject: [PATCH 8/8] bcma: add the BCM4352 PCI ID
+
+Bind bcma-pci-bridge to the BCM4352, 0x43b3.
+---
+ drivers/bcma/host_pci.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/bcma/host_pci.c b/drivers/bcma/host_pci.c
+index 3dc298506..f6cf722a3 100644
+--- a/drivers/bcma/host_pci.c
++++ b/drivers/bcma/host_pci.c
+@@ -298,6 +298,7 @@ static const struct pci_device_id bcma_pci_bridge_tbl[] = {
+ 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x43a9) },
+ 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x43aa) },
+ 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x43b1) },
++	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x43b3) },
+ 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 0x4727) },
+ 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 43227) },	/* 0xa8db, BCM43217 (sic!) */
+ 	{ PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, 43228) },	/* 0xa8dc */
