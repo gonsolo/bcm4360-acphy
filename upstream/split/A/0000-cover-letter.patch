@@ -27,6 +27,6 @@ Andreas Wendleder (2):
  drivers/net/wireless/broadcom/b43/b43.h  |  1 +
  drivers/net/wireless/broadcom/b43/dma.c  | 52 +++++++++++++++++++-----
  drivers/net/wireless/broadcom/b43/dma.h  |  3 ++
- drivers/net/wireless/broadcom/b43/main.c |  6 +++
- 4 files changed, 51 insertions(+), 11 deletions(-)
+ drivers/net/wireless/broadcom/b43/main.c |  8 ++++++++
+ 4 files changed, 53 insertions(+), 11 deletions(-)
 
