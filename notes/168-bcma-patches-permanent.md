@@ -20,3 +20,11 @@ Alessio sent his bcma series in mainline form (8 patches, base v7.3-rc5). Built 
   loaded yet, else `modprobe bcma`.
 - The Nix-built module was loaded by hand and our b43 connected on the first try.
 - The in-use test at the next reboot: `journalctl -b | grep "loading .*extra/bcma.ko"`.
+
+## Result after the permanent install (2026-10-14/15)
+- Cold boot (stick out): the boot loaded `extra/bcma.ko` and `extra/b43.ko` from the current generation, connected on try 1,
+  clean init.
+- Overnight suspend, lid closed, 21:45 -> 09:05 (11 h 20 min), the length that left the chip dead on stock bcma
+  (notes/167): resume without any HT/PLL/ucode error, b43 connected (ch 11, MCS 7/12). The resume hook still reloads b43
+  once (first try "File exists", second connects): harmless, a wasted reload.
+- Alessio's bcma patches 1-4 pass on this hardware.
