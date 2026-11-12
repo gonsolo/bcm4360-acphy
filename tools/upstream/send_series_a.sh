@@ -14,7 +14,6 @@ git send-email --confirm=always --suppress-cc=all --to-cmd=true --cc-cmd=true $D
 	--to 'linux-wireless@vger.kernel.org' \
 	--cc 'Johannes Berg <johannes@sipsolutions.net>' \
 	--cc 'b43-dev@lists.infradead.org' \
-	--cc 'Michael Buesch <m@bues.ch>' \
 	--cc 'Alessio Ferri <alessio.ferri@mythread.it>' \
 	--cc 'kvalo@kernel.org' \
 	--cc 'julian.calaby@gmail.com' \

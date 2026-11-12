@@ -37,7 +37,7 @@ cut(r"static int b43_phy_ac_op_switch_channel\(.*?\n\treturn 0;\n}\n",
 		return -ESRCH;
 	}
 	b43dbg(dev->wl, "phy_ac: switch_channel(%u) -> %u MHz\\n",
-		new_channel, e->freq);
+	       new_channel, e->freq);
 
 	save = b43_phy_read(dev, 0x19e);
 	b43_phy_set(dev, 0x19e, 0x3);

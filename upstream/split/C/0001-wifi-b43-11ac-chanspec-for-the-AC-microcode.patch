@@ -1,6 +1,6 @@
-From 62d74a06626b204838903182b022a8a9a1b48a02 Mon Sep 17 00:00:00 2001
+From 614c0349d5afdc06454a50ca302d1e8855104737 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:16:47 +0200
+Date: Thu, 12 Nov 2026 18:45:39 +0100
 Subject: [PATCH RFC wireless-next 1/4] wifi: b43: 11ac chanspec for the AC
  microcode
 
@@ -13,8 +13,8 @@ Add b43_ac_chanspec() and use it for the channel cookie in
 b43_switch_channel(). The TX and RX header patches that follow use it too.
 ---
  drivers/net/wireless/broadcom/b43/phy_common.c | 13 +++++++++++++
- drivers/net/wireless/broadcom/b43/phy_common.h |  3 +++
- 2 files changed, 16 insertions(+)
+ drivers/net/wireless/broadcom/b43/phy_common.h |  7 +++++++
+ 2 files changed, 20 insertions(+)
 
 diff --git a/drivers/net/wireless/broadcom/b43/phy_common.c b/drivers/net/wireless/broadcom/b43/phy_common.c
 index 285490f..cfc14c1 100644
@@ -48,15 +48,19 @@ index 285490f..cfc14c1 100644
  	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN, channelcookie);
  
 diff --git a/drivers/net/wireless/broadcom/b43/phy_common.h b/drivers/net/wireless/broadcom/b43/phy_common.h
-index 5ec5233..db9c628 100644
+index 5ec5233..c20a20e 100644
 --- a/drivers/net/wireless/broadcom/b43/phy_common.h
 +++ b/drivers/net/wireless/broadcom/b43/phy_common.h
-@@ -390,6 +390,9 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev);
+@@ -390,6 +390,13 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev);
   */
  int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel);
  
-+/* 11ac chanspec of the AC microcode */
++/*
++ * 11ac chanspec of the AC microcode, and the centre channel of the 80 MHz block
++ * of a 5 GHz primary (0: none)
++ */
 +u16 b43_ac_chanspec(struct b43_wldev *dev, unsigned int channel);
++unsigned int b43_ac_80mhz_centre(unsigned int channel);
 +
  /**
   * b43_software_rfkill - Turn the radio ON or OFF in software.

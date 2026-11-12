@@ -1,6 +1,6 @@
-From ddcbf2887636f15de21d2b15f63762db76052f45 Mon Sep 17 00:00:00 2001
+From 3283a5bc510a2f3b9f32afcf51b2249e6d2fc90f Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:15:42 +0200
+Date: Thu, 12 Nov 2026 18:42:18 +0100
 Subject: [PATCH wireless-next 1/2] wifi: b43: reprogram the MAC filter after
  an interface restart
 
@@ -16,7 +16,7 @@ and add the difference to @changed.
  1 file changed, 8 insertions(+)
 
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 8f4aff3..57a5935 100644
+index 8f4aff3..e2e8ca0 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -4318,6 +4318,14 @@ static void b43_op_configure_filter(struct ieee80211_hw *hw,

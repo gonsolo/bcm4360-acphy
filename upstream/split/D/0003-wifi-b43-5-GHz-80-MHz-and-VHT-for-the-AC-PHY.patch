@@ -1,34 +1,36 @@
-From 39f5da0f3aaa80cba9c1b7a34f30564fb0af2f40 Mon Sep 17 00:00:00 2001
+From 0eaf577f52cac0e275b213d66d643d607408db4c Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:17:59 +0200
+Date: Thu, 12 Nov 2026 18:51:15 +0100
 Subject: [PATCH RFC wireless-next 3/4] wifi: b43: 5 GHz, 80 MHz and VHT for
  the AC PHY
 
 Add 5 GHz channel switching: the RF sequencer extension, the second
 sequencer's command lists and three table 7 cells (which keep the second
 TX chain working), the 5 GHz TX gain table and AGC tables, VCO calibration
-and the RX gain control word. Switching back to 2.4 GHz rewrites the 2.4 GHz
-tables and the 20 MHz PHY bandwidth.
+and the RX gain control word. Switching back to 2.4 GHz rewrites the
+2.4 GHz tables and the 20 MHz PHY bandwidth.
 
 On 5 GHz the PHY runs in its 80 MHz mode on the 80 MHz block that contains
 the primary channel, tuned to the centre of the block, with the
 Farrow resampler words computed for it. The chanspec of such a channel
-names the centre channel, the width and the position of the primary. A
-20 MHz or 40 MHz AP works as well, the primary channel's frames are
-received in the block.
+names the centre channel, the width and the position of the primary.
+Only an AP with an 80 MHz channel was tested; with a 20 or 40 MHz AP the
+primary channel's frames should still be received in the block.
 
 Register the 5 GHz band with HT and VHT capabilities (two streams, MCS 0-9,
 80 MHz); mac80211 wants 40 MHz capability before it uses 80 MHz.
+
+Co-developed-by: Alessio Ferri <alessio.ferri@mythread.it>
+Signed-off-by: Alessio Ferri <alessio.ferri@mythread.it>
 ---
- drivers/net/wireless/broadcom/b43/main.c      |  38 +++
- drivers/net/wireless/broadcom/b43/phy_ac.c    | 244 +++++++++++++++++-
+ drivers/net/wireless/broadcom/b43/main.c      |  46 +++
+ drivers/net/wireless/broadcom/b43/phy_ac.c    | 269 +++++++++++++++++-
  drivers/net/wireless/broadcom/b43/phy_ac.h    |   1 +
  .../net/wireless/broadcom/b43/phy_common.c    |  25 +-
- .../net/wireless/broadcom/b43/phy_common.h    |   3 +-
- 5 files changed, 298 insertions(+), 13 deletions(-)
+ 4 files changed, 328 insertions(+), 13 deletions(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 919cb4f..bff90de 100644
+index 7d2f9ea..eeb70bf 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
 @@ -317,6 +317,21 @@ static struct ieee80211_channel b43_5ghz_aphy_chantable[] = {
@@ -68,33 +70,41 @@ index 919cb4f..bff90de 100644
  static struct ieee80211_supported_band b43_band_5GHz_aphy = {
  	.band		= NL80211_BAND_5GHZ,
  	.channels	= b43_5ghz_aphy_chantable,
-@@ -5585,6 +5608,21 @@ static int b43_setup_bands(struct b43_wldev *dev,
+@@ -5640,6 +5663,29 @@ static int b43_setup_bands(struct b43_wldev *dev,
  			hw->wiphy->bands[NL80211_BAND_5GHZ] = limited_5g ?
  				&b43_band_5GHz_nphy_limited :
  				&b43_band_5GHz_nphy;
 +	} else if (dev->phy.type == B43_PHYTYPE_AC) {
 +		if (have_5ghz_phy) {
-+			struct ieee80211_sta_vht_cap *vht = &b43_band_5GHz_acphy.vht_cap;
++			struct ieee80211_sta_vht_cap *vht =
++				&b43_band_5GHz_acphy.vht_cap;
 +
-+			/* The AP refuses a station without HT here (status 18) */
++			/*
++			 * The AP refuses a station without HT here (status 18)
++			 */
 +			b43_band_5GHz_acphy.ht_cap = b43_band_2GHz_ac.ht_cap;
-+			/* mac80211 wants 40 MHz capability before it uses 80 MHz */
-+			b43_band_5GHz_acphy.ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
++			/*
++			 * mac80211 wants 40 MHz capability before it uses 80
++			 * MHz
++			 */
++			b43_band_5GHz_acphy.ht_cap.cap |=
++				IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 +			vht->vht_supported = true;
 +			vht->cap = IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895;
 +			/* MCS 0-9 on one and two streams */
 +			vht->vht_mcs.rx_mcs_map = cpu_to_le16(0xfffa);
 +			vht->vht_mcs.tx_mcs_map = cpu_to_le16(0xfffa);
-+			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_acphy;
++			hw->wiphy->bands[NL80211_BAND_5GHZ] =
++				&b43_band_5GHz_acphy;
 +		}
  	} else {
  		if (have_5ghz_phy)
  			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
 diff --git a/drivers/net/wireless/broadcom/b43/phy_ac.c b/drivers/net/wireless/broadcom/b43/phy_ac.c
-index b5cbef5..61f1d7f 100644
+index 4bcf6f8..7e041b6 100644
 --- a/drivers/net/wireless/broadcom/b43/phy_ac.c
 +++ b/drivers/net/wireless/broadcom/b43/phy_ac.c
-@@ -355,6 +355,18 @@ static void b43_phy_ac_op_prepare_structs(struct b43_wldev *dev)
+@@ -368,6 +368,18 @@ static void b43_phy_ac_op_prepare_structs(struct b43_wldev *dev)
  	memset(phy_ac, 0, sizeof(*phy_ac));
  }
  
@@ -113,7 +123,7 @@ index b5cbef5..61f1d7f 100644
  /*
   * 2.4 GHz TX gain table index set on a channel switch (0 is the highest gain).
   * The reset value, 64, is too weak beyond a few metres.
-@@ -403,6 +415,117 @@ static void b43_phy_ac_wide_tables_2g(struct b43_wldev *dev)
+@@ -416,6 +428,126 @@ static void b43_phy_ac_wide_tables_2g(struct b43_wldev *dev)
  		b43_phy_ac_table_write48(dev, 0x11, i, zero);
  }
  
@@ -121,9 +131,12 @@ index b5cbef5..61f1d7f 100644
 + * The second sequencer's command lists (table 7 at 0x30/0x40/0x50, cores 0-2)
 + * on 5 GHz: no leading 0x2a, and 0xb0/0xb1/0xb2 where 2.4 GHz has 0x2b.
 + */
-+static const u16 b43_rfseq2_c0_5g[] = { 0x07, 0x0a, 0x00, 0x08, 0xb0, 0xb1, 0x1f, 0x1f };
-+static const u16 b43_rfseq2_c1_5g[] = { 0x07, 0x08, 0x0c, 0x0e, 0xb0, 0xb2, 0x1f, 0x1f };
-+static const u16 b43_rfseq2_c2_5g[] = { 0x07, 0x08, 0x0e, 0xb0, 0xb1, 0x1f, 0x1f, 0x1f };
++static const u16 b43_rfseq2_c0_5g[] = { 0x07, 0x0a, 0x00, 0x08,
++					0xb0, 0xb1, 0x1f, 0x1f };
++static const u16 b43_rfseq2_c1_5g[] = { 0x07, 0x08, 0x0c, 0x0e,
++					0xb0, 0xb2, 0x1f, 0x1f };
++static const u16 b43_rfseq2_c2_5g[] = { 0x07, 0x08, 0x0e, 0xb0,
++					0xb1, 0x1f, 0x1f, 0x1f };
 +static const struct b43_phy_ac_tbl b43_rfseq2_5g_tbls[] = {
 +	{ b43_rfseq2_c0_5g, 8, 7, 0x30, 16 },
 +	{ b43_rfseq2_c1_5g, 8, 7, 0x40, 16 },
@@ -161,16 +174,18 @@ index b5cbef5..61f1d7f 100644
 +		b43_phy_ac_table_write48(dev, 0x14, 0x30 + i, ext[i]);
 +	for (i = 0; i < ARRAY_SIZE(b43_rfseq2_5g_tbls); i++)
 +		b43_phy_ac_write_table(dev, &b43_rfseq2_5g_tbls[i]);
-+	/* Table 7 cells of the TX chains (core 0 at 973, core 1 at 989) and the cell
-+	 * 398 that differ from the 2.4 GHz defaults: without the core 1 value no
-+	 * two-stream frame is ever acknowledged, and 398 makes two-stream MCS 7
-+	 * usable.
++	/*
++	 * Table 7 cells of the TX chains (core 0 at 973, core 1 at 989) and the
++	 * cell 398 that differ from the 2.4 GHz defaults: without the core 1
++	 * value no two-stream frame is ever acknowledged, and 398 makes
++	 * two-stream MCS 7 usable.
 +	 */
 +	b43_phy_ac_table_write16(dev, 7, 973, 0x03a2);
 +	b43_phy_ac_table_write16(dev, 7, 989, 0x05d0);
 +	b43_phy_ac_table_write16(dev, 7, 398, 0x0049);
-+	/* The 5 GHz TX gain table and the table 0x11 fill (the twelve head cells
-+	 * and the zero tail are band independent).
++	/*
++	 * The 5 GHz TX gain table and the table 0x11 fill (the twelve head
++	 * cells and the zero tail are band independent).
 +	 */
 +	for (i = 0; i < 128; i++)
 +		b43_phy_ac_table_write48(dev, 0x20, i, b43_phy_ac_txgain_5g[i]);
@@ -186,9 +201,13 @@ index b5cbef5..61f1d7f 100644
 + * with the 5 GHz LNA gains. Offset 0: eLNA, 8: LNA1, 16: LNA2, 32: gain limits.
 + */
 +static const u8 b43_ac_agc5_elna[] = { 0x0c, 0x0c };
-+static const u8 b43_ac_agc5_lna1_gain[] = { 0xfe, 0xfe, 0x04, 0x0a, 0x10, 0x17 };
++static const u8 b43_ac_agc5_lna1_gain[] = {
++	0xfe, 0xfe, 0x04, 0x0a, 0x10, 0x17
++};
++
 +static const u8 b43_ac_agc5_lna1_code[] = { 1, 1, 2, 3, 4, 5 };
-+static const u8 b43_ac_agc5_lna2_gain[] = { 0xf8, 0xf8, 0xfb, 0xfe, 0x02, 0x05, 0x09 };
++static const u8 b43_ac_agc5_lna2_gain[] = { 0xf8, 0xf8, 0xfb, 0xfe,
++					    0x02, 0x05, 0x09 };
 +static const u8 b43_ac_agc5_lna2_code[] = { 1, 1, 2, 3, 4, 5, 6 };
 +static const u8 b43_ac_agc5_lim7[] = { 7, 7, 7, 7, 7, 7, 7, 7, 7, 7 };
 +static const u8 b43_ac_agc5_lim2[] = { 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 };
@@ -231,7 +250,7 @@ index b5cbef5..61f1d7f 100644
  /*
   * PHY register init for 2.4 GHz and 20 MHz, in the blocks of the reset-time
   * code of Alessio Ferri's b43-ac-wip (mode_init, set_reg_on_reset,
-@@ -693,6 +816,31 @@ static void b43_phy_ac_set_farrow(struct b43_wldev *dev, unsigned int channel)
+@@ -715,6 +847,31 @@ static void b43_phy_ac_set_farrow(struct b43_wldev *dev, unsigned int channel)
  	b43_phy_write(dev, 0x1601, b43_phy_read(dev, 0x601));
  }
  
@@ -263,7 +282,7 @@ index b5cbef5..61f1d7f 100644
  /* Program the synthesizer and the per-channel radio words of one channel. */
  static void b43_phy_ac_tune(struct b43_wldev *dev,
  			    const struct b43_radio_2069_chan *e,
-@@ -711,6 +859,28 @@ static void b43_phy_ac_tune(struct b43_wldev *dev,
+@@ -733,6 +890,29 @@ static void b43_phy_ac_tune(struct b43_wldev *dev,
  	b43_radio_2069_vcocal(dev);
  }
  
@@ -283,16 +302,17 @@ index b5cbef5..61f1d7f 100644
 +	b43_phy_write(dev, 0x18b, 0);
 +	ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 +	if ((ioctl & B43_BCMA_IOCTL_PHY_BW) == B43_BCMA_IOCTL_PHY_BW_80MHZ) {
-+		ioctl = (ioctl & ~B43_BCMA_IOCTL_PHY_BW) | B43_BCMA_IOCTL_PHY_BW_20MHZ;
++		ioctl = (ioctl & ~B43_BCMA_IOCTL_PHY_BW) |
++			B43_BCMA_IOCTL_PHY_BW_20MHZ;
 +		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | 0x2);
 +		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl);
 +	}
 +}
 +
  /*
-  * Channel switch for radio 2069 rev 4, following the vendor driver's channel-set
-  * sequence. Not ported: carrier-search suppression during the switch, the 5 GHz
-@@ -721,12 +891,10 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
+  * Channel switch for radio 2069 rev 4, following the vendor driver's
+  * channel-set sequence. Not ported: carrier-search suppression during the
+@@ -744,15 +924,14 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
  {
  	struct b43_phy_ac *phy_ac = dev->phy.ac;
  	const struct b43_radio_2069_chan *e;
@@ -305,8 +325,13 @@ index b5cbef5..61f1d7f 100644
 -
  	e = b43_radio_2069_find_chan(dev, new_channel);
  	if (!e) {
- 		b43err(dev->wl, "phy_ac: no tuning data for channel %u (radio %04x rev %u)\n",
-@@ -739,14 +907,18 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
+-		b43err(dev->wl, "phy_ac: no tuning data for channel %u (radio %04x rev %u)\n",
++		b43err(dev->wl,
++		       "phy_ac: no tuning data for channel %u (radio %04x rev %u)\n",
+ 		       new_channel, dev->phy.radio_ver, dev->phy.radio_rev);
+ 		return -ESRCH;
+ 	}
+@@ -762,14 +941,18 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
  	save = b43_phy_read(dev, 0x19e);
  	b43_phy_set(dev, 0x19e, 0x3);
  
@@ -328,7 +353,7 @@ index b5cbef5..61f1d7f 100644
  
  	b43_phy_ac_tune(dev, e, new_channel);
  	b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
-@@ -754,10 +926,64 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
+@@ -777,10 +960,76 @@ static int b43_phy_ac_op_switch_channel(struct b43_wldev *dev,
  	for (i = 0; i < 6; i++)
  		b43_phy_write(dev, B43_PHY_AC_BW1A + i, e->bw[i]);
  
@@ -337,20 +362,28 @@ index b5cbef5..61f1d7f 100644
 +	if (b43_phy_ac_is_80mhz(dev, new_channel)) {
 +		u32 ioctl;
 +
-+		/* Tune the synthesizer to the centre of the block, put the core's PHY
-+		 * in 80 MHz mode and toggle force-gated-clock around the change.
++		/*
++		 * Tune the synthesizer to the centre of the block, put the
++		 * core's PHY in 80 MHz mode and toggle force-gated-clock around
++		 * the change.
 +		 */
 +		unsigned int ctr = b43_ac_80mhz_centre(new_channel);
 +
 +		b43_phy_ac_setup_5g(dev);
-+		/* PHY word 0x18b is 0 after reset; 80 MHz RX and TX need 0x016c. */
++		/*
++		 * PHY word 0x18b is 0 after reset; 80 MHz RX and TX need
++		 * 0x016c.
++		 */
 +		b43_phy_write(dev, 0x18b, 0x016c);
-+		/* The synthesizer, the per-channel PHY words and the resampler for the
-+		 * block centre. The calibration results and the rpcal fill are those
-+		 * of channel 106; they are not recalibrated per block.
++		/*
++		 * The synthesizer, the per-channel PHY words and the resampler
++		 * for the block centre. The calibration results and the rpcal
++		 * fill are those of channel 106; they are not recalibrated per
++		 * block.
 +		 */
 +		{
-+			const struct b43_radio_2069_chan *c = b43_radio_2069_find_chan(dev, ctr);
++			const struct b43_radio_2069_chan *c =
++				b43_radio_2069_find_chan(dev, ctr);
 +
 +			if (c) {
 +				save = b43_phy_read(dev, 0x19e);
@@ -358,17 +391,19 @@ index b5cbef5..61f1d7f 100644
 +				b43_phy_ac_tune(dev, c, ctr);
 +				b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
 +				for (i = 1; i < 6; i++)
-+					b43_phy_write(dev, B43_PHY_AC_BW1A + i, c->bw[i]);
++					b43_phy_write(dev, B43_PHY_AC_BW1A + i,
++						      c->bw[i]);
 +				b43_phy_ac_farrow_80(dev, 5000 + 5 * ctr);
 +			}
 +		}
 +		ioctl = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 +		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | 0x2);
-+		ioctl = (ioctl & ~B43_BCMA_IOCTL_PHY_BW) | B43_BCMA_IOCTL_PHY_BW_80MHZ;
++		ioctl = (ioctl & ~B43_BCMA_IOCTL_PHY_BW) |
++			B43_BCMA_IOCTL_PHY_BW_80MHZ;
 +		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl | 0x2);
 +		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, ioctl);
 +		b43dbg(dev->wl, "phy_ac: 5 GHz 80 MHz mode, ioctrl %08x\n",
-+			bcma_aread32(dev->dev->bdev, BCMA_IOCTL));
++		       bcma_aread32(dev->dev->bdev, BCMA_IOCTL));
 +	} else if (is_5ghz) {
 +		b43_phy_ac_setup_5g(dev);
 +		/* The filter bank for our width. */
@@ -379,11 +414,13 @@ index b5cbef5..61f1d7f 100644
 +		b43_phy_maskset(dev, 0x19e, ~0x3, save & 0x3);
 +		for (i = 0; i < 6; i++)
 +			b43_phy_write(dev, B43_PHY_AC_BW1A + i, e->bw[i]);
-+	} else
++	} else {
 +		b43_phy_ac_rfctrl_2g(dev);
++	}
 +
-+	/* The per-channel 20 MHz resampler table; in 80 MHz mode the resampler was
-+	 * set for the block centre above.
++	/*
++	 * The per-channel 20 MHz resampler table; in 80 MHz mode the resampler
++	 * was set for the block centre above.
 +	 */
 +	if (!b43_phy_ac_is_80mhz(dev, new_channel))
 +		b43_phy_ac_set_farrow(dev, new_channel);
@@ -397,7 +434,7 @@ index b5cbef5..61f1d7f 100644
  	return 0;
  }
 diff --git a/drivers/net/wireless/broadcom/b43/phy_ac.h b/drivers/net/wireless/broadcom/b43/phy_ac.h
-index a887df7..455086b 100644
+index 0b6896e..4a6c1e9 100644
 --- a/drivers/net/wireless/broadcom/b43/phy_ac.h
 +++ b/drivers/net/wireless/broadcom/b43/phy_ac.h
 @@ -34,6 +34,7 @@
@@ -450,18 +487,3 @@ index cfc14c1..40e99b2 100644
  }
  
  int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel)
-diff --git a/drivers/net/wireless/broadcom/b43/phy_common.h b/drivers/net/wireless/broadcom/b43/phy_common.h
-index db9c628..ec133ed 100644
---- a/drivers/net/wireless/broadcom/b43/phy_common.h
-+++ b/drivers/net/wireless/broadcom/b43/phy_common.h
-@@ -390,8 +390,9 @@ void b43_phy_take_out_of_reset(struct b43_wldev *dev);
-  */
- int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel);
- 
--/* 11ac chanspec of the AC microcode */
-+/* 11ac chanspec of the AC microcode, and the centre channel of the 80 MHz block of a 5 GHz primary (0: none) */
- u16 b43_ac_chanspec(struct b43_wldev *dev, unsigned int channel);
-+unsigned int b43_ac_80mhz_centre(unsigned int channel);
- 
- /**
-  * b43_software_rfkill - Turn the radio ON or OFF in software.

@@ -1,6 +1,6 @@
-From 25b6e219eb2fd7b7de1c8c33ba69eb88dcd4fd21 Mon Sep 17 00:00:00 2001
+From d06d9a2e410658b35572eaabef7715762edfe8b6 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:16:57 +0200
+Date: Thu, 12 Nov 2026 18:46:02 +0100
 Subject: [PATCH RFC wireless-next 2/4] wifi: b43: TX descriptor and TX status
  for the AC microcode
 
@@ -19,19 +19,22 @@ MPDU carries a block ack bitmap for the consecutive cookies; the cookies
 are advanced with the new b43_dma_cookie_advance().
 
 Only microcode revision 832 has been tested.
+
+Co-developed-by: Alessio Ferri <alessio.ferri@mythread.it>
+Signed-off-by: Alessio Ferri <alessio.ferri@mythread.it>
 ---
- drivers/net/wireless/broadcom/b43/dma.c  |  12 ++
+ drivers/net/wireless/broadcom/b43/dma.c  |  13 ++
  drivers/net/wireless/broadcom/b43/dma.h  |   1 +
- drivers/net/wireless/broadcom/b43/main.c |  59 +++++++
- drivers/net/wireless/broadcom/b43/xmit.c | 198 +++++++++++++++++++++++
- drivers/net/wireless/broadcom/b43/xmit.h |   9 ++
- 5 files changed, 279 insertions(+)
+ drivers/net/wireless/broadcom/b43/main.c |  76 ++++++++
+ drivers/net/wireless/broadcom/b43/xmit.c | 214 +++++++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/xmit.h |  11 ++
+ 5 files changed, 315 insertions(+)
 
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index 64db6de..0102df6 100644
+index 5f968b0..404f75f 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
-@@ -1442,6 +1442,18 @@ out:
+@@ -1444,6 +1444,19 @@ out:
  	return err;
  }
  
@@ -44,7 +47,8 @@ index 64db6de..0102df6 100644
 +	ring = parse_cookie(dev, cookie, &slot);
 +	if (!ring)
 +		return cookie;
-+	return generate_cookie(ring, (slot + n * TX_SLOTS_PER_FRAME) % ring->nr_slots);
++	return generate_cookie(ring, (slot + n * TX_SLOTS_PER_FRAME) %
++					     ring->nr_slots);
 +}
 +
  void b43_dma_handle_txstatus(struct b43_wldev *dev,
@@ -63,10 +67,10 @@ index 14de4cb..5c84b1f 100644
  			     const struct b43_txstatus *status);
  
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 3b233a3..5f76c3a 100644
+index da7e420..5830acb 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -1403,6 +1403,57 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
+@@ -1414,6 +1414,74 @@ static void handle_irq_transmit_status(struct b43_wldev *dev)
  			break;
  		v1 = b43_read32(dev, B43_MMIO_XMITSTAT_1);
  
@@ -76,7 +80,10 @@ index 3b233a3..5f76c3a 100644
 +			u32 v3 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 12);
 +			unsigned int n;
 +
-+			/* second package: words 1 and 2 are the block ack bitmap */
++			/*
++			 * second package: words 1 and 2 are the block ack
++			 * bitmap
++			 */
 +			u32 w0 = b43_read32(dev, B43_MMIO_XMITSTAT_0);
 +			u32 w1 = b43_read32(dev, B43_MMIO_XMITSTAT_1);
 +			u32 w2 = b43_read32(dev, B43_MMIO_XMITSTAT_0 + 8);
@@ -92,28 +99,42 @@ index 3b233a3..5f76c3a 100644
 +			stat.pm_indicated = !!(v0 & 0x0008);
 +			stat.supp_reason = (v0 & 0x00f0) >> 4;
 +			stat.acked = !!(v0 & 0x8000);
-+			/*: the attempt count is the LOW BYTE of word 2 only. Bits 16-23 hold a
-+			 * constant 1 on every acknowledged frame (0 on suppressed ones), not a second
-+			 * attempt counter: summing it made every frame look like it needed a retry, so
-+			 * minstrel saw ~50 % failures at every rate and TX stayed at 1-6 Mbit/s
-+			 * (1.2 "retries" per frame regardless of rate or TX power).*/
++			/*
++			 * : the attempt count is the LOW BYTE of word 2 only.
++			 * Bits 16-23 hold a constant 1 on every acknowledged
++			 * frame (0 on suppressed ones), not a second attempt
++			 * counter: summing it made every frame look like it
++			 * needed a retry, so minstrel saw ~50 % failures at
++			 * every rate and TX stayed at 1-6 Mbit/s (1.2 "retries"
++			 * per frame regardless of rate or TX power).
++			 */
 +			n = v2 & 0xff;
 +			stat.frame_count = min(n, 15u);
 +			stat.fb_count = min((v2 >> 16) & 0xff, 15u);
-+			b43dbg(dev->wl, "AC txstatus %08x %08x %08x %08x / %08x %08x %08x %08x\n",
++			b43dbg(dev->wl,
++			       "AC txstatus %08x %08x %08x %08x / %08x %08x %08x %08x\n",
 +			       v0, v1, v2, v3, w0, w1, w2, w3);
 +			if (mpdus > 1) {
-+				/* A-MPDU: one status for @mpdus frames with consecutive cookies */
++				/*
++				 * A-MPDU: one status for @mpdus frames with
++				 * consecutive cookies
++				 */
 +				u16 cookie = stat.cookie;
 +
-+				/* the attempt count covers the whole aggregate */
-+				stat.frame_count = min(DIV_ROUND_UP(n, mpdus), 15u);
-+				stat.fb_count = min(DIV_ROUND_UP((v2 >> 16) & 0xff, mpdus), 15u);
++				/*
++				 * the attempt count covers the whole aggregate
++				 */
++				stat.frame_count =
++					min(DIV_ROUND_UP(n, mpdus), 15u);
++				stat.fb_count =
++					min(DIV_ROUND_UP((v2 >> 16) & 0xff,
++							 mpdus), 15u);
 +				for (i = 0; i < mpdus; i++) {
 +					stat.cookie = cookie;
 +					stat.acked = !!(bitmap & (1ULL << i));
 +					b43_handle_txstatus(dev, &stat);
-+					cookie = b43_dma_cookie_advance(dev, cookie, 1);
++					cookie = b43_dma_cookie_advance(
++						dev, cookie, 1);
 +				}
 +				continue;
 +			}
@@ -124,7 +145,7 @@ index 3b233a3..5f76c3a 100644
  		stat.cookie = (v0 >> 16);
  		stat.seq = (v1 & 0x0000FFFF);
  		stat.phy_stat = ((v1 & 0x00FF0000) >> 16);
-@@ -1433,6 +1484,14 @@ static void drain_txstatus_queue(struct b43_wldev *dev)
+@@ -1444,6 +1512,14 @@ static void drain_txstatus_queue(struct b43_wldev *dev)
  		if (!(dummy & 0x00000001))
  			break;
  		dummy = b43_read32(dev, B43_MMIO_XMITSTAT_1);
@@ -140,14 +161,13 @@ index 3b233a3..5f76c3a 100644
  }
  
 diff --git a/drivers/net/wireless/broadcom/b43/xmit.c b/drivers/net/wireless/broadcom/b43/xmit.c
-index f0b0825..4ff3033 100644
+index f0b0825..cf9e7a5 100644
 --- a/drivers/net/wireless/broadcom/b43/xmit.c
 +++ b/drivers/net/wireless/broadcom/b43/xmit.c
-@@ -231,6 +231,201 @@ static u8 b43_calc_fallback_rate(u8 bitrate, int gmode)
+@@ -231,6 +231,216 @@ static u8 b43_calc_fallback_rate(u8 bitrate, int gmode)
  	return 0;
  }
  
-+
 +/*
 + * One VHT rate block (frame type 3), as the stock driver lays it out and
 + * Alessio Ferri's driver builds it: the width in word 0 bits 15:14, the
@@ -208,7 +228,8 @@ index f0b0825..4ff3033 100644
 +				   B43_OFDM_RATE_24MB, B43_OFDM_RATE_36MB,
 +				   B43_OFDM_RATE_48MB, B43_OFDM_RATE_54MB };
 +	const struct ieee80211_hdr *wlhdr = (const void *)skb->data;
-+	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(dev->wl->hw, info);
++	struct ieee80211_rate *txrate =
++		ieee80211_get_tx_rate(dev->wl->hw, info);
 +	u8 rate = txrate ? txrate->hw_value : B43_CCK_RATE_1MB;
 +	bool is_ofdm = b43_is_ofdm_rate(rate);
 +	unsigned int len = skb->len + FCS_LEN;
@@ -260,7 +281,8 @@ index f0b0825..4ff3033 100644
 +		 * fallback rate, duration 5414 us, window 63, max length 0x14.
 +		 * Without the cache info the AP deauthenticates us.
 +		 */
-+		static const u8 cache[8] = { 0x00, 0x00, 0x04, 0x04, 0x26, 0x15, 0x3f, 0x14 };
++		static const u8 cache[8] = { 0x00, 0x00, 0x04, 0x04,
++					     0x26, 0x15, 0x3f, 0x14 };
 +
 +		mac_lo = 0x45c0;
 +		memcpy(h + 0x64, cache, sizeof(cache));
@@ -279,20 +301,28 @@ index f0b0825..4ff3033 100644
 +	if (!is_ofdm && rate != B43_CCK_RATE_1MB &&
 +	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE))
 +		phy0 |= 0x0010;
-+	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS)
++	if (info->control.rates[0].flags & IEEE80211_TX_RC_MCS) {
 +		ht_mcs = info->control.rates[0].idx;
-+	else if (vht && !agg)
-+		/* A VHT frame always goes out as an A-MPDU; outside a session
-+		 * send the HT20 rate of the same stream count instead
++	} else if (vht && !agg) {
++		/*
++		 * A VHT frame always goes out as an A-MPDU; outside a session
++		 * send the HT20 rate of the same stream count instead.
 +		 */
-+		ht_mcs = min_t(int, ieee80211_rate_get_vht_mcs(&info->control.rates[0]), 7) +
-+			 8 * (ieee80211_rate_get_vht_nss(&info->control.rates[0]) - 1);
++		const struct ieee80211_tx_rate *r = &info->control.rates[0];
++
++		ht_mcs = min_t(int, ieee80211_rate_get_vht_mcs(r), 7) +
++			 8 * (ieee80211_rate_get_vht_nss(r) - 1);
++	}
 +
 +	if (vht && agg) {
 +		b43_txhdr_ac_vht_block(ri, &info->control.rates[0], chanspec);
 +	} else if (ht_mcs >= 0 && ht_mcs <= 15) {
-+		/* HT20: frame type 2, PLCP as brcmsmac lays it out, rate index = MCS */
-+		static const u8 ht20_500k[8] = { 13, 26, 39, 52, 78, 104, 117, 130 };
++		/*
++		 * HT20: frame type 2, PLCP as brcmsmac lays it out, rate
++		 * index = MCS
++		 */
++		static const u8 ht20_500k[8] = { 13, 26,  39,  52,
++						 78, 104, 117, 130 };
 +		u8 mcs = ht_mcs;
 +		u8 *plcp = ri + 0x06;
 +
@@ -303,16 +333,19 @@ index f0b0825..4ff3033 100644
 +		plcp[0] = mcs;
 +		plcp[1] = len & 0xff;
 +		plcp[2] = len >> 8;
-+		plcp[3] = 0x07;		/* smoothing, not sounding, reserved (brcmsmac) */
++		/* smoothing, not sounding, reserved (brcmsmac) */
++		plcp[3] = 0x07;
 +		plcp[4] = 0;
 +		plcp[5] = 0;
-+		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
++		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1),
++				   ri + 0x0e);
 +	} else {
-+	put_unaligned_le16(phy0, ri + 0x00);
-+	put_unaligned_le16(subband, ri + 0x02);
-+	put_unaligned_le16(idx, ri + 0x04);
-+	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06), len, rate);
-+	put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
++		put_unaligned_le16(phy0, ri + 0x00);
++		put_unaligned_le16(subband, ri + 0x02);
++		put_unaligned_le16(idx, ri + 0x04);
++		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(ri + 0x06),
++				      len, rate);
++		put_unaligned_le16(rate, ri + 0x0e);	/* 500 kbit/s units */
 +	}
 +	if (vht && agg && info->control.rates[1].idx >= 0 &&
 +	    (info->control.rates[1].flags & IEEE80211_TX_RC_VHT_MCS)) {
@@ -323,19 +356,22 @@ index f0b0825..4ff3033 100644
 +	    info->control.rates[1].idx <= 15 &&
 +	    (info->control.rates[1].flags & IEEE80211_TX_RC_MCS)) {
 +		/* Second rate block: the fallback rate of the session frame */
-+		static const u8 ht20_500k[8] = { 13, 26, 39, 52, 78, 104, 117, 130 };
++		static const u8 ht20_500k[8] = { 13, 26,  39,  52,
++						 78, 104, 117, 130 };
 +		u8 mcs = info->control.rates[1].idx;
 +
 +		put_unaligned_le16(0, ri + 0x10);
 +		ri += 0x14;
-+		put_unaligned_le16(2 | 0x0004 | ((mcs > 7 ? 3 : 1) << 6), ri + 0x00);
++		put_unaligned_le16(2 | 0x0004 | ((mcs > 7 ? 3 : 1) << 6),
++				   ri + 0x00);
 +		put_unaligned_le16(subband, ri + 0x02);
 +		put_unaligned_le16(mcs, ri + 0x04);
 +		ri[0x06] = mcs;
 +		ri[0x07] = len & 0xff;
 +		ri[0x08] = len >> 8;
 +		ri[0x09] = 0x07;
-+		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1), ri + 0x0e);
++		put_unaligned_le16(ht20_500k[mcs & 7] * (mcs > 7 ? 2 : 1),
++				   ri + 0x0e);
 +	}
 +	put_unaligned_le16(0x0020, ri + 0x10);	/* last rate entry */
 +
@@ -345,26 +381,29 @@ index f0b0825..4ff3033 100644
  /* Generate a TX data header. */
  int b43_generate_txhdr(struct b43_wldev *dev,
  		       u8 *_txhdr,
-@@ -259,6 +454,9 @@ int b43_generate_txhdr(struct b43_wldev *dev,
+@@ -259,6 +469,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
  	struct ieee80211_rate *txrate;
  	struct ieee80211_tx_rate *rates;
  
 +	if (b43_ucode_is_ac(dev))
-+		return b43_generate_txhdr_ac(dev, _txhdr, skb_frag, info, cookie);
++		return b43_generate_txhdr_ac(dev, _txhdr, skb_frag, info,
++					     cookie);
 +
  	memset(txhdr, 0, sizeof(*txhdr));
  
  	txrate = ieee80211_get_tx_rate(dev->wl->hw, info);
 diff --git a/drivers/net/wireless/broadcom/b43/xmit.h b/drivers/net/wireless/broadcom/b43/xmit.h
-index 6524a75..aa7a1ab 100644
+index 6524a75..d403a28 100644
 --- a/drivers/net/wireless/broadcom/b43/xmit.h
 +++ b/drivers/net/wireless/broadcom/b43/xmit.h
-@@ -188,9 +188,17 @@ struct b43_tx_legacy_rate_phy_ctl_entry {
+@@ -188,9 +188,19 @@ struct b43_tx_legacy_rate_phy_ctl_entry {
  #define  B43_TXH_PHY1_MODUL_QAM256	0x2000 /* QAM256 */
  
  
-+/* rev 40+ (AC) TX buffer: 4-byte TX offload passthrough prefix, then the
-+ * 124-byte descriptor (packet info + 4 rate entries + cache). */
++/*
++ * rev 40+ (AC) TX buffer: 4-byte TX offload passthrough prefix, then the
++ * 124-byte descriptor (packet info + 4 rate entries + cache).
++ */
 +#define B43_TXH_AC_PREFIX		4
 +#define B43_TXH_AC_LEN			(B43_TXH_AC_PREFIX + 124)
 +#define B43_TXH_AC_RATE(i)		(0x14 + (i) * 0x14)
@@ -377,7 +416,7 @@ index 6524a75..aa7a1ab 100644
  	switch (dev->fw.hdr_format) {
  	case B43_FW_HDR_598:
  		return 112 + sizeof(struct b43_plcp_hdr6);
-@@ -214,6 +222,7 @@ struct b43_txstatus {
+@@ -214,6 +224,7 @@ struct b43_txstatus {
  	u16 seq;		/* Sequence number */
  	u8 phy_stat;		/* PHY TX status */
  	u8 frame_count;		/* Frame transmit count */

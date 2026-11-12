@@ -1,6 +1,6 @@
-From 0d7bb82f2b52b2bb62d5f1b72d3aa2ad240f7c9c Mon Sep 17 00:00:00 2001
+From 5d03fb1bb1a74f1f513508025ac35d5d87b7c54d Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:20:51 +0200
+Date: Thu, 12 Nov 2026 18:52:17 +0100
 Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC-PHY support (series 4/4)
 
 Radio 2069 and the AC PHY: tables, 2.4 GHz and 5 GHz channel switching
@@ -8,7 +8,8 @@ Radio 2069 and the AC PHY: tables, 2.4 GHz and 5 GHz channel switching
 "depends on BROKEN". Based on series 3/4.
 
 With the four series b43 brings up a BCM4360 on 2.4 GHz and 5 GHz, with HT
-and VHT at 20, 40 and 80 MHz, two streams and A-MPDU.
+at 20 MHz on 2.4 GHz and VHT at 80 MHz on 5 GHz (40 MHz is untested), two
+streams and A-MPDU.
 
 Each patch compiles on its own (kernel 7.2.10 headers). The four series
 together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
@@ -20,8 +21,21 @@ two streams, 40-70 Mbit/s at -78 dBm), no errors in the log. Not tested:
 suspend/resume with this exact series, other boards. Not done: TX
 calibration, hardware crypto, power save.
 
-[Provenance of the register sequences and tables: to be written, agreed
-with Alessio Ferri, before this is sent.]
+Known issues, which a review would ask to fix (pointed out by Alessio
+Ferri): the number of AC cores is forced to 2 on the MacBook boards
+(0x117, 0x137) and some init loops assume 2 cores, which is wrong for
+3-chain boards; and SROM revision 11 values are read at fixed word
+offsets instead of from parsed SPROM fields (the parsing is in his bcma
+series, not merged yet).
+
+Where the values come from: the register sequences and table contents were
+taken from Broadcom's wl driver running on this MacBook, by tracing its
+register accesses (bpftrace on wl's MMIO accessors), and reduced to what
+the hardware needs. Parts come from Alessio Ferri's AC-PHY work (the PHY
+init sequence, the 40 and 80 MHz coefficient tables, a TX gain table, the
+Farrow resampler formula, the VHT fields of the TX descriptor, register
+and table names), and some formats follow brcmsmac.
+The result was tested on the hardware as described below.
 
 Andreas Wendleder (4):
   wifi: b43: radio 2069 and AC-PHY tables
@@ -31,17 +45,16 @@ Andreas Wendleder (4):
 
  drivers/net/wireless/broadcom/b43/Kconfig     |    4 +-
  drivers/net/wireless/broadcom/b43/Makefile    |    2 +-
- drivers/net/wireless/broadcom/b43/main.c      |   61 +-
- drivers/net/wireless/broadcom/b43/phy_ac.c    | 1203 ++++++++++++++++-
- drivers/net/wireless/broadcom/b43/phy_ac.h    |    5 +
- .../net/wireless/broadcom/b43/phy_ac_farrow.h |  131 ++
+ drivers/net/wireless/broadcom/b43/main.c      |   69 +-
+ drivers/net/wireless/broadcom/b43/phy_ac.c    | 1263 +++++++++++++++-
+ drivers/net/wireless/broadcom/b43/phy_ac.h    |    4 +
+ .../net/wireless/broadcom/b43/phy_ac_farrow.h |  260 ++++
  .../net/wireless/broadcom/b43/phy_common.c    |   25 +-
- .../net/wireless/broadcom/b43/phy_common.h    |    3 +-
- .../net/wireless/broadcom/b43/radio_2069.c    |  241 ++++
+ .../net/wireless/broadcom/b43/radio_2069.c    |  862 +++++++++++
  .../net/wireless/broadcom/b43/radio_2069.h    |   19 +
- .../net/wireless/broadcom/b43/tables_phy_ac.c |  985 ++++++++++++++
+ .../net/wireless/broadcom/b43/tables_phy_ac.c | 1273 +++++++++++++++++
  .../net/wireless/broadcom/b43/tables_phy_ac.h |   31 +
- 12 files changed, 2698 insertions(+), 12 deletions(-)
+ 11 files changed, 3801 insertions(+), 11 deletions(-)
  create mode 100644 drivers/net/wireless/broadcom/b43/phy_ac_farrow.h
  create mode 100644 drivers/net/wireless/broadcom/b43/radio_2069.c
  create mode 100644 drivers/net/wireless/broadcom/b43/radio_2069.h

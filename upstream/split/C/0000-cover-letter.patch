@@ -1,12 +1,21 @@
-From 7612802a7a2a7e3c619008aee306f2a82134fc15 Mon Sep 17 00:00:00 2001
+From 375fa51fd0b0f7f338ca183abaf137c171e8ddb5 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:20:51 +0200
+Date: Thu, 12 Nov 2026 18:52:17 +0100
 Subject: [PATCH RFC wireless-next 0/4] wifi: b43: AC microcode TX and RX formats (series 3/4)
 
 The TX descriptor, TX status, RX header and A-MPDU handling of the AC
 microcode, gated on the microcode revision. Only revision 832 has been
 tested; the layouts of 784 and 928 are expected to match but are not
 verified. Based on series 2/4.
+
+Where the values come from: the register sequences and table contents were
+taken from Broadcom's wl driver running on this MacBook, by tracing its
+register accesses (bpftrace on wl's MMIO accessors), and reduced to what
+the hardware needs. Parts come from Alessio Ferri's AC-PHY work (the PHY
+init sequence, the 40 and 80 MHz coefficient tables, a TX gain table, the
+Farrow resampler formula, the VHT fields of the TX descriptor, register
+and table names), and some formats follow brcmsmac.
+The result was tested on the hardware as described below.
 
 Each patch compiles on its own (kernel 7.2.10 headers). The four series
 together were run on a MacBookAir6,1 (14e4:43a0, BCM4360, core revision 42,
@@ -20,12 +29,12 @@ Andreas Wendleder (4):
   wifi: b43: RX header handling for the AC microcode
   wifi: b43: A-MPDU for the AC microcode
 
- drivers/net/wireless/broadcom/b43/dma.c       |  56 ++++
+ drivers/net/wireless/broadcom/b43/dma.c       |  61 ++++
  drivers/net/wireless/broadcom/b43/dma.h       |   1 +
- drivers/net/wireless/broadcom/b43/main.c      |  93 ++++++
+ drivers/net/wireless/broadcom/b43/main.c      | 113 ++++++
  .../net/wireless/broadcom/b43/phy_common.c    |  13 +
- .../net/wireless/broadcom/b43/phy_common.h    |   3 +
- drivers/net/wireless/broadcom/b43/xmit.c      | 304 +++++++++++++++++-
- drivers/net/wireless/broadcom/b43/xmit.h      |  11 +
- 7 files changed, 474 insertions(+), 7 deletions(-)
+ .../net/wireless/broadcom/b43/phy_common.h    |   7 +
+ drivers/net/wireless/broadcom/b43/xmit.c      | 327 +++++++++++++++++-
+ drivers/net/wireless/broadcom/b43/xmit.h      |  13 +
+ 7 files changed, 528 insertions(+), 7 deletions(-)
 

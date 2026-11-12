@@ -110,7 +110,10 @@ byte of word 2, not the sum of its bytes, and a record with more than one
 MPDU carries a block ack bitmap for the consecutive cookies; the cookies
 are advanced with the new b43_dma_cookie_advance().
 
-Only microcode revision 832 has been tested."""),
+Only microcode revision 832 has been tested.
+
+Co-developed-by: Alessio Ferri <alessio.ferri@mythread.it>
+Signed-off-by: Alessio Ferri <alessio.ferri@mythread.it>"""),
 
 ("wifi: b43: RX header handling for the AC microcode",
 """The RX header of the AC microcode keeps the MAC status at 0x10, the TSF at
@@ -149,10 +152,13 @@ longer ones lose their later MPDUs."""),
    values of the remaining table cells this board holds after the vendor
    driver's init.
 
-The tables are values as seen in operation on a BCM4360 board (MacBookAir6,1)
-with the vendor driver; the names of several tables follow Alessio Ferri's
-b43-ac-wip. They have been checked on this board only. The
-data is used by the patches that follow."""),
+The tables are values as seen in operation on a BCM4360 board
+(MacBookAir6,1) with the vendor driver; the names of several tables follow
+Alessio Ferri's b43-ac-wip. They have been checked on this board only. The
+data is used by the patches that follow.
+
+Co-developed-by: Alessio Ferri <alessio.ferri@mythread.it>
+Signed-off-by: Alessio Ferri <alessio.ferri@mythread.it>"""),
 
 ("wifi: b43: AC-PHY init and 2.4 GHz channel switching",
 """Replace the placeholder AC-PHY code with an initialization that brings
@@ -173,28 +179,35 @@ the BCM4360 (PHY AC rev 1, radio 2069 rev 4) up on 2.4 GHz at 20 MHz:
    transmit, the rest fail every frame), at most three times,
  - HT capabilities for the 2.4 GHz band.
 
-5 GHz channels are refused for now."""),
+5 GHz channels are refused for now.
+
+Co-developed-by: Alessio Ferri <alessio.ferri@mythread.it>
+Signed-off-by: Alessio Ferri <alessio.ferri@mythread.it>"""),
 
 ("wifi: b43: 5 GHz, 80 MHz and VHT for the AC PHY",
 """Add 5 GHz channel switching: the RF sequencer extension, the second
 sequencer's command lists and three table 7 cells (which keep the second
 TX chain working), the 5 GHz TX gain table and AGC tables, VCO calibration
-and the RX gain control word. Switching back to 2.4 GHz rewrites the 2.4 GHz
-tables and the 20 MHz PHY bandwidth.
+and the RX gain control word. Switching back to 2.4 GHz rewrites the
+2.4 GHz tables and the 20 MHz PHY bandwidth.
 
 On 5 GHz the PHY runs in its 80 MHz mode on the 80 MHz block that contains
 the primary channel, tuned to the centre of the block, with the
 Farrow resampler words computed for it. The chanspec of such a channel
-names the centre channel, the width and the position of the primary. A
-20 MHz or 40 MHz AP works as well, the primary channel's frames are
-received in the block.
+names the centre channel, the width and the position of the primary.
+Only an AP with an 80 MHz channel was tested; with a 20 or 40 MHz AP the
+primary channel's frames should still be received in the block.
 
 Register the 5 GHz band with HT and VHT capabilities (two streams, MCS 0-9,
-80 MHz); mac80211 wants 40 MHz capability before it uses 80 MHz."""),
+80 MHz); mac80211 wants 40 MHz capability before it uses 80 MHz.
+
+Co-developed-by: Alessio Ferri <alessio.ferri@mythread.it>
+Signed-off-by: Alessio Ferri <alessio.ferri@mythread.it>"""),
 
 ("wifi: b43: enable the AC-PHY support",
 """The AC-PHY now brings up a BCM4352/BCM4360 on 2.4 GHz and 5 GHz and
-transmits and receives with HT and VHT at 20, 40 and 80 MHz. Remove the
+transmits and receives with HT (20 MHz, 2.4 GHz) and VHT (80 MHz, 5 GHz),
+the two that were tested. Remove the
 dependency on BROKEN and say what is missing: no TX calibration, no TX
 power control beyond the hardware loop, no hardware crypto and no power
 save.""")
@@ -231,6 +244,20 @@ revision (b43_ucode_is_ac(), revision 784 and above, set once the
 microcode is loaded). The TX and RX formats and the PHY are not in this
 series. Based on series 1/4.
 
+This is posted as RFC so that people with these chips can use and test
+it now; b43 is orphaned and nobody is set to take these patches at the
+moment. Series 1/4 is on the list:
+https://lore.kernel.org/linux-wireless/20261014143225.82149-1-gonsolo@gmail.com/
+
+Where the values come from: the register sequences and table contents were
+taken from Broadcom's wl driver running on this MacBook, by tracing its
+register accesses (bpftrace on wl's MMIO accessors), and reduced to what
+the hardware needs. Parts come from Alessio Ferri's AC-PHY work (the PHY
+init sequence, the 40 and 80 MHz coefficient tables, a TX gain table, the
+Farrow resampler formula, the VHT fields of the TX descriptor, register
+and table names), and some formats follow brcmsmac.
+The result was tested on the hardware as described below.
+
 """ + NOTE_TESTED + """
 """),
 "C": ("wifi: b43: AC microcode TX and RX formats (series 3/4)",
@@ -238,6 +265,15 @@ series. Based on series 1/4.
 microcode, gated on the microcode revision. Only revision 832 has been
 tested; the layouts of 784 and 928 are expected to match but are not
 verified. Based on series 2/4.
+
+Where the values come from: the register sequences and table contents were
+taken from Broadcom's wl driver running on this MacBook, by tracing its
+register accesses (bpftrace on wl's MMIO accessors), and reduced to what
+the hardware needs. Parts come from Alessio Ferri's AC-PHY work (the PHY
+init sequence, the 40 and 80 MHz coefficient tables, a TX gain table, the
+Farrow resampler formula, the VHT fields of the TX descriptor, register
+and table names), and some formats follow brcmsmac.
+The result was tested on the hardware as described below.
 
 """ + NOTE_TESTED + """
 """),
@@ -247,7 +283,8 @@ verified. Based on series 2/4.
 "depends on BROKEN". Based on series 3/4.
 
 With the four series b43 brings up a BCM4360 on 2.4 GHz and 5 GHz, with HT
-and VHT at 20, 40 and 80 MHz, two streams and A-MPDU.
+at 20 MHz on 2.4 GHz and VHT at 80 MHz on 5 GHz (40 MHz is untested), two
+streams and A-MPDU.
 
 """ + NOTE_TESTED + """ Association and traffic with WPA2 (software
 crypto) on 2.4 GHz (HT, about 54-63 Mbit/s) and on 5 GHz (VHT, 80 MHz block,
@@ -255,7 +292,20 @@ two streams, 40-70 Mbit/s at -78 dBm), no errors in the log. Not tested:
 suspend/resume with this exact series, other boards. Not done: TX
 calibration, hardware crypto, power save.
 
-[Provenance of the register sequences and tables: to be written, agreed
-with Alessio Ferri, before this is sent.]
+Known issues, which a review would ask to fix (pointed out by Alessio
+Ferri): the number of AC cores is forced to 2 on the MacBook boards
+(0x117, 0x137) and some init loops assume 2 cores, which is wrong for
+3-chain boards; and SROM revision 11 values are read at fixed word
+offsets instead of from parsed SPROM fields (the parsing is in his bcma
+series, not merged yet).
+
+Where the values come from: the register sequences and table contents were
+taken from Broadcom's wl driver running on this MacBook, by tracing its
+register accesses (bpftrace on wl's MMIO accessors), and reduced to what
+the hardware needs. Parts come from Alessio Ferri's AC-PHY work (the PHY
+init sequence, the 40 and 80 MHz coefficient tables, a TX gain table, the
+Farrow resampler formula, the VHT fields of the TX descriptor, register
+and table names), and some formats follow brcmsmac.
+The result was tested on the hardware as described below.
 """)
 }

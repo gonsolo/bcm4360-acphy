@@ -1,6 +1,6 @@
-From d2efc72f8a037194b12129c099fb19cbd014c9e5 Mon Sep 17 00:00:00 2001
+From 018744de5fb6d55846f01dd1f13a3db876fd0e8e Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:20:27 +0200
+Date: Thu, 12 Nov 2026 18:51:46 +0100
 Subject: [PATCH RFC wireless-next] wifi: b43: retry RX buffer refills that
  failed under memory pressure
 
@@ -20,10 +20,10 @@ does nothing unless a refill has failed.
  3 files changed, 41 insertions(+)
 
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index 3d989cb..268a812 100644
+index ef05327..1f50e7c 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
-@@ -1735,8 +1735,10 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
+@@ -1742,8 +1742,10 @@ static void dma_rx(struct b43_dmaring *ring, int *slot)
  	err = setup_rx_descbuffer(ring, desc, meta, GFP_ATOMIC);
  	if (unlikely(err)) {
  		b43dbg(ring->dev->wl, "DMA RX: setup_rx_descbuffer() failed\n");
@@ -34,7 +34,7 @@ index 3d989cb..268a812 100644
  
  	unmap_descbuffer(ring, dmaaddr, ring->rx_buffersize, 0);
  	skb_put(skb, len + ring->frameoffset);
-@@ -1752,6 +1754,40 @@ drop_recycle_buffer:
+@@ -1759,6 +1761,40 @@ drop_recycle_buffer:
  	sync_descbuffer_for_device(ring, dmaaddr, ring->rx_buffersize);
  }
  
@@ -97,10 +97,10 @@ index 5c84b1f..46dbbae 100644
  			    unsigned int engine_index, bool enable);
  
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index bff90de..db91412 100644
+index eeb70bf..378953a 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -3658,6 +3658,8 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
+@@ -3705,6 +3705,8 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
  		}
  	}
  

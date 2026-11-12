@@ -1,6 +1,6 @@
-From 4adf44b7e4dc17b0c09aeebf19106dc2dd97cef0 Mon Sep 17 00:00:00 2001
+From 469614b77ea666603306249f7bf0f0dee7430b2c Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:16:33 +0200
+Date: Thu, 12 Nov 2026 18:45:24 +0100
 Subject: [PATCH RFC wireless-next 3/3] wifi: b43: address match table,
  templates and beacons for the AC microcode
 
@@ -18,24 +18,28 @@ differently:
    PHY TX control words are at SHM 0xcc, 0xce and 0xd0 instead of the
    legacy BEACPHYCTL word.
 ---
- drivers/net/wireless/broadcom/b43/main.c | 117 ++++++++++++++++++++---
- 1 file changed, 102 insertions(+), 15 deletions(-)
+ drivers/net/wireless/broadcom/b43/main.c | 141 ++++++++++++++++++++---
+ 1 file changed, 126 insertions(+), 15 deletions(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index bed5bdd..3b233a3 100644
+index 205d429..da7e420 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -662,6 +662,22 @@ void b43_macfilter_set(struct b43_wldev *dev, u16 offset, const u8 *mac)
+@@ -662,6 +662,26 @@ void b43_macfilter_set(struct b43_wldev *dev, u16 offset, const u8 *mac)
  	if (!mac)
  		mac = zero_addr;
  
 +	if (b43_ucode_is_ac(dev)) {
-+		/* rev 40+ ucode: address match table (AMT) in RCMTA object
++		/*
++		 * rev 40+ ucode: address match table (AMT) in RCMTA object
 +		 * memory, 8 bytes per entry: MAC[0..3], MAC[4..5] | attr << 16.
-+		 * the vendor driver uses entry 63 for its own MAC and 62 for the BSSID. */
++		 * the vendor driver uses entry 63 for its own MAC and 62 for
++		 * the BSSID.
++		 */
 +		bool self = offset == B43_MACFILTER_SELF;
 +		u16 idx = self ? 0x3f : 0x3e;
-+		u16 attr = is_zero_ether_addr(mac) ? 0 : (self ? 0x8008 : 0x8006);
++		u16 attr = is_zero_ether_addr(mac) ? 0 :
++						     (self ? 0x8008 : 0x8006);
 +
 +		b43_shm_write32(dev, B43_SHM_RCMTA, idx * 2,
 +				mac[0] | (mac[1] << 8) | (mac[2] << 16) |
@@ -48,19 +52,24 @@ index bed5bdd..3b233a3 100644
  	offset |= 0x0020;
  	b43_write16(dev, B43_MMIO_MACFILTER_CONTROL, offset);
  
-@@ -689,6 +705,33 @@ static void b43_write_mac_bssid_templates(struct b43_wldev *dev)
+@@ -689,6 +709,39 @@ static void b43_write_mac_bssid_templates(struct b43_wldev *dev)
  
  	b43_macfilter_set(dev, B43_MACFILTER_BSSID, bssid);
  
 +	if (b43_ucode_is_ac(dev)) {
-+		/* rev 40+ ucode (as wl): template RAM 0x30 = BSSID, MAC, BSSID;
-+		 * 0x48 = MAC. Also the vendor driver's default null-frame template at 0x2c and
-+		 * the header at 0x0. */
-+		static const u32 hdr0[] = { 0x00000094, 0x75749000, 0x00007776,
-+					    0x00000000, 0xffff0005, 0x0000ffff };
-+		static const u32 null2c[] = { 0x00e0040a, 0x0048beef, 0xff000005,
-+					      0xff02ff01, 0x01181000, 0x10000302,
-+					      0xf3f2f118, 0x0000ccbb };
++		/*
++		 * rev 40+ ucode (as wl): template RAM 0x30 = BSSID, MAC, BSSID;
++		 * 0x48 = MAC. Also the vendor driver's default null-frame
++		 * template at 0x2c and the header at 0x0.
++		 */
++		static const u32 hdr0[] = {
++			0x00000094, 0x75749000, 0x00007776,
++			0x00000000, 0xffff0005, 0x0000ffff
++		};
++		static const u32 null2c[] = {
++			0x00e0040a, 0x0048beef, 0xff000005, 0xff02ff01,
++			0x01181000, 0x10000302, 0xf3f2f118, 0x0000ccbb
++		};
 +		u8 blk[20] = { 0 };
 +		u8 m[8] = { 0 };
 +
@@ -72,7 +81,8 @@ index bed5bdd..3b233a3 100644
 +		memcpy(blk + 6, mac, ETH_ALEN);
 +		memcpy(blk + 12, bssid, ETH_ALEN);
 +		for (i = 0; i < sizeof(blk); i += 4)
-+			b43_ram_write(dev, 0x30 + i, get_unaligned_le32(blk + i));
++			b43_ram_write(dev, 0x30 + i,
++				      get_unaligned_le32(blk + i));
 +		memcpy(m, mac, ETH_ALEN);
 +		b43_ram_write(dev, 0x48, get_unaligned_le32(m));
 +		b43_ram_write(dev, 0x4c, get_unaligned_le32(m + 4));
@@ -82,7 +92,7 @@ index bed5bdd..3b233a3 100644
  	memcpy(mac_bssid, mac, ETH_ALEN);
  	memcpy(mac_bssid + ETH_ALEN, bssid, ETH_ALEN);
  
-@@ -1656,19 +1699,47 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
+@@ -1657,19 +1710,56 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
  				  len, ram_offset, shm_size_offset, rate);
  
  	/* Write the PHY TX control parameters. */
@@ -100,18 +110,22 @@ index bed5bdd..3b233a3 100644
 -		ctl |= B43_TXH_PHY_ENC_OFDM;
 -	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL, ctl);
 +	if (b43_ucode_is_ac(dev)) {
-+		/* rev 40+ ucode (wlc_beacon_phytxctl, core_rev > 0x27): the
++		/*
++		 * rev 40+ ucode (wlc_beacon_phytxctl, core_rev > 0x27): the
 +		 * beacon slot's PhyTxControlWord_0/1/2 live at SHM 0xcc/ce/d0,
 +		 * not the legacy BEACPHYCTL word (0x54, unused here). Compute
 +		 * them the same way as a normal AC TX descriptor rate entry
 +		 * (b43_generate_txhdr_ac): CCK/OFDM bit, core mask, PLCP rate
-+		 * index; no sub-band (this is 20 MHz single-channel only). */
++		 * index; no sub-band (this is 20 MHz single-channel only).
++		 */
 +		static const u8 cck[] = { B43_CCK_RATE_1MB, B43_CCK_RATE_2MB,
 +					  B43_CCK_RATE_5MB, B43_CCK_RATE_11MB };
-+		static const u8 ofdm[] = { B43_OFDM_RATE_6MB, B43_OFDM_RATE_9MB,
-+					   B43_OFDM_RATE_12MB, B43_OFDM_RATE_18MB,
-+					   B43_OFDM_RATE_24MB, B43_OFDM_RATE_36MB,
-+					   B43_OFDM_RATE_48MB, B43_OFDM_RATE_54MB };
++		static const u8 ofdm[] = {
++			B43_OFDM_RATE_6MB,  B43_OFDM_RATE_9MB,
++			B43_OFDM_RATE_12MB, B43_OFDM_RATE_18MB,
++			B43_OFDM_RATE_24MB, B43_OFDM_RATE_36MB,
++			B43_OFDM_RATE_48MB, B43_OFDM_RATE_54MB
++		};
 +		bool is_ofdm = b43_is_ofdm_rate(rate);
 +		const u8 *tbl = is_ofdm ? ofdm : cck;
 +		unsigned int n = is_ofdm ? ARRAY_SIZE(ofdm) : ARRAY_SIZE(cck);
@@ -128,8 +142,12 @@ index bed5bdd..3b233a3 100644
 +	} else {
 +		antenna = B43_ANTENNA_DEFAULT;
 +		antenna = b43_antenna_to_phyctl(antenna);
-+		ctl = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
-+		/* We can't send beacons with short preamble. Would get PHY errors. */
++		ctl = b43_shm_read16(dev, B43_SHM_SHARED,
++				     B43_SHM_SH_BEACPHYCTL);
++		/*
++		 * We can't send beacons with short preamble. Would get PHY
++		 * errors.
++		 */
 +		ctl &= ~B43_TXH_PHY_SHORTPRMBL;
 +		ctl &= ~B43_TXH_PHY_ANT;
 +		ctl &= ~B43_TXH_PHY_ENC;
@@ -138,19 +156,22 @@ index bed5bdd..3b233a3 100644
 +			ctl |= B43_TXH_PHY_ENC_CCK;
 +		else
 +			ctl |= B43_TXH_PHY_ENC_OFDM;
-+		b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL, ctl);
++		b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL,
++				ctl);
 +	}
  
  	/* Find the position of the TIM and the DTIM_period value
  	 * and write them to SHM. */
-@@ -1725,20 +1796,26 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
+@@ -1726,20 +1816,28 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
  static void b43_upload_beacon0(struct b43_wldev *dev)
  {
  	struct b43_wl *wl = dev->wl;
-+	/* rev 40+ ucode keeps the two beacon template slots at RAM 0x200 and
++	/*
++	 * rev 40+ ucode keeps the two beacon template slots at RAM 0x200 and
 +	 * 0x480 (wlc_bmac_write_hw_bcntemplates, core_rev > 0x27), not the
-+	 * legacy 0x68/0x468. Length (SHM 0x18/0x1a) and the valid bits
-+	 * (MMIO MACCMD, unchanged) are the same on both. */
++	 * legacy 0x68/0x468. Length (SHM 0x18/0x1a) and the valid bits (MMIO
++	 * MACCMD, unchanged) are the same on both.
++	 */
 +	u16 base = b43_ucode_is_ac(dev) ? 0x200 : B43_SHM_SH_BT_BASE0;
  
  	if (wl->beacon0_uploaded)
@@ -172,13 +193,16 @@ index bed5bdd..3b233a3 100644
  	wl->beacon1_uploaded = true;
  }
  
-@@ -3234,6 +3311,14 @@ static void b43_set_phytxctl_defaults(struct b43_wldev *dev)
+@@ -3237,6 +3335,17 @@ static void b43_set_phytxctl_defaults(struct b43_wldev *dev)
  {
  	u16 ctl = 0;
  
 +	if (b43_ucode_is_ac(dev)) {
-+		/* rev 40+ ucode: AC PhyTxControlWord_0 format (CCK, core 0),
-+		 * as the vendor driver sets it. 0x54/0x188 mean something else here. */
++		/*
++		 * rev 40+ ucode: AC PhyTxControlWord_0 format (CCK, core 0), as
++		 * the vendor driver sets it. 0x54/0x188 mean something else
++		 * here.
++		 */
 +		b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_ACKCTSPHYCTL,
 +				0x0040);
 +		return;
@@ -187,7 +211,7 @@ index bed5bdd..3b233a3 100644
  	ctl |= B43_TXH_PHY_ENC_CCK;
  	ctl |= B43_TXH_PHY_ANT01AUTO;
  	ctl |= B43_TXH_PHY_TXPWR;
-@@ -3249,6 +3334,8 @@ static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
+@@ -3252,6 +3361,8 @@ static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
  	u16 ant;
  	u16 tmp;
  

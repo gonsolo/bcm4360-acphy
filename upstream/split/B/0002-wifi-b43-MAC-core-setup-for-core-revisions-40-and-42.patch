@@ -1,6 +1,6 @@
-From 6b4447d447ba6ed6e84ad790a2198bc64de94ee9 Mon Sep 17 00:00:00 2001
+From bf7c15a82c0628f4d42e03089606e7fb44b4aec9 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:16:18 +0200
+Date: Thu, 12 Nov 2026 18:44:47 +0100
 Subject: [PATCH RFC wireless-next 2/3] wifi: b43: MAC core setup for core
  revisions 40 and 42
 
@@ -26,9 +26,9 @@ ACK/CTS PHY control, microcode state) on every core init.
 b43_op_set_key() returns -EOPNOTSUPP, mac80211 does the crypto in
 software.
 ---
- drivers/net/wireless/broadcom/b43/b43.h  |  8 +++
- drivers/net/wireless/broadcom/b43/main.c | 92 +++++++++++++++++++++++-
- 2 files changed, 99 insertions(+), 1 deletion(-)
+ drivers/net/wireless/broadcom/b43/b43.h  |   8 ++
+ drivers/net/wireless/broadcom/b43/main.c | 101 ++++++++++++++++++++++-
+ 2 files changed, 108 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/b43.h b/drivers/net/wireless/broadcom/b43/b43.h
 index 80b299b..92227ff 100644
@@ -50,17 +50,18 @@ index 80b299b..92227ff 100644
  {
  	return dev->dev->read16(dev->dev, offset);
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 57a5935..bed5bdd 100644
+index e2e8ca0..205d429 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -1235,6 +1235,23 @@ static void b43_bcma_phy_reset(struct b43_wldev *dev)
+@@ -1235,6 +1235,24 @@ static void b43_bcma_phy_reset(struct b43_wldev *dev)
  {
  	u32 flags;
  
 +	if (b43_is_ac_core(dev)) {
 +		flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
-+		flags |= B43_BCMA_IOCTL_PHY_RESET | B43_BCMA_IOCTL_PHY_BW_20MHZ |
-+			 BCMA_IOCTL_FGC | B43_BCMA_IOCTL_PHY_CLKEN;
++		flags |= B43_BCMA_IOCTL_PHY_RESET |
++			 B43_BCMA_IOCTL_PHY_BW_20MHZ | BCMA_IOCTL_FGC |
++			 B43_BCMA_IOCTL_PHY_CLKEN;
 +		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
 +		udelay(2);
 +		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, flags);
@@ -77,15 +78,17 @@ index 57a5935..bed5bdd 100644
  	/* Put PHY into reset */
  	flags = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
  	flags |= B43_BCMA_IOCTL_PHY_RESET;
-@@ -2914,6 +2931,16 @@ static int b43_gpio_init(struct b43_wldev *dev)
+@@ -2914,6 +2932,18 @@ static int b43_gpio_init(struct b43_wldev *dev)
  	switch (dev->dev->bus_type) {
  #ifdef CONFIG_B43_BCMA
  	case B43_BUS_BCMA:
 +		if (b43_is_ac_core(dev)) {
 +			struct bcma_drv_cc *cc = &dev->dev->bdev->bus->drv_cc;
 +
-+			/* the vendor driver keeps the pins host-driven with GPIO1+2 high
-+			 * (front-end control on MacBookAir6,1). */
++			/*
++			 * the vendor driver keeps the pins host-driven with
++			 * GPIO1+2 high (front-end control on MacBookAir6,1).
++			 */
 +			bcma_chipco_gpio_control(cc, mask | 0xa7, 0);
 +			bcma_chipco_gpio_out(cc, 0xa7, 0x06);
 +			bcma_chipco_gpio_outen(cc, 0xa7, 0xa7);
@@ -94,12 +97,14 @@ index 57a5935..bed5bdd 100644
  		bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc, mask, set);
  		break;
  #endif
-@@ -3245,6 +3272,50 @@ static void b43_chip_exit(struct b43_wldev *dev)
+@@ -3245,6 +3275,53 @@ static void b43_chip_exit(struct b43_wldev *dev)
  /* Initialize the chip
   * https://bcm-specs.sipsolutions.net/ChipInit
   */
-+/* rev 40+ MAC: carve template/TX FIFOs out of MAC memory and set up the
-+ * TX queue table (as the vendor driver does it). */
++/*
++ * rev 40+ MAC: carve template/TX FIFOs out of MAC memory and set up the TX
++ * queue table (as the vendor driver does it).
++ */
 +
 +static void b43_ac_fifo_init(struct b43_wldev *dev)
 +{
@@ -123,7 +128,8 @@ index 57a5935..bed5bdd 100644
 +			b43_write16(dev, 0x54a, total - tpl);
 +			b43_write16(dev, 0x54c, fifo_sz);
 +			b43_write16(dev, 0x520, blk);
-+			b43_write16(dev, 0x54e, ((blk * 2 - 4) << 8) | (blk * 2));
++			b43_write16(dev, 0x54e,
++				    ((blk * 2 - 4) << 8) | (blk * 2));
 +		}
 +		b43_write16(dev, 0x550, 0x740c);
 +		b43_write16(dev, 0x548, fifos[i] | 0x10);
@@ -139,13 +145,13 @@ index 57a5935..bed5bdd 100644
 +			udelay(10);
 +	}
 +	b43dbg(dev->wl, "AC FIFO init: total %#x, 0x540=%04x 0x530=%04x\n",
-+		total, b43_read16(dev, 0x540), b43_read16(dev, 0x530));
++	       total, b43_read16(dev, 0x540), b43_read16(dev, 0x530));
 +}
 +
  static int b43_chip_init(struct b43_wldev *dev)
  {
  	struct b43_phy *phy = &dev->phy;
-@@ -3253,7 +3324,10 @@ static int b43_chip_init(struct b43_wldev *dev)
+@@ -3253,7 +3330,10 @@ static int b43_chip_init(struct b43_wldev *dev)
  	u16 value16;
  
  	/* Initialize the MAC control */
@@ -157,7 +163,7 @@ index 57a5935..bed5bdd 100644
  	if (dev->phy.gmode)
  		macctl |= B43_MACCTL_GMODE;
  	macctl |= B43_MACCTL_INFRA;
-@@ -3275,6 +3349,9 @@ static int b43_chip_init(struct b43_wldev *dev)
+@@ -3275,6 +3355,9 @@ static int b43_chip_init(struct b43_wldev *dev)
  	if (err)
  		goto err_gpio_clean;
  
@@ -167,7 +173,7 @@ index 57a5935..bed5bdd 100644
  	/* Turn the Analog on and initialize the PHY. */
  	phy->ops->switch_analog(dev, 1);
  	err = b43_phy_init(dev);
-@@ -3325,6 +3402,10 @@ static int b43_chip_init(struct b43_wldev *dev)
+@@ -3325,6 +3408,10 @@ static int b43_chip_init(struct b43_wldev *dev)
  	b43_write32(dev, B43_MMIO_DMA3_IRQ_MASK, 0x0001DC00);
  	b43_write32(dev, B43_MMIO_DMA4_IRQ_MASK, 0x0000DC00);
  	b43_write32(dev, B43_MMIO_DMA5_IRQ_MASK, 0x0000DC00);
@@ -178,26 +184,29 @@ index 57a5935..bed5bdd 100644
  
  	b43_mac_phy_clock_set(dev, true);
  
-@@ -3529,6 +3610,13 @@ error:
+@@ -3529,6 +3616,15 @@ error:
  
  static void b43_security_init(struct b43_wldev *dev)
  {
-+	/* rev 40+ (AC) ucode has no key table pointer at the legacy KTP word:
++	/*
++	 * rev 40+ (AC) ucode has no key table pointer at the legacy KTP word:
 +	 * it reads 0 there, so clearing the "key table" zeroed SHM 0x000-0x3a0
-+	 * (rate maps, ACK/CTS PHY control, ucode state) on every core init.
-+	 * AC has no hardware crypto support yet, so leave the key memory alone. */
++	 * (rate maps, ACK/CTS PHY control, ucode state) on every core init. AC
++	 * has no hardware crypto support yet, so leave the key memory alone.
++	 */
 +	if (b43_ucode_is_ac(dev))
 +		return;
 +
  	dev->ktp = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_KTP);
  	/* KTP is a word address, but we address SHM bytewise.
  	 * So multiply by two.
-@@ -4178,6 +4266,8 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -4178,6 +4274,9 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  
  	if (modparam_nohwcrypt)
  		return -ENOSPC; /* User disabled HW-crypto */
 +	if (b43_ucode_is_ac(wl->current_dev))
-+		return -EOPNOTSUPP; /* no AC key table yet, see b43_security_init */
++		/* no AC key table yet, see b43_security_init */
++		return -EOPNOTSUPP;
  
  	if ((vif->type == NL80211_IFTYPE_ADHOC ||
  	     vif->type == NL80211_IFTYPE_MESH_POINT) &&

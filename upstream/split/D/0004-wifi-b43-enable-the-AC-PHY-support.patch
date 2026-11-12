@@ -1,10 +1,11 @@
-From 0d7bb82f2b52b2bb62d5f1b72d3aa2ad240f7c9c Mon Sep 17 00:00:00 2001
+From 5d03fb1bb1a74f1f513508025ac35d5d87b7c54d Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:20:15 +0200
+Date: Thu, 12 Nov 2026 18:51:31 +0100
 Subject: [PATCH RFC wireless-next 4/4] wifi: b43: enable the AC-PHY support
 
 The AC-PHY now brings up a BCM4352/BCM4360 on 2.4 GHz and 5 GHz and
-transmits and receives with HT and VHT at 20, 40 and 80 MHz. Remove the
+transmits and receives with HT (20 MHz, 2.4 GHz) and VHT (80 MHz, 5 GHz),
+the two that were tested. Remove the
 dependency on BROKEN and say what is missing: no TX calibration, no TX
 power control beyond the hardware loop, no hardware crypto and no power
 save.

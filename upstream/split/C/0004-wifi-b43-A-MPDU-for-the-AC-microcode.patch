@@ -1,6 +1,6 @@
-From 7612802a7a2a7e3c619008aee306f2a82134fc15 Mon Sep 17 00:00:00 2001
+From 375fa51fd0b0f7f338ca183abaf137c171e8ddb5 Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:17:21 +0200
+Date: Thu, 12 Nov 2026 18:47:49 +0100
 Subject: [PATCH RFC wireless-next 4/4] wifi: b43: A-MPDU for the AC microcode
 
 The microcode builds the aggregates and sends the block acks. Accept block
@@ -12,14 +12,14 @@ ring, up to four times, with the retry bit set; the block ack window lets
 them follow later frames. The cache info limits an aggregate to four MPDUs,
 longer ones lose their later MPDUs.
 ---
- drivers/net/wireless/broadcom/b43/dma.c  | 44 ++++++++++++++++++++++++
- drivers/net/wireless/broadcom/b43/main.c | 34 ++++++++++++++++++
- drivers/net/wireless/broadcom/b43/xmit.c | 19 +++++++++-
- drivers/net/wireless/broadcom/b43/xmit.h |  2 ++
- 4 files changed, 98 insertions(+), 1 deletion(-)
+ drivers/net/wireless/broadcom/b43/dma.c  | 48 ++++++++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/main.c | 37 ++++++++++++++++++
+ drivers/net/wireless/broadcom/b43/xmit.c | 22 ++++++++++-
+ drivers/net/wireless/broadcom/b43/xmit.h |  2 +
+ 4 files changed, 108 insertions(+), 1 deletion(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/dma.c b/drivers/net/wireless/broadcom/b43/dma.c
-index 0102df6..3d989cb 100644
+index 404f75f..ef05327 100644
 --- a/drivers/net/wireless/broadcom/b43/dma.c
 +++ b/drivers/net/wireless/broadcom/b43/dma.c
 @@ -34,6 +34,9 @@
@@ -32,7 +32,7 @@ index 0102df6..3d989cb 100644
  static u32 b43_dma_address(struct b43_dma *dma, dma_addr_t dmaaddr,
  			   enum b43_addrtype addrtype)
  {
-@@ -1376,6 +1379,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
+@@ -1378,6 +1381,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
  	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
  
  	hdr = (struct ieee80211_hdr *)skb->data;
@@ -40,7 +40,7 @@ index 0102df6..3d989cb 100644
  	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
  		/* The multicast ring will be sent after the DTIM */
  		ring = dev->dma.tx_ring_mcast;
-@@ -1463,6 +1467,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+@@ -1466,6 +1470,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
  	static const struct b43_txstatus fake; /* filled with 0 */
  	const struct b43_txstatus *txstat;
  	int slot, firstused;
@@ -48,7 +48,7 @@ index 0102df6..3d989cb 100644
  	bool frame_succeed;
  	int skip;
  	static u8 err_out1;
-@@ -1565,6 +1570,27 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+@@ -1568,6 +1573,29 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
  			else
  				txstat = status;
  
@@ -63,10 +63,12 @@ index 0102df6..3d989cb 100644
 +					b43_get_priv_tx_info(info);
 +
 +				if (pi->requeues < B43_AC_AMPDU_REQUEUE) {
-+					struct ieee80211_hdr *hdr = (void *)meta->skb->data;
++					struct ieee80211_hdr *hdr =
++						(void *)meta->skb->data;
 +
 +					pi->requeues++;
-+					hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_RETRY);
++					hdr->frame_control |= cpu_to_le16(
++						IEEE80211_FCTL_RETRY);
 +					requeue = meta->skb;
 +					meta->skb = B43_DMA_PTR_POISON;
 +					ring->used_slots--;
@@ -76,13 +78,14 @@ index 0102df6..3d989cb 100644
  			frame_succeed = b43_fill_txstatus_report(dev, info,
  								 txstat);
  #ifdef CONFIG_B43_DEBUG
-@@ -1603,6 +1629,24 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
+@@ -1606,6 +1634,26 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
  		if (skip > 0)
  			--skip;
  	}
 +	if (requeue) {
 +		if (dma_tx_fragment(ring, requeue)) {
-+			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(requeue);
++			struct ieee80211_tx_info *info =
++				IEEE80211_SKB_CB(requeue);
 +
 +			b43_fill_txstatus_report(dev, info, status);
 +			ieee80211_tx_status_skb(dev->wl->hw, requeue);
@@ -92,7 +95,8 @@ index 0102df6..3d989cb 100644
 +			 */
 +			if (!ring->stopped) {
 +				b43_stop_queue(dev, ring->queue_prio);
-+				dev->wl->tx_queue_stopped[ring->queue_prio] = true;
++				dev->wl->tx_queue_stopped[ring->queue_prio] =
++					true;
 +				ring->stopped = true;
 +			}
 +			return;
@@ -102,10 +106,10 @@ index 0102df6..3d989cb 100644
  		B43_WARN_ON(free_slots(ring) < TX_SLOTS_PER_FRAME);
  		ring->stopped = false;
 diff --git a/drivers/net/wireless/broadcom/b43/main.c b/drivers/net/wireless/broadcom/b43/main.c
-index 5f76c3a..f7335ef 100644
+index 5830acb..6b80b5e 100644
 --- a/drivers/net/wireless/broadcom/b43/main.c
 +++ b/drivers/net/wireless/broadcom/b43/main.c
-@@ -5427,6 +5427,36 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
+@@ -5479,6 +5479,39 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
  	return 0;
  }
  
@@ -125,14 +129,17 @@ index 5f76c3a..f7335ef 100644
 +	case IEEE80211_AMPDU_TX_STOP_CONT:
 +	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 +	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
-+		ieee80211_stop_tx_ba_cb_irqsafe(vif, params->sta->addr, params->tid);
++		ieee80211_stop_tx_ba_cb_irqsafe(vif, params->sta->addr,
++						params->tid);
 +		return 0;
 +	case IEEE80211_AMPDU_TX_OPERATIONAL:
 +		return 0;
 +	case IEEE80211_AMPDU_RX_START:
 +	case IEEE80211_AMPDU_RX_STOP:
-+		/* The microcode deaggregates and sends the block acks,
-+		 * mac80211 reorders. */
++		/*
++		 * The microcode deaggregates and sends the block acks, mac80211
++		 * reorders.
++		 */
 +		return 0;
 +	default:
 +		return -EOPNOTSUPP;
@@ -142,7 +149,7 @@ index 5f76c3a..f7335ef 100644
  static const struct ieee80211_ops b43_hw_ops = {
  	.add_chanctx = ieee80211_emulate_add_chanctx,
  	.remove_chanctx = ieee80211_emulate_remove_chanctx,
-@@ -5449,6 +5479,7 @@ static const struct ieee80211_ops b43_hw_ops = {
+@@ -5501,6 +5534,7 @@ static const struct ieee80211_ops b43_hw_ops = {
  	.stop			= b43_op_stop,
  	.set_tim		= b43_op_beacon_set_tim,
  	.sta_notify		= b43_op_sta_notify,
@@ -150,7 +157,7 @@ index 5f76c3a..f7335ef 100644
  	.sw_scan_start		= b43_op_sw_scan_start_notifier,
  	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
  	.get_survey		= b43_op_get_survey,
-@@ -5538,6 +5569,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
+@@ -5590,6 +5624,9 @@ static int b43_setup_bands(struct b43_wldev *dev,
  			hw->wiphy->bands[NL80211_BAND_5GHZ] = &b43_band_5GHz_aphy;
  	}
  
@@ -161,16 +168,19 @@ index 5f76c3a..f7335ef 100644
  	dev->phy.supports_5ghz = have_5ghz_phy;
  
 diff --git a/drivers/net/wireless/broadcom/b43/xmit.c b/drivers/net/wireless/broadcom/b43/xmit.c
-index b6f8abb..75562f6 100644
+index dee6cc6..163e713 100644
 --- a/drivers/net/wireless/broadcom/b43/xmit.c
 +++ b/drivers/net/wireless/broadcom/b43/xmit.c
-@@ -1140,7 +1140,24 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
+@@ -1160,7 +1160,27 @@ bool b43_fill_txstatus_report(struct b43_wldev *dev,
  			frame_success = false;
  		}
  	}
 -	if (status->frame_count == 0) {
 +	if (report->flags & IEEE80211_TX_CTL_AMPDU) {
-+		/* minstrel_ht ignores session frames without this; one report per MPDU */
++		/*
++		 * minstrel_ht ignores session frames without this; one report
++		 * per MPDU
++		 */
 +		report->flags |= IEEE80211_TX_STAT_AMPDU;
 +		report->status.ampdu_len = 1;
 +		report->status.ampdu_ack_len = status->acked ? 1 : 0;
@@ -191,10 +201,10 @@ index b6f8abb..75562f6 100644
  		report->status.rates[0].count = 0;
  	} else if (status->rts_count > dev->wl->hw->conf.short_frame_max_tx_count) {
 diff --git a/drivers/net/wireless/broadcom/b43/xmit.h b/drivers/net/wireless/broadcom/b43/xmit.h
-index aa7a1ab..04a19a9 100644
+index d403a28..b6723be 100644
 --- a/drivers/net/wireless/broadcom/b43/xmit.h
 +++ b/drivers/net/wireless/broadcom/b43/xmit.h
-@@ -410,9 +410,11 @@ static inline u8 b43_kidx_to_raw(struct b43_wldev *dev, u8 firmware_kidx)
+@@ -412,9 +412,11 @@ static inline u8 b43_kidx_to_raw(struct b43_wldev *dev, u8 firmware_kidx)
   * The structure is placed in (struct ieee80211_tx_info *)->rate_driver_data
   *
   * @bouncebuffer: DMA Bouncebuffer (if used)

@@ -1,6 +1,6 @@
-From 7bd44ea6a73ce4a8c0313d895da4cf749518456d Mon Sep 17 00:00:00 2001
+From 8e9016eafb8491c6b2ef129adb086c1c1f09602e Mon Sep 17 00:00:00 2001
 From: Andreas Wendleder <gonsolo@gmail.com>
-Date: Wed, 14 Oct 2026 12:17:08 +0200
+Date: Thu, 12 Nov 2026 18:46:26 +0100
 Subject: [PATCH RFC wireless-next 3/4] wifi: b43: RX header handling for the
  AC microcode
 
@@ -18,14 +18,14 @@ still rejects anything corrupt.
 
 Only microcode revision 832 has been tested.
 ---
- drivers/net/wireless/broadcom/b43/xmit.c | 87 ++++++++++++++++++++++--
- 1 file changed, 81 insertions(+), 6 deletions(-)
+ drivers/net/wireless/broadcom/b43/xmit.c | 91 ++++++++++++++++++++++--
+ 1 file changed, 85 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/net/wireless/broadcom/b43/xmit.c b/drivers/net/wireless/broadcom/b43/xmit.c
-index 4ff3033..b6f8abb 100644
+index cf9e7a5..dee6cc6 100644
 --- a/drivers/net/wireless/broadcom/b43/xmit.c
 +++ b/drivers/net/wireless/broadcom/b43/xmit.c
-@@ -839,6 +839,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+@@ -855,6 +855,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
  	u32 macstat;
  	u16 chanid;
  	int padding, rate_idx;
@@ -33,7 +33,7 @@ index 4ff3033..b6f8abb 100644
  
  	memset(&status, 0, sizeof(status));
  
-@@ -858,6 +859,29 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+@@ -874,6 +875,31 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
  		chanstat = le16_to_cpu(rxhdr->format_351.channel);
  		break;
  	}
@@ -49,8 +49,10 @@ index 4ff3033..b6f8abb 100644
 +		mactime = get_unaligned_le16(h + 0x14);
 +		/* 80 MHz chanspec: centre channel and the primary's position */
 +		if ((cs & 0x3800) == 0x2000)
-+			cs = (cs & 0xff00) | ((cs & 0xff) - 6 + 4 * ((cs >> 8) & 0x7));
-+		chanstat = ((cs & 0xff) << B43_RX_CHAN_ID_SHIFT) | B43_PHYTYPE_N;
++			cs = (cs & 0xff00) |
++			     ((cs & 0xff) - 6 + 4 * ((cs >> 8) & 0x7));
++		chanstat = ((cs & 0xff) << B43_RX_CHAN_ID_SHIFT) |
++			   B43_PHYTYPE_N;
 +		if ((cs & 0xc000) == 0xc000)
 +			chanstat |= B43_RX_CHAN_5GHZ;
 +		if (p0 == -128)
@@ -63,7 +65,7 @@ index 4ff3033..b6f8abb 100644
  
  	if (unlikely(macstat & B43_RX_MAC_FCSERR)) {
  		dev->wl->ieee_stats.dot11FCSErrorCount++;
-@@ -868,10 +892,18 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+@@ -884,10 +910,19 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
  	if (phystat0 & B43_RX_PHYST0_SHORTPRMBL)
  		status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
  	if (macstat & B43_RX_MAC_DECERR) {
@@ -78,15 +80,16 @@ index 4ff3033..b6f8abb 100644
 +		 * software decryption still rejects anything really corrupt.
 +		 */
 +		if (b43_ucode_is_ac(dev)) {
-+			b43dbg(dev->wl, "RX: DECERR passed up (len %u, macstat %04x)\n",
-+				skb->len, macstat);
++			b43dbg(dev->wl,
++			       "RX: DECERR passed up (len %u, macstat %04x)\n",
++			       skb->len, macstat);
 +		} else {
 +			goto drop;
 +		}
  	}
  
  	/* Skip PLCP and padding */
-@@ -915,7 +947,11 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+@@ -931,7 +966,11 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
  	}
  
  	/* Link quality statistics */
@@ -99,7 +102,7 @@ index 4ff3033..b6f8abb 100644
  	case B43_PHYTYPE_HT:
  		/* TODO: is max the right choice? */
  		status.signal = max_t(__s8,
-@@ -939,7 +975,46 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
+@@ -955,7 +994,47 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
  		break;
  	}
  
@@ -118,7 +121,8 @@ index 4ff3033..b6f8abb 100644
 +			status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
 +		if (sig[3] & 0x40)
 +			status.enc_flags |= RX_ENC_FLAG_LDPC;
-+		status.enc_flags |= ((sig[3] >> 4) & 0x3) << RX_ENC_FLAG_STBC_SHIFT;
++		status.enc_flags |= ((sig[3] >> 4) & 0x3)
++				    << RX_ENC_FLAG_STBC_SHIFT;
 +		rate_idx = (sig[0] & 0x7f) <= 15 ? sig[0] & 0x7f : -1;
 +	} else if (b43_ucode_is_ac(dev) &&
 +		   (phystat0 & B43_RX_PHYST0_FTYPE) == B43_RX_PHYST0_STD_N) {
