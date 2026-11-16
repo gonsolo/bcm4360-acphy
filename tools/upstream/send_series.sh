@@ -18,8 +18,6 @@ git send-email --confirm=${CONFIRM:-always} --suppress-cc=all --to-cmd=true --cc
 	--cc 'Johannes Berg <johannes@sipsolutions.net>' \
 	--cc 'b43-dev@lists.infradead.org' \
 	--cc 'Alessio Ferri <alessio.ferri@mythread.it>' \
-	--cc 'kvalo@kernel.org' \
-	--cc 'julian.calaby@gmail.com' \
 	--cc 'jpeisach@ubuntu.com' \
 	--cc 'rosenp@gmail.com' \
 	--cc 'linux-kernel@vger.kernel.org' \
